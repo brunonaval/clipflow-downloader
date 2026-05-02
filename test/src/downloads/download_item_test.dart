@@ -52,6 +52,8 @@ void main() {
       expect(item.availableFormats, isEmpty);
       expect(item.selectedFormatId, isNull);
       expect(item.commandPreviewLabel, isNull);
+      expect(item.directDownloadUrl, isNull);
+      expect(item.outputFileName, isNull);
     });
 
     test('copyWith preserves fields not overridden', () {
@@ -160,6 +162,27 @@ void main() {
         copied.commandPreviewLabel,
         'Motor interno --format video-mp4-1080p https://example.com',
       );
+    });
+
+    test('copyWith updates directDownloadUrl and outputFileName', () {
+      final item = DownloadItem(
+        id: 'direct',
+        title: 'Direct',
+        durationLabel: '-',
+        sizeLabel: '-',
+        formatLabel: 'MP4',
+        qualityLabel: '720p',
+        fpsLabel: '-',
+        sourceLabel: '-',
+      );
+
+      final copied = item.copyWith(
+        directDownloadUrl: 'https://example.com/file.mp4',
+        outputFileName: 'file.mp4',
+      );
+
+      expect(copied.directDownloadUrl, 'https://example.com/file.mp4');
+      expect(copied.outputFileName, 'file.mp4');
     });
 
     test('progress is clamped to 0.0 for values below 0', () {

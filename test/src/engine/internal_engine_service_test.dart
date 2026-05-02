@@ -56,6 +56,7 @@ void main() {
     test('analyzeUrl para YouTube retorna canDownloadDirectly false', () {
       final result = service.analyzeUrl(rawUrl: 'https://youtu.be/abc123');
       expect(result.canDownloadDirectly, isFalse);
+      expect(result.directDownloadUri, isNull);
     });
 
     test('analyzeUrl para mp4 retorna canDownloadDirectly true', () {
@@ -63,6 +64,8 @@ void main() {
         rawUrl: 'https://example.com/video.mp4',
       );
       expect(result.canDownloadDirectly, isTrue);
+      expect(result.directDownloadUri, isNotNull);
+      expect(result.directDownloadUri!.toString(), contains('video.mp4'));
     });
 
     test('analyzeUrl para mp4 retorna formato recomendado', () {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +9,11 @@ import '../downloads/download_format_option.dart';
 import '../downloads/download_options.dart';
 import '../downloads/download_queue_controller.dart';
 import '../downloads/download_queue_filter.dart';
+import '../engine/download/internal_download_cancellation.dart';
+import '../engine/download/internal_download_progress.dart';
+import '../engine/download/internal_download_request.dart';
+import '../engine/download/internal_download_result.dart';
+import '../engine/download/internal_http_downloader.dart';
 import '../engine/youtube/youtube_url_parser.dart';
 import 'mock_download_item.dart';
 
@@ -28,6 +34,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String _searchQuery = '';
   Timer? _fakeProgressTimer;
   Timer? _mockAnalysisTimer;
+  final Map<String, InternalDownloadCancellation> _downloadCancellations = {};
+  static const _httpDownloader = InternalHttpDownloader();
 
   late final DownloadQueueController _queueController;
 
@@ -41,6 +49,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    for (final cancellation in _downloadCancellations.values) {
+      cancellation.cancel();
+    }
+    _downloadCancellations.clear();
     _fakeProgressTimer?.cancel();
     _fakeProgressTimer = null;
     _mockAnalysisTimer?.cancel();
@@ -65,9 +77,12 @@ class _HomeScreenState extends State<HomeScreen> {
   void _tickFakeProgress() {
     if (!mounted) return;
     final changed = _queueController.advanceFakeProgress(step: 0.08);
-    if (changed > 0) {
-      setState(() {});
+    if (changed <= 0) {
+      _fakeProgressTimer?.cancel();
+      _fakeProgressTimer = null;
+      return;
     }
+    setState(() {});
     _stopFakeProgressTimerIfIdle();
   }
 
@@ -236,11 +251,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _startItem(DownloadItem item) {
-    final started = _queueController.startItem(item.id);
+    final started = _queueController.markItemDownloading(item.id);
     if (started == null) return;
 
-    _ensureFakeProgressTimer();
     setState(() {});
+    if (started.directDownloadUrl != null) {
+      _startInternalDirectDownload(started);
+      return;
+    }
+
+    _ensureFakeProgressTimer();
   }
 
   void _pauseItem(DownloadItem item) {
@@ -252,11 +272,87 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _cancelItem(DownloadItem item) {
+    final cancellation = _downloadCancellations[item.id];
+    cancellation?.cancel();
+
     final canceled = _queueController.cancelItem(item.id);
     if (canceled == null) return;
 
     setState(() {});
     _stopFakeProgressTimerIfIdle();
+  }
+
+  Future<void> _startInternalDirectDownload(DownloadItem item) async {
+    final url = item.directDownloadUrl?.trim() ?? '';
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) {
+      _queueController.markItemFailed(
+        item.id,
+        'Falha ao iniciar download direto.',
+      );
+      if (mounted) setState(() {});
+      return;
+    }
+
+    final cancellation = InternalDownloadCancellation();
+    _downloadCancellations[item.id] = cancellation;
+
+    IOSink? sink;
+    try {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'clipflow_downloads_',
+      );
+      final fileName = (item.outputFileName?.trim().isNotEmpty ?? false)
+          ? item.outputFileName!.trim()
+          : 'clipflow-download.bin';
+      final tempPath = '${tempDir.path}${Platform.pathSeparator}$fileName';
+      sink = File(tempPath).openWrite();
+
+      final result = await _httpDownloader.download(
+        request: InternalDownloadRequest(sourceUri: uri, fileName: fileName),
+        sink: sink,
+        cancellation: cancellation,
+        onProgress: (InternalDownloadProgress progress) {
+          final fraction = progress.fraction;
+          if (fraction == null) return;
+          _queueController.updateItemProgress(item.id, fraction);
+          if (mounted) {
+            setState(() {});
+          }
+        },
+      );
+
+      if (!mounted) return;
+      switch (result.status) {
+        case InternalDownloadStatus.completed:
+          _queueController.markItemCompleted(item.id);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Download concluído em pasta temporária'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          break;
+        case InternalDownloadStatus.canceled:
+          _queueController.cancelItem(item.id);
+          break;
+        case InternalDownloadStatus.failed:
+          _queueController.markItemFailed(item.id, result.message);
+          break;
+      }
+      setState(() {});
+    } catch (_) {
+      _queueController.markItemFailed(
+        item.id,
+        'Falha ao iniciar download direto.',
+      );
+      if (mounted) {
+        setState(() {});
+      }
+    } finally {
+      await sink?.close();
+      _downloadCancellations.remove(item.id);
+    }
   }
 
   void _removeItem(DownloadItem item) {

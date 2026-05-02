@@ -7,6 +7,7 @@ class InternalEngineAnalysisResult {
   final List<DownloadFormatOption> formats;
   final String? recommendedFormatId;
   final bool canDownloadDirectly;
+  final Uri? directDownloadUri;
 
   const InternalEngineAnalysisResult({
     required this.title,
@@ -15,5 +16,6 @@ class InternalEngineAnalysisResult {
     required this.formats,
     required this.recommendedFormatId,
     required this.canDownloadDirectly,
+    this.directDownloadUri,
   });
 }

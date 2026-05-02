@@ -433,6 +433,8 @@ void main() {
 
       expect(updated, isNotNull);
       expect(updated!.status, DownloadStatus.ready);
+      expect(updated.directDownloadUrl, 'https://example.com/video.mp4');
+      expect(updated.outputFileName, 'video.mp4');
     });
 
     test('markItemReadyAfterInternalAnalysis preenche availableFormats', () {
@@ -467,6 +469,7 @@ void main() {
         expect(updated, isNotNull);
         expect(updated!.status, DownloadStatus.ready);
         expect(updated.availableFormats, isNotEmpty);
+        expect(updated.directDownloadUrl, isNull);
         expect(
           updated.title.contains('YouTube') ||
               updated.sourceLabel.contains('YouTube'),
@@ -543,6 +546,65 @@ void main() {
 
       expect(started, isNotNull);
       expect(started!.status, DownloadStatus.downloading);
+    });
+
+    test('markItemDownloading muda ready para downloading', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(id: '1', title: 'Ready', status: DownloadStatus.ready),
+        ],
+      );
+
+      final started = controller.markItemDownloading('1');
+
+      expect(started, isNotNull);
+      expect(started!.status, DownloadStatus.downloading);
+    });
+
+    test('updateItemProgress clampa progresso', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(id: '1', title: 'Run', status: DownloadStatus.downloading),
+        ],
+      );
+
+      final updated = controller.updateItemProgress('1', 2.0);
+
+      expect(updated, isNotNull);
+      expect(updated!.progress, 1.0);
+    });
+
+    test('markItemCompleted conclui item', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(
+            id: '1',
+            title: 'Run',
+            status: DownloadStatus.downloading,
+            progress: 0.5,
+          ),
+        ],
+      );
+
+      final completed = controller.markItemCompleted('1');
+
+      expect(completed, isNotNull);
+      expect(completed!.status, DownloadStatus.completed);
+      expect(completed.progress, 1.0);
+    });
+
+    test('markItemFailed marca failed', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(id: '1', title: 'Run', status: DownloadStatus.downloading),
+        ],
+      );
+
+      final failed = controller.markItemFailed('1', 'Falha controlada');
+
+      expect(failed, isNotNull);
+      expect(failed!.status, DownloadStatus.failed);
+      expect(failed.sourceLabel, 'Falha controlada');
     });
 
     test('attachMockCommandPreview retorna null para item inexistente', () {

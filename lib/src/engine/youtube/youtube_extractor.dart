@@ -64,6 +64,7 @@ class YouTubeExtractor {
         formats: const [],
         recommendedFormatId: null,
         canDownloadDirectly: false,
+        directDownloadUri: null,
       );
     }
 
@@ -78,6 +79,7 @@ class YouTubeExtractor {
       formats: formats,
       recommendedFormatId: formats.first.id,
       canDownloadDirectly: false,
+      directDownloadUri: null,
     );
   }
 
@@ -95,6 +97,7 @@ class YouTubeExtractor {
       formats: formats,
       recommendedFormatId: formats.first.id,
       canDownloadDirectly: false,
+      directDownloadUri: null,
     );
   }
 

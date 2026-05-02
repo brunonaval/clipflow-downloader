@@ -28,6 +28,8 @@ class DownloadItem {
   final List<DownloadFormatOption> availableFormats;
   final String? selectedFormatId;
   final String? commandPreviewLabel;
+  final String? directDownloadUrl;
+  final String? outputFileName;
 
   DownloadItem({
     required this.id,
@@ -44,6 +46,8 @@ class DownloadItem {
     List<DownloadFormatOption> availableFormats = const [],
     this.selectedFormatId,
     this.commandPreviewLabel,
+    this.directDownloadUrl,
+    this.outputFileName,
     double progress = 0.0,
   }) : progress = progress.clamp(0.0, 1.0),
        availableFormats = List.unmodifiable(availableFormats);
@@ -78,6 +82,8 @@ class DownloadItem {
     List<DownloadFormatOption>? availableFormats,
     String? selectedFormatId,
     String? commandPreviewLabel,
+    String? directDownloadUrl,
+    String? outputFileName,
   }) {
     return DownloadItem(
       id: id ?? this.id,
@@ -95,6 +101,8 @@ class DownloadItem {
       availableFormats: availableFormats ?? this.availableFormats,
       selectedFormatId: selectedFormatId ?? this.selectedFormatId,
       commandPreviewLabel: commandPreviewLabel ?? this.commandPreviewLabel,
+      directDownloadUrl: directDownloadUrl ?? this.directDownloadUrl,
+      outputFileName: outputFileName ?? this.outputFileName,
     );
   }
 }

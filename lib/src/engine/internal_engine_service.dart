@@ -85,6 +85,7 @@ class InternalEngineService {
         formats: [],
         recommendedFormatId: null,
         canDownloadDirectly: false,
+        directDownloadUri: null,
       );
     }
 
@@ -107,6 +108,7 @@ class InternalEngineService {
         formats: [format],
         recommendedFormatId: format.id,
         canDownloadDirectly: true,
+        directDownloadUri: uri,
       );
     }
 
@@ -158,6 +160,7 @@ class InternalEngineService {
       formats: formats,
       recommendedFormatId: formats.first.id,
       canDownloadDirectly: false,
+      directDownloadUri: null,
     );
   }
 

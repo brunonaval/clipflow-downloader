@@ -111,6 +111,10 @@ class DownloadQueueController {
   }
 
   DownloadItem? startItem(String id) {
+    return markItemDownloading(id);
+  }
+
+  DownloadItem? markItemDownloading(String id) {
     final index = _indexOf(id);
     if (index < 0) return null;
 
@@ -176,8 +180,17 @@ class DownloadQueueController {
         status: DownloadStatus.failed,
         sourceLabel: result.sourceLabel,
         progress: 0,
+        directDownloadUrl: null,
+        outputFileName: null,
       );
       return _replaceAt(index, failed);
+    }
+
+    String? directDownloadUrl;
+    String? outputFileName;
+    if (result.canDownloadDirectly && result.directDownloadUri != null) {
+      directDownloadUrl = result.directDownloadUri.toString();
+      outputFileName = _safeOutputFileNameFromUri(result.directDownloadUri!);
     }
 
     final updated = item.copyWith(
@@ -188,6 +201,8 @@ class DownloadQueueController {
       sourceLabel: result.sourceLabel,
       availableFormats: result.formats,
       selectedFormatId: result.recommendedFormatId,
+      directDownloadUrl: directDownloadUrl,
+      outputFileName: outputFileName,
     );
     return _replaceAt(index, updated);
   }
@@ -215,6 +230,8 @@ class DownloadQueueController {
         durationLabel: result.durationLabel,
         sourceLabel: result.sourceLabel,
         progress: 0,
+        directDownloadUrl: null,
+        outputFileName: null,
       );
       return _replaceAt(index, failed);
     }
@@ -227,6 +244,38 @@ class DownloadQueueController {
       sourceLabel: result.sourceLabel,
       availableFormats: result.formats,
       selectedFormatId: result.recommendedFormatId,
+      directDownloadUrl: null,
+      outputFileName: null,
+    );
+    return _replaceAt(index, updated);
+  }
+
+  DownloadItem? updateItemProgress(String id, double progress) {
+    final index = _indexOf(id);
+    if (index < 0) return null;
+    final item = _items[index];
+    final updated = item.copyWith(progress: progress.clamp(0.0, 1.0));
+    return _replaceAt(index, updated);
+  }
+
+  DownloadItem? markItemCompleted(String id) {
+    final index = _indexOf(id);
+    if (index < 0) return null;
+    final item = _items[index];
+    final updated = item.copyWith(
+      status: DownloadStatus.completed,
+      progress: 1,
+    );
+    return _replaceAt(index, updated);
+  }
+
+  DownloadItem? markItemFailed(String id, String message) {
+    final index = _indexOf(id);
+    if (index < 0) return null;
+    final item = _items[index];
+    final updated = item.copyWith(
+      status: DownloadStatus.failed,
+      sourceLabel: message,
     );
     return _replaceAt(index, updated);
   }
@@ -319,6 +368,7 @@ class DownloadQueueController {
     for (var i = 0; i < _items.length; i++) {
       final item = _items[i];
       if (item.status != DownloadStatus.downloading) continue;
+      if (item.directDownloadUrl != null) continue;
 
       final nextProgress = item.progress + safeStep;
       if (nextProgress >= 1) {
@@ -350,6 +400,18 @@ class DownloadQueueController {
     final index = sourceLabel.lastIndexOf(separator);
     if (index < 0 || index == sourceLabel.length - 1) return 'Vídeos';
     return sourceLabel.substring(index + 1).trim();
+  }
+
+  String _safeOutputFileNameFromUri(Uri uri) {
+    final lastSegment = uri.pathSegments.isNotEmpty
+        ? uri.pathSegments.last
+        : '';
+    final decoded = Uri.decodeComponent(lastSegment).trim();
+    final baseName = decoded.isNotEmpty ? decoded : 'clipflow-download.bin';
+    final cleaned = baseName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+    if (cleaned.isEmpty) return 'clipflow-download.bin';
+    if (cleaned.length <= 120) return cleaned;
+    return cleaned.substring(0, 120);
   }
 
   DownloadItem _replaceAt(int index, DownloadItem updated) {
