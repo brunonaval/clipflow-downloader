@@ -1,13 +1,17 @@
-import 'download_format_option.dart';
+import '../engine/mock_engine_service.dart';
 import 'download_item.dart';
 import 'download_options.dart';
 import 'download_queue_filter.dart';
 
 class DownloadQueueController {
-  DownloadQueueController({List<DownloadItem>? initialItems})
-    : _items = List.of(initialItems ?? <DownloadItem>[]),
-      _nextMockItemNumber = (initialItems?.length ?? 0) + 1;
+  DownloadQueueController({
+    List<DownloadItem>? initialItems,
+    MockEngineService engineService = const MockEngineService(),
+  }) : _engineService = engineService,
+       _items = List.of(initialItems ?? <DownloadItem>[]),
+       _nextMockItemNumber = (initialItems?.length ?? 0) + 1;
 
+  final MockEngineService _engineService;
   List<DownloadItem> _items;
   int _nextMockItemNumber;
 
@@ -130,13 +134,19 @@ class DownloadQueueController {
     if (item.status != DownloadStatus.analyzing) return null;
 
     final outputFolder = _extractOutputFolderFromSource(item.sourceLabel);
-    final formats = _mockFormatsFor(item);
+    final result = _engineService.analyzeMockUrl(
+      sourceUrl: item.sourceUrl,
+      outputFolderLabel: outputFolder,
+    );
+
     final updated = item.copyWith(
       status: DownloadStatus.ready,
       progress: 0,
-      sourceLabel: 'Análise mockada concluída · $outputFolder',
-      availableFormats: formats,
-      selectedFormatId: 'video-mp4-1080p',
+      title: result.title,
+      durationLabel: result.durationLabel,
+      sourceLabel: result.sourceLabel,
+      availableFormats: result.formats,
+      selectedFormatId: result.recommendedFormatId,
     );
     return _replaceAt(index, updated);
   }
@@ -229,48 +239,6 @@ class DownloadQueueController {
     final index = sourceLabel.lastIndexOf(separator);
     if (index < 0 || index == sourceLabel.length - 1) return 'Vídeos';
     return sourceLabel.substring(index + 1).trim();
-  }
-
-  List<DownloadFormatOption> _mockFormatsFor(DownloadItem item) {
-    return const [
-      DownloadFormatOption(
-        id: 'video-mp4-1080p',
-        kind: DownloadFormatKind.video,
-        label: 'Vídeo MP4 1080p',
-        formatLabel: 'MP4',
-        qualityLabel: '1080p',
-        sizeLabel: '24 MB',
-        detailsLabel: 'Vídeo com áudio em MP4',
-        isRecommended: true,
-      ),
-      DownloadFormatOption(
-        id: 'video-mp4-720p',
-        kind: DownloadFormatKind.video,
-        label: 'Vídeo MP4 720p',
-        formatLabel: 'MP4',
-        qualityLabel: '720p',
-        sizeLabel: '16 MB',
-        detailsLabel: 'Arquivo menor em MP4',
-      ),
-      DownloadFormatOption(
-        id: 'audio-m4a',
-        kind: DownloadFormatKind.audio,
-        label: 'Áudio M4A',
-        formatLabel: 'M4A',
-        qualityLabel: 'Áudio',
-        sizeLabel: '5 MB',
-        detailsLabel: 'Somente áudio',
-      ),
-      DownloadFormatOption(
-        id: 'subtitles-srt',
-        kind: DownloadFormatKind.subtitles,
-        label: 'Legendas SRT',
-        formatLabel: 'SRT',
-        qualityLabel: 'Texto',
-        sizeLabel: '120 KB',
-        detailsLabel: 'Legendas mockadas',
-      ),
-    ];
   }
 
   DownloadItem _replaceAt(int index, DownloadItem updated) {

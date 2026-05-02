@@ -344,6 +344,7 @@ void main() {
       final created = controller.addMockAuthorizedLink(
         status: DownloadStatus.analyzing,
         outputFolderLabel: 'Downloads',
+        sourceUrl: 'https://example.com/video',
       );
 
       final updated = controller.markItemReadyAfterMockAnalysis(created.id);
@@ -351,6 +352,8 @@ void main() {
       expect(updated, isNotNull);
       expect(updated!.status, DownloadStatus.ready);
       expect(updated.progress, 0);
+      expect(updated.title, 'Link autorizado analisado');
+      expect(updated.durationLabel, '03:21');
       expect(updated.sourceLabel, contains('Análise mockada concluída'));
       expect(updated.sourceLabel, contains('Downloads'));
       expect(updated.availableFormats, hasLength(4));
