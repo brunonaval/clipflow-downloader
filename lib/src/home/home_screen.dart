@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../downloads/download_item.dart';
 import '../downloads/download_options.dart';
 import '../downloads/download_queue_controller.dart';
+import '../downloads/download_queue_filter.dart';
 import 'mock_download_item.dart';
 
 const _kGreen = Color(0xFF2E7D32);
@@ -17,8 +20,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedTab = 0;
+  DownloadQueueFilter _activeFilter = DownloadQueueFilter.all;
   DownloadOptions _downloadOptions = const DownloadOptions();
+  String _searchQuery = '';
+  Timer? _fakeProgressTimer;
 
   late final DownloadQueueController _queueController;
 
@@ -28,6 +33,36 @@ class _HomeScreenState extends State<HomeScreen> {
     _queueController = DownloadQueueController(
       initialItems: initialMockDownloadItems,
     );
+  }
+
+  @override
+  void dispose() {
+    _fakeProgressTimer?.cancel();
+    _fakeProgressTimer = null;
+    super.dispose();
+  }
+
+  void _ensureFakeProgressTimer() {
+    if (_fakeProgressTimer != null) return;
+    _fakeProgressTimer = Timer.periodic(
+      const Duration(milliseconds: 500),
+      (_) => _tickFakeProgress(),
+    );
+  }
+
+  void _stopFakeProgressTimerIfIdle() {
+    if (_queueController.hasRunningItems) return;
+    _fakeProgressTimer?.cancel();
+    _fakeProgressTimer = null;
+  }
+
+  void _tickFakeProgress() {
+    if (!mounted) return;
+    final changed = _queueController.advanceFakeProgress(step: 0.08);
+    if (changed > 0) {
+      setState(() {});
+    }
+    _stopFakeProgressTimerIfIdle();
   }
 
   Future<void> _handlePaste() async {
@@ -62,8 +97,58 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _startItem(DownloadItem item) {
+    final started = _queueController.startItem(item.id);
+    if (started == null) return;
+
+    _ensureFakeProgressTimer();
+    setState(() {});
+  }
+
+  void _pauseItem(DownloadItem item) {
+    final paused = _queueController.pauseItem(item.id);
+    if (paused == null) return;
+
+    setState(() {});
+    _stopFakeProgressTimerIfIdle();
+  }
+
+  void _cancelItem(DownloadItem item) {
+    final canceled = _queueController.cancelItem(item.id);
+    if (canceled == null) return;
+
+    setState(() {});
+    _stopFakeProgressTimerIfIdle();
+  }
+
+  void _removeItem(DownloadItem item) {
+    final removed = _queueController.removeItem(item.id);
+    if (removed == null) return;
+
+    setState(() {});
+    _stopFakeProgressTimerIfIdle();
+  }
+
+  void _clearFinishedItems() {
+    final removed = _queueController.clearFinishedItems();
+    setState(() {});
+    _stopFakeProgressTimerIfIdle();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Itens finalizados removidos: $removed'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final visibleItems = _queueController.filteredItems(
+      filter: _activeFilter,
+      searchQuery: _searchQuery,
+    );
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       body: Column(
@@ -75,12 +160,17 @@ class _HomeScreenState extends State<HomeScreen> {
             selectedQualityLabel: _downloadOptions.toolbarQualityLabel,
             selectedFormatLabel: _downloadOptions.toolbarFormatLabel,
             selectedOutputFolderLabel: _downloadOptions.toolbarOutputFolderLabel,
-            onTransferChanged: (type) =>
-                setState(() => _downloadOptions = _downloadOptions.copyWith(transferType: type)),
-            onQualityChanged: (value) =>
-                setState(() => _downloadOptions = _downloadOptions.copyWith(qualityLabel: value)),
-            onFormatChanged: (value) =>
-                setState(() => _downloadOptions = _downloadOptions.copyWith(formatLabel: value)),
+            onTransferChanged: (type) => setState(
+              () => _downloadOptions =
+                  _downloadOptions.copyWith(transferType: type),
+            ),
+            onQualityChanged: (value) => setState(
+              () => _downloadOptions =
+                  _downloadOptions.copyWith(qualityLabel: value),
+            ),
+            onFormatChanged: (value) => setState(
+              () => _downloadOptions = _downloadOptions.copyWith(formatLabel: value),
+            ),
             onOutputFolderChanged: (value) => setState(
               () => _downloadOptions =
                   _downloadOptions.copyWith(outputFolderLabel: value),
@@ -89,22 +179,35 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const Divider(height: 1, thickness: 1, color: _kDivider),
           _FilterTabs(
-            selectedIndex: _selectedTab,
-            itemCountLabel: _queueController.itemCountLabel,
-            onChanged: (i) => setState(() => _selectedTab = i),
+            selectedFilter: _activeFilter,
+            itemCountLabel: _queueController.filteredItemCountLabel(
+              filter: _activeFilter,
+              searchQuery: _searchQuery,
+            ),
+            onSearchChanged: (value) => setState(() => _searchQuery = value),
+            onChanged: (filter) => setState(() => _activeFilter = filter),
           ),
           const Divider(height: 1, thickness: 1, color: _kDivider),
           Expanded(
             child: ColoredBox(
               color: Colors.white,
-              child: ListView.builder(
-                itemCount: _queueController.itemCount,
-                itemBuilder: (_, i) =>
-                    _DownloadListItem(item: _queueController.items[i]),
-              ),
+              child: visibleItems.isEmpty
+                  ? const _EmptyFilterState()
+                  : ListView.builder(
+                      itemCount: visibleItems.length,
+                      itemBuilder: (_, i) => _DownloadListItem(
+                        item: visibleItems[i],
+                        onStart: () => _startItem(visibleItems[i]),
+                        onPause: () => _pauseItem(visibleItems[i]),
+                        onCancel: () => _cancelItem(visibleItems[i]),
+                        onRemove: () => _removeItem(visibleItems[i]),
+                      ),
+                    ),
             ),
           ),
-          const _StatusBar(),
+          _StatusBar(
+            onClearFinished: _clearFinishedItems,
+          ),
         ],
       ),
     );
@@ -341,25 +444,19 @@ class _SelectorButton<T> extends StatelessWidget {
 }
 
 class _FilterTabs extends StatelessWidget {
-  final int selectedIndex;
+  final DownloadQueueFilter selectedFilter;
   final String itemCountLabel;
-  final ValueChanged<int> onChanged;
+  final ValueChanged<String> onSearchChanged;
+  final ValueChanged<DownloadQueueFilter> onChanged;
 
   const _FilterTabs({
-    required this.selectedIndex,
+    required this.selectedFilter,
     required this.itemCountLabel,
+    required this.onSearchChanged,
     required this.onChanged,
   });
 
-  static const _tabs = [
-    'Todos',
-    'Vídeo',
-    'Áudio',
-    'Listas de Reprodução',
-    'Canais',
-    'Assinaturas',
-    'IA',
-  ];
+  static const _tabs = DownloadQueueFilter.values;
 
   @override
   Widget build(BuildContext context) {
@@ -372,10 +469,10 @@ class _FilterTabs extends StatelessWidget {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: List.generate(_tabs.length, (i) {
-                  final selected = i == selectedIndex;
+                children: _tabs.map((tab) {
+                  final selected = tab == selectedFilter;
                   return InkWell(
-                    onTap: () => onChanged(i),
+                    onTap: () => onChanged(tab),
                     child: Container(
                       height: 48,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -389,7 +486,7 @@ class _FilterTabs extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        _tabs[i],
+                        tab.label,
                         style: TextStyle(
                           fontSize: 13,
                           color: selected ? _kGreen : Colors.black87,
@@ -400,7 +497,7 @@ class _FilterTabs extends StatelessWidget {
                       ),
                     ),
                   );
-                }),
+                }).toList(),
               ),
             ),
           ),
@@ -410,30 +507,23 @@ class _FilterTabs extends StatelessWidget {
             indent: 8,
             endIndent: 8,
           ),
+          SizedBox(
+            width: 170,
+            child: TextField(
+              onChanged: onSearchChanged,
+              decoration: const InputDecoration(
+                isDense: true,
+                hintText: 'Buscar',
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              ),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              children: [
-                Text(
-                  itemCountLabel,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                ),
-                const SizedBox(width: 4),
-                IconButton(
-                  icon: const Icon(Icons.search, size: 18),
-                  onPressed: () {},
-                  tooltip: 'Buscar',
-                  color: Colors.black54,
-                  visualDensity: VisualDensity.compact,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.sort, size: 18),
-                  onPressed: () {},
-                  tooltip: 'Ordenar',
-                  color: Colors.black54,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
+            child: Text(
+              itemCountLabel,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
             ),
           ),
         ],
@@ -444,8 +534,18 @@ class _FilterTabs extends StatelessWidget {
 
 class _DownloadListItem extends StatelessWidget {
   final DownloadItem item;
+  final VoidCallback onStart;
+  final VoidCallback onPause;
+  final VoidCallback onCancel;
+  final VoidCallback onRemove;
 
-  const _DownloadListItem({required this.item});
+  const _DownloadListItem({
+    required this.item,
+    required this.onStart,
+    required this.onPause,
+    required this.onCancel,
+    required this.onRemove,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -508,7 +608,15 @@ class _DownloadListItem extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
+              _ItemActions(
+                item: item,
+                onStart: onStart,
+                onPause: onPause,
+                onCancel: onCancel,
+                onRemove: onRemove,
+              ),
+              const SizedBox(width: 8),
               _StatusBadge(item: item),
             ],
           ),
@@ -523,17 +631,86 @@ class _DownloadListItem extends StatelessWidget {
   }
 }
 
+class _ItemActions extends StatelessWidget {
+  final DownloadItem item;
+  final VoidCallback onStart;
+  final VoidCallback onPause;
+  final VoidCallback onCancel;
+  final VoidCallback onRemove;
+
+  const _ItemActions({
+    required this.item,
+    required this.onStart,
+    required this.onPause,
+    required this.onCancel,
+    required this.onRemove,
+  });
+
+  bool get _canStart =>
+      item.status == DownloadStatus.queued ||
+      item.status == DownloadStatus.ready ||
+      item.status == DownloadStatus.paused ||
+      item.status == DownloadStatus.failed ||
+      item.status == DownloadStatus.canceled;
+
+  bool get _canPause => item.status == DownloadStatus.downloading;
+
+  bool get _canCancel =>
+      item.status == DownloadStatus.queued ||
+      item.status == DownloadStatus.ready ||
+      item.status == DownloadStatus.downloading ||
+      item.status == DownloadStatus.paused ||
+      item.status == DownloadStatus.failed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (_canStart)
+          IconButton(
+            icon: const Icon(Icons.play_arrow, size: 18),
+            onPressed: onStart,
+            tooltip: 'Iniciar',
+            visualDensity: VisualDensity.compact,
+          ),
+        if (_canPause)
+          IconButton(
+            icon: const Icon(Icons.pause, size: 18),
+            onPressed: onPause,
+            tooltip: 'Pausar',
+            visualDensity: VisualDensity.compact,
+          ),
+        if (_canCancel)
+          IconButton(
+            icon: const Icon(Icons.cancel_outlined, size: 18),
+            onPressed: onCancel,
+            tooltip: 'Cancelar',
+            visualDensity: VisualDensity.compact,
+          ),
+        IconButton(
+          icon: const Icon(Icons.delete_outline, size: 18),
+          onPressed: onRemove,
+          tooltip: 'Remover',
+          visualDensity: VisualDensity.compact,
+        ),
+      ],
+    );
+  }
+}
+
 class _StatusBadge extends StatelessWidget {
   final DownloadItem item;
 
   const _StatusBadge({required this.item});
 
   static Color _colorFor(DownloadStatus s) => switch (s) {
-        DownloadStatus.completed => Color(0xFF2E7D32),
+        DownloadStatus.completed => const Color(0xFF2E7D32),
         DownloadStatus.failed => Colors.red,
         DownloadStatus.canceled => Colors.grey,
         DownloadStatus.downloading => Colors.blue,
         DownloadStatus.ready => Colors.teal,
+        DownloadStatus.paused => Colors.orange,
         _ => Colors.grey,
       };
 
@@ -550,8 +727,34 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
+class _EmptyFilterState extends StatelessWidget {
+  const _EmptyFilterState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Nenhum item neste filtro',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+          SizedBox(height: 6),
+          Text(
+            'Cole um link ou altere o filtro para ver outros itens.',
+            style: TextStyle(fontSize: 12, color: Colors.black54),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _StatusBar extends StatelessWidget {
-  const _StatusBar();
+  final VoidCallback onClearFinished;
+
+  const _StatusBar({required this.onClearFinished});
 
   @override
   Widget build(BuildContext context) {
@@ -562,40 +765,53 @@ class _StatusBar extends StatelessWidget {
       child: Row(
         children: [
           const Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Pronto para downloads autorizados',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'Cole um link de conteúdo próprio, autorizado ou permitido pela plataforma',
-                  style: TextStyle(color: Colors.white70, fontSize: 11),
-                ),
-              ],
+            child: Text(
+              'Pronto para downloads autorizados',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
             ),
           ),
-          OutlinedButton(
-            onPressed: () {},
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: const BorderSide(color: Colors.white54),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(4),
-              ),
-              visualDensity: VisualDensity.compact,
-            ),
-            child: const Text(
-              'Configurar motor',
-              style: TextStyle(fontSize: 13),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                OutlinedButton(
+                  onPressed: onClearFinished,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white54),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: const Text(
+                    'Limpar concluídos',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton(
+                  onPressed: () {},
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white54),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: const Text(
+                    'Configurar motor',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

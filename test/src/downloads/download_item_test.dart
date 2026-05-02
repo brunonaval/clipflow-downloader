@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:clipflow_downloader/src/downloads/download_item.dart';
+import 'package:clipflow_downloader/src/downloads/download_options.dart';
 
 void main() {
   group('DownloadItem', () {
@@ -19,6 +20,20 @@ void main() {
         item.metadataLabel,
         '03:03 · 15,7 MB · MP4 · 480p · 25fps · Conteúdo autorizado',
       );
+    });
+
+    test('transferType defaults to video', () {
+      final item = DownloadItem(
+        id: 'default-type',
+        title: 'Any',
+        durationLabel: '-',
+        sizeLabel: '-',
+        formatLabel: '-',
+        qualityLabel: '-',
+        fpsLabel: '-',
+        sourceLabel: '-',
+      );
+      expect(item.transferType, DownloadTransferType.video);
     });
 
     test('copyWith preserves fields not overridden', () {
@@ -41,6 +56,22 @@ void main() {
       expect(copied.qualityLabel, '1080p');
       expect(copied.status, DownloadStatus.queued);
       expect(copied.progress, 0.0);
+      expect(copied.transferType, DownloadTransferType.video);
+    });
+
+    test('copyWith updates transferType', () {
+      final item = DownloadItem(
+        id: 'type-1',
+        title: 'Type',
+        durationLabel: '-',
+        sizeLabel: '-',
+        formatLabel: 'MP4',
+        qualityLabel: '720p',
+        fpsLabel: '-',
+        sourceLabel: '-',
+      );
+      final copied = item.copyWith(transferType: DownloadTransferType.audio);
+      expect(copied.transferType, DownloadTransferType.audio);
     });
 
     test('progress is clamped to 0.0 for values below 0', () {
@@ -88,12 +119,28 @@ void main() {
       expect(item.statusLabel, 'Na fila');
     });
 
+    test('statusLabel returns "Pausado" for paused status', () {
+      final item = DownloadItem(
+        id: 'p',
+        title: 'P',
+        durationLabel: '-',
+        sizeLabel: '-',
+        formatLabel: '-',
+        qualityLabel: '-',
+        fpsLabel: '-',
+        sourceLabel: '-',
+        status: DownloadStatus.paused,
+      );
+      expect(item.statusLabel, 'Pausado');
+    });
+
     test('statusLabel returns correct text for all statuses', () {
       final cases = {
         DownloadStatus.queued: 'Na fila',
         DownloadStatus.analyzing: 'Analisando',
         DownloadStatus.ready: 'Pronto',
         DownloadStatus.downloading: 'Baixando',
+        DownloadStatus.paused: 'Pausado',
         DownloadStatus.completed: 'Concluído',
         DownloadStatus.failed: 'Falhou',
         DownloadStatus.canceled: 'Cancelado',

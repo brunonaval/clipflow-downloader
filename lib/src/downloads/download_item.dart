@@ -1,8 +1,11 @@
+import 'download_options.dart';
+
 enum DownloadStatus {
   queued,
   analyzing,
   ready,
   downloading,
+  paused,
   completed,
   failed,
   canceled,
@@ -18,6 +21,7 @@ class DownloadItem {
   final String qualityLabel;
   final String fpsLabel;
   final String sourceLabel;
+  final DownloadTransferType transferType;
   final DownloadStatus status;
   final double progress;
 
@@ -31,19 +35,21 @@ class DownloadItem {
     required this.qualityLabel,
     required this.fpsLabel,
     required this.sourceLabel,
+    this.transferType = DownloadTransferType.video,
     this.status = DownloadStatus.queued,
     double progress = 0.0,
   }) : progress = progress.clamp(0.0, 1.0);
 
   String get metadataLabel =>
-      '$durationLabel · $sizeLabel · $formatLabel · $qualityLabel · $fpsLabel · $sourceLabel';
+      '$durationLabel \u00b7 $sizeLabel \u00b7 $formatLabel \u00b7 $qualityLabel \u00b7 $fpsLabel \u00b7 $sourceLabel';
 
   String get statusLabel => switch (status) {
         DownloadStatus.queued => 'Na fila',
         DownloadStatus.analyzing => 'Analisando',
         DownloadStatus.ready => 'Pronto',
         DownloadStatus.downloading => 'Baixando',
-        DownloadStatus.completed => 'Concluído',
+        DownloadStatus.paused => 'Pausado',
+        DownloadStatus.completed => 'Conclu\u00eddo',
         DownloadStatus.failed => 'Falhou',
         DownloadStatus.canceled => 'Cancelado',
       };
@@ -58,6 +64,7 @@ class DownloadItem {
     String? qualityLabel,
     String? fpsLabel,
     String? sourceLabel,
+    DownloadTransferType? transferType,
     DownloadStatus? status,
     double? progress,
   }) {
@@ -71,6 +78,7 @@ class DownloadItem {
       qualityLabel: qualityLabel ?? this.qualityLabel,
       fpsLabel: fpsLabel ?? this.fpsLabel,
       sourceLabel: sourceLabel ?? this.sourceLabel,
+      transferType: transferType ?? this.transferType,
       status: status ?? this.status,
       progress: progress ?? this.progress,
     );

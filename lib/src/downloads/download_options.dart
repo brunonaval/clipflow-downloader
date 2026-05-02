@@ -13,16 +13,16 @@ class DownloadOptions {
 
   const DownloadOptions({
     this.transferType = DownloadTransferType.video,
-    this.qualityLabel = 'Ótima',
+    this.qualityLabel = '\u00d3tima',
     this.formatLabel = 'MP4',
-    this.outputFolderLabel = 'Vídeos',
+    this.outputFolderLabel = 'V\u00eddeos',
   });
 
   String get transferLabel => switch (transferType) {
-        DownloadTransferType.video => 'Vídeo',
-        DownloadTransferType.audio => 'Áudio',
+        DownloadTransferType.video => 'V\u00eddeo',
+        DownloadTransferType.audio => '\u00c1udio',
         DownloadTransferType.subtitles => 'Legendas',
-        DownloadTransferType.audioTracks => 'Faixas de áudio',
+        DownloadTransferType.audioTracks => 'Faixas de \u00e1udio',
       };
 
   String get toolbarTransferLabel => 'Transferir $transferLabel';
