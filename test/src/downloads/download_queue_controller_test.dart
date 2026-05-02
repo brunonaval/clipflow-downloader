@@ -137,7 +137,7 @@ void main() {
           ),
           _item(
             id: '2',
-            title: 'Aula de vÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­deo',
+            title: 'Aula de vÃƒÂ­deo',
             transferType: DownloadTransferType.video,
           ),
         ],
@@ -155,7 +155,7 @@ void main() {
       final controller = DownloadQueueController(
         initialItems: [
           _item(id: '1', title: 'A', sourceLabel: 'Pasta Downloads'),
-          _item(id: '2', title: 'B', sourceLabel: 'Pasta VÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­deos'),
+          _item(id: '2', title: 'B', sourceLabel: 'Pasta VÃ­deos'),
         ],
       );
 
@@ -403,7 +403,7 @@ void main() {
       expect(updated, isNull);
     });
 
-    test('markItemReadyAfterInternalAnalysis marca URL invÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lida como failed', () {
+    test('markItemReadyAfterInternalAnalysis marca URL invÃƒÂ¡lida como failed', () {
       final controller = DownloadQueueController();
       final created = controller.addMockAuthorizedLink(
         status: DownloadStatus.analyzing,
@@ -449,7 +449,7 @@ void main() {
       expect(updated.selectedFormatId, isNotNull);
     });
 
-    test('markItemReadyAfterInternalAnalysis marca URL invÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡lida como failed', () {
+    test('markItemReadyAfterInternalAnalysis marca URL invÃƒÂ¡lida como failed', () {
       final controller = DownloadQueueController();
       final created = controller.addMockAuthorizedLink(
         status: DownloadStatus.analyzing,
@@ -478,7 +478,7 @@ void main() {
       },
     );
 
-    test('selectFormatForItem retorna null quando item nÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o existe', () {
+    test('selectFormatForItem retorna null quando item nÃƒÂ£o existe', () {
       final controller = DownloadQueueController();
 
       final updated = controller.selectFormatForItem('missing-id', 'audio-m4a');
@@ -486,7 +486,7 @@ void main() {
       expect(updated, isNull);
     });
 
-    test('selectFormatForItem retorna null quando formato nÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o existe', () {
+    test('selectFormatForItem retorna null quando formato nÃƒÂ£o existe', () {
       final controller = DownloadQueueController();
       final created = controller.addMockAuthorizedLink(
         status: DownloadStatus.analyzing,
@@ -525,7 +525,7 @@ void main() {
     });
 
     test(
-      'attachMockCommandPreview retorna null se item nÃ£o tiver formato selecionado',
+      'attachMockCommandPreview retorna null se item nÃƒÂ£o tiver formato selecionado',
       () {
         final controller = DownloadQueueController();
         final created = controller.addMockAuthorizedLink(
@@ -554,7 +554,7 @@ void main() {
         final updated = controller.attachMockCommandPreview(
           itemId: created.id,
           settings: const EngineSettings(),
-          outputFolderLabel: 'VÃ­deos',
+          outputFolderLabel: 'Vídeos',
         );
 
         expect(updated, isNotNull);

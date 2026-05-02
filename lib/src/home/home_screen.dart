@@ -108,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_isHttpUrl(safeUrl)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('AnÃƒÆ’Ã‚Â¡lise interna iniciada'),
+          content: Text('An\u00e1lise interna iniciada'),
           duration: Duration(milliseconds: 1200),
         ),
       );
@@ -127,7 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('AnÃƒÆ’Ã‚Â¡lise interna concluÃƒÆ’Ã‚Â­da'),
+            content: Text('An\u00e1lise interna conclu\u00edda'),
             duration: Duration(milliseconds: 1200),
           ),
         );
@@ -136,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('AnÃƒÆ’Ã‚Â¡lise interna falhou; usando resultado mockado'),
+          content: Text('An\u00e1lise interna falhou; usando resultado mockado'),
           duration: Duration(milliseconds: 1400),
         ),
       );
@@ -147,7 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _scheduleMockAnalysis(String itemId) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('AnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lise mockada iniciada'),
+        content: Text('An\u00e1lise mockada iniciada'),
         duration: Duration(milliseconds: 1200),
       ),
     );
@@ -166,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('AnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lise mockada concluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­da'),
+          content: Text('An\u00e1lise mockada conclu\u00edda'),
           duration: Duration(milliseconds: 1200),
         ),
       );
@@ -247,7 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('ConfiguraÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o mockada do motor salva'),
+        content: Text('Configura\u00e7\u00e3o mockada do motor salva'),
         duration: Duration(seconds: 2),
       ),
     );
@@ -271,8 +271,8 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     final message = result.isAvailable
-        ? 'Motor detectado: ${result.versionLabel ?? 'versÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o detectada'}'
-        : 'Motor nÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o disponÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­vel: ${result.message}';
+        ? 'Motor detectado: ${result.versionLabel ?? 'vers\u00e3o detectada'}'
+        : 'Motor n\u00e3o dispon\u00edvel: ${result.message}';
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -480,10 +480,10 @@ class _Toolbar extends StatelessWidget {
                   _SelectorButton<DownloadTransferType>(
                     valueLabel: selectedTransferLabel,
                     options: const {
-                      DownloadTransferType.video: 'VÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­deo',
-                      DownloadTransferType.audio: 'ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âudio',
+                      DownloadTransferType.video: 'V\u00eddeo',
+                      DownloadTransferType.audio: '\u00c1udio',
                       DownloadTransferType.subtitles: 'Legendas',
-                      DownloadTransferType.audioTracks: 'Faixas de ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡udio',
+                      DownloadTransferType.audioTracks: 'Faixas de \u00e1udio',
                     },
                     onChanged: onTransferChanged,
                   ),
@@ -491,7 +491,7 @@ class _Toolbar extends StatelessWidget {
                   _SelectorButton<String>(
                     valueLabel: selectedQualityLabel,
                     options: const {
-                      'ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“tima': 'ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“tima',
+                      '\u00d3tima': '\u00d3tima',
                       '8K': '8K',
                       '4K': '4K',
                       '1080p': '1080p',
@@ -506,7 +506,7 @@ class _Toolbar extends StatelessWidget {
                   _SelectorButton<String>(
                     valueLabel: selectedFormatLabel,
                     options: const {
-                      'AutomÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡tico': 'AutomÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡tico',
+                      'Autom\u00e1tico': 'Autom\u00e1tico',
                       'MP4': 'MP4',
                       'MKV': 'MKV',
                       'MP3': 'MP3',
@@ -518,7 +518,7 @@ class _Toolbar extends StatelessWidget {
                   _SelectorButton<String>(
                     valueLabel: selectedOutputFolderLabel,
                     options: const {
-                      'VÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­deos': 'VÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­deos',
+                      'V\u00eddeos': 'V\u00eddeos',
                       'Downloads': 'Downloads',
                       'Imagens': 'Imagens',
                       'Documentos': 'Documentos',
@@ -534,7 +534,7 @@ class _Toolbar extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.settings_outlined, size: 20),
             onPressed: () {},
-            tooltip: 'ConfiguraÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âµes',
+            tooltip: 'Configura\u00e7\u00f5es',
             color: Colors.black54,
             visualDensity: VisualDensity.compact,
           ),
@@ -902,27 +902,27 @@ class _ItemActions extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.play_arrow, size: 18),
             onPressed: onStart,
-            tooltip: 'Iniciar',
+            tooltip: 'Configura\u00e7\u00f5es',
             visualDensity: VisualDensity.compact,
           ),
         if (_canPause)
           IconButton(
             icon: const Icon(Icons.pause, size: 18),
             onPressed: onPause,
-            tooltip: 'Pausar',
+            tooltip: 'Configura\u00e7\u00f5es',
             visualDensity: VisualDensity.compact,
           ),
         if (_canCancel)
           IconButton(
             icon: const Icon(Icons.cancel_outlined, size: 18),
             onPressed: onCancel,
-            tooltip: 'Cancelar',
+            tooltip: 'Configura\u00e7\u00f5es',
             visualDensity: VisualDensity.compact,
           ),
         IconButton(
           icon: const Icon(Icons.delete_outline, size: 18),
           onPressed: onRemove,
-          tooltip: 'Remover',
+          tooltip: 'Configura\u00e7\u00f5es',
           visualDensity: VisualDensity.compact,
         ),
       ],
@@ -1003,9 +1003,9 @@ class _StatusBar extends StatelessWidget {
     if (isCheckingEngine) return 'Verificando motor...';
     return switch (engineAvailability.status) {
       EngineAvailabilityStatus.available =>
-        'Motor disponÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­vel: ${engineAvailability.executableLabel} ${engineAvailability.versionLabel ?? ''}'
+        'Motor dispon\u00edvel: ${engineAvailability.executableLabel} ${engineAvailability.versionLabel ?? ''}'
             .trim(),
-      EngineAvailabilityStatus.unavailable => 'Motor indisponÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­vel',
+      EngineAvailabilityStatus.unavailable => 'Motor indispon\u00edvel',
       EngineAvailabilityStatus.unknown => switch (engineStatus) {
           EngineSetupStatus.notConfigured => 'Motor interno ativo',
           EngineSetupStatus.configuredMock =>
@@ -1061,7 +1061,7 @@ class _StatusBar extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                     ),
                     child: const Text(
-                      'Limpar concluÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­dos',
+                      'Limpar conclu\u00eddos',
                       style: TextStyle(fontSize: 13),
                     ),
                   ),
