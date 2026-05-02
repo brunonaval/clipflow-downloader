@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:clipflow_downloader/src/engine/youtube/youtube_format_descriptor.dart';
 import 'package:clipflow_downloader/src/engine/youtube/youtube_html_metadata_parser.dart';
+import 'package:clipflow_downloader/src/engine/youtube/youtube_media_candidate.dart';
 
 void main() {
   group('YouTubeHtmlMetadataParser', () {
@@ -125,23 +126,74 @@ void main() {
       expect(result!.formatDescriptors.first.kind, YouTubeFormatKind.video);
     });
 
-    test('descriptor nao guarda URL real mesmo com campo url', () {
+    test('formato com url cria candidate direct com host', () {
       const html =
-          '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Video"},"streamingData":{"formats":[{"itag":18,"mimeType":"video/mp4","url":"https://stream.example/video","audioQuality":"AUDIO_QUALITY_MEDIUM"}]}};</script>';
+          '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Video"},"streamingData":{"formats":[{"itag":18,"mimeType":"video/mp4","url":"https://rr1---sn.example.googlevideo.com/videoplayback?id=abc","audioQuality":"AUDIO_QUALITY_MEDIUM"}]}};</script>';
+      final result = parser.parse(html: html, videoId: 'abc123');
+      expect(result, isNotNull);
+      final candidate = result!.formatDescriptors.first.mediaCandidate;
+      expect(candidate, isNotNull);
+      expect(candidate!.kind, YouTubeMediaCandidateKind.direct);
+      expect(candidate.safeHostLabel, 'rr1---sn.example.googlevideo.com');
+      expect(candidate.canAttemptDirectDownload, isTrue);
+    });
+
+    test('formato com signatureCipher cria candidate requiresSignature', () {
+      const html =
+          '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Video"},"streamingData":{"adaptiveFormats":[{"itag":140,"mimeType":"audio/mp4","signatureCipher":"url=https%3A%2F%2Fx&sp=s&sig=abc","audioQuality":"AUDIO_QUALITY_MEDIUM"}]}};</script>';
+      final result = parser.parse(html: html, videoId: 'abc123');
+      expect(result, isNotNull);
+      final candidate = result!.formatDescriptors.first.mediaCandidate;
+      expect(candidate, isNotNull);
+      expect(candidate!.kind, YouTubeMediaCandidateKind.requiresSignature);
+      expect(candidate.canAttemptDirectDownload, isFalse);
+    });
+
+    test('formato com cipher cria candidate requiresSignature', () {
+      const html =
+          '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Video"},"streamingData":{"adaptiveFormats":[{"itag":141,"mimeType":"audio/mp4","cipher":"url=https%3A%2F%2Fx&sp=s&sig=abc","audioQuality":"AUDIO_QUALITY_MEDIUM"}]}};</script>';
+      final result = parser.parse(html: html, videoId: 'abc123');
+      expect(result, isNotNull);
+      final candidate = result!.formatDescriptors.first.mediaCandidate;
+      expect(candidate, isNotNull);
+      expect(candidate!.kind, YouTubeMediaCandidateKind.requiresSignature);
+    });
+
+    test('formato sem url ou cipher cria candidate unavailable', () {
+      const html =
+          '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Video"},"streamingData":{"formats":[{"itag":137,"mimeType":"video/mp4","qualityLabel":"1080p"}]}};</script>';
+      final result = parser.parse(html: html, videoId: 'abc123');
+      expect(result, isNotNull);
+      final candidate = result!.formatDescriptors.first.mediaCandidate;
+      expect(candidate, isNotNull);
+      expect(candidate!.kind, YouTubeMediaCandidateKind.unavailable);
+      expect(candidate.canAttemptDirectDownload, isFalse);
+    });
+
+    test('descriptor nao expoe URL completa', () {
+      const html =
+          '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Video"},"streamingData":{"formats":[{"itag":18,"mimeType":"video/mp4","url":"https://stream.example/video?token=secret","audioQuality":"AUDIO_QUALITY_MEDIUM"}]}};</script>';
       final result = parser.parse(html: html, videoId: 'abc123');
       expect(result, isNotNull);
       final descriptor = result!.formatDescriptors.first;
+      final candidate = descriptor.mediaCandidate;
+      expect(candidate, isNotNull);
+      expect(candidate!.safeHostLabel, 'stream.example');
+      expect(candidate.reasonLabel.contains('token=secret'), isFalse);
       expect(descriptor.detailsLabel.contains('http'), isFalse);
     });
 
-    test('descriptor nao guarda signatureCipher', () {
+    test('descriptor nao expoe signatureCipher nem cipher', () {
       const html =
           '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Video"},"streamingData":{"adaptiveFormats":[{"itag":140,"mimeType":"audio/mp4","signatureCipher":"url=https%3A%2F%2Fx&sp=s&sig=abc","audioQuality":"AUDIO_QUALITY_MEDIUM"}]}};</script>';
       final result = parser.parse(html: html, videoId: 'abc123');
       expect(result, isNotNull);
       final descriptor = result!.formatDescriptors.first;
-      expect(descriptor.detailsLabel.contains('signatureCipher'), isFalse);
+      final candidate = descriptor.mediaCandidate;
+      expect(candidate, isNotNull);
+      expect(candidate!.reasonLabel.contains('signatureCipher'), isFalse);
       expect(descriptor.mimeType.contains('signatureCipher'), isFalse);
+      expect(descriptor.detailsLabel.contains('cipher'), isFalse);
     });
 
     test('contentLength vira sizeLabel em MB/KB', () {

@@ -2,6 +2,7 @@ import '../../downloads/download_format_option.dart';
 import '../internal_engine_analysis_result.dart';
 import 'youtube_format_descriptor.dart';
 import 'youtube_html_metadata_parser.dart';
+import 'youtube_media_candidate.dart';
 import 'youtube_page_fetcher.dart';
 import 'youtube_url_parser.dart';
 import 'youtube_video_reference.dart';
@@ -141,6 +142,10 @@ class YouTubeExtractor {
       };
 
       final label = _optionLabel(descriptor);
+      final candidateLabel = _candidateLabel(descriptor.mediaCandidate);
+      final details = candidateLabel == null
+          ? descriptor.detailsLabel
+          : '${descriptor.detailsLabel} · $candidateLabel';
 
       options.add(
         DownloadFormatOption(
@@ -150,13 +155,22 @@ class YouTubeExtractor {
           formatLabel: descriptor.extension,
           qualityLabel: descriptor.qualityLabel,
           sizeLabel: descriptor.sizeLabel,
-          detailsLabel: descriptor.detailsLabel,
+          detailsLabel: details,
           isRecommended: i == 0,
         ),
       );
     }
 
     return options.isEmpty ? _buildMockFormats() : options;
+  }
+
+  String? _candidateLabel(YouTubeMediaCandidate? candidate) {
+    if (candidate == null) return null;
+    return switch (candidate.kind) {
+      YouTubeMediaCandidateKind.direct => 'URL direta detectada',
+      YouTubeMediaCandidateKind.requiresSignature => 'exige assinatura',
+      YouTubeMediaCandidateKind.unavailable => 'sem URL direta',
+    };
   }
 
   int _priorityRank(YouTubeFormatDescriptor descriptor) {

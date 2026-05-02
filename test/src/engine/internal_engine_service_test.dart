@@ -17,11 +17,16 @@ void main() {
       expect(source.kind, InternalEngineSourceKind.unsupported);
     });
 
-    test('classifyUrl detecta URL do YouTube como webpage com label YouTube', () {
-      final source = service.classifyUrl('https://www.youtube.com/watch?v=abc123');
-      expect(source.kind, InternalEngineSourceKind.webpage);
-      expect(source.label, contains('YouTube'));
-    });
+    test(
+      'classifyUrl detecta URL do YouTube como webpage com label YouTube',
+      () {
+        final source = service.classifyUrl(
+          'https://www.youtube.com/watch?v=abc123',
+        );
+        expect(source.kind, InternalEngineSourceKind.webpage);
+        expect(source.label, contains('YouTube'));
+      },
+    );
 
     test('classifyUrl detecta mp4 como directFile', () {
       final source = service.classifyUrl('https://example.com/video.mp4');
@@ -54,12 +59,16 @@ void main() {
     });
 
     test('analyzeUrl para mp4 retorna canDownloadDirectly true', () {
-      final result = service.analyzeUrl(rawUrl: 'https://example.com/video.mp4');
+      final result = service.analyzeUrl(
+        rawUrl: 'https://example.com/video.mp4',
+      );
       expect(result.canDownloadDirectly, isTrue);
     });
 
     test('analyzeUrl para mp4 retorna formato recomendado', () {
-      final result = service.analyzeUrl(rawUrl: 'https://example.com/video.mp4');
+      final result = service.analyzeUrl(
+        rawUrl: 'https://example.com/video.mp4',
+      );
       expect(result.formats, isNotEmpty);
       expect(result.recommendedFormatId, result.formats.first.id);
     });

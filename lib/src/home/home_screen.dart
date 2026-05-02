@@ -115,7 +115,8 @@ class _HomeScreenState extends State<HomeScreen> {
             );
         if (!mounted) return;
 
-        if (youtubeUpdated != null && youtubeUpdated.status == DownloadStatus.ready) {
+        if (youtubeUpdated != null &&
+            youtubeUpdated.status == DownloadStatus.ready) {
           _queueController.attachMockCommandPreview(
             itemId: addedItem.id,
             outputFolderLabel: _downloadOptions.outputFolderLabel,
@@ -130,11 +131,13 @@ class _HomeScreenState extends State<HomeScreen> {
           return;
         }
 
-        final fallbackUpdated = _queueController.markItemReadyAfterInternalAnalysis(
-          id: addedItem.id,
-          outputFolderLabel: _downloadOptions.outputFolderLabel,
-        );
-        if (fallbackUpdated != null && fallbackUpdated.status == DownloadStatus.ready) {
+        final fallbackUpdated = _queueController
+            .markItemReadyAfterInternalAnalysis(
+              id: addedItem.id,
+              outputFolderLabel: _downloadOptions.outputFolderLabel,
+            );
+        if (fallbackUpdated != null &&
+            fallbackUpdated.status == DownloadStatus.ready) {
           _queueController.attachMockCommandPreview(
             itemId: addedItem.id,
             outputFolderLabel: _downloadOptions.outputFolderLabel,
@@ -188,7 +191,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('An\u00e1lise interna falhou; usando resultado mockado'),
+          content: Text(
+            'An\u00e1lise interna falhou; usando resultado mockado',
+          ),
           duration: Duration(milliseconds: 1400),
         ),
       );
@@ -196,6 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _scheduleMockAnalysis(addedItem.id);
   }
+
   void _scheduleMockAnalysis(String itemId) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -228,6 +234,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final lower = value.toLowerCase();
     return lower.startsWith('http://') || lower.startsWith('https://');
   }
+
   void _startItem(DownloadItem item) {
     final started = _queueController.startItem(item.id);
     if (started == null) return;
@@ -1041,7 +1048,7 @@ class _StatusBar extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: Colors.white70, fontSize: 10),
-                )
+                ),
               ],
             ),
           ),
@@ -1092,4 +1099,3 @@ class _StatusBar extends StatelessWidget {
     );
   }
 }
-

@@ -153,7 +153,8 @@ class InternalEngineService {
     return InternalEngineAnalysisResult(
       title: 'Página reconhecida',
       durationLabel: '03:21',
-      sourceLabel: 'Página reconhecida para extractor futuro · $outputFolderLabel',
+      sourceLabel:
+          'Página reconhecida para extractor futuro · $outputFolderLabel',
       formats: formats,
       recommendedFormatId: formats.first.id,
       canDownloadDirectly: false,

@@ -1,9 +1,4 @@
-enum DownloadTransferType {
-  video,
-  audio,
-  subtitles,
-  audioTracks,
-}
+enum DownloadTransferType { video, audio, subtitles, audioTracks }
 
 class DownloadOptions {
   final DownloadTransferType transferType;
@@ -19,11 +14,11 @@ class DownloadOptions {
   });
 
   String get transferLabel => switch (transferType) {
-        DownloadTransferType.video => 'V\u00eddeo',
-        DownloadTransferType.audio => '\u00c1udio',
-        DownloadTransferType.subtitles => 'Legendas',
-        DownloadTransferType.audioTracks => 'Faixas de \u00e1udio',
-      };
+    DownloadTransferType.video => 'V\u00eddeo',
+    DownloadTransferType.audio => '\u00c1udio',
+    DownloadTransferType.subtitles => 'Legendas',
+    DownloadTransferType.audioTracks => 'Faixas de \u00e1udio',
+  };
 
   String get toolbarTransferLabel => 'Transferir $transferLabel';
 

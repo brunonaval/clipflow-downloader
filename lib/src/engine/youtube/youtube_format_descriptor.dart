@@ -1,3 +1,5 @@
+import 'youtube_media_candidate.dart';
+
 enum YouTubeFormatKind { video, audio, muxed, subtitles, unknown }
 
 class YouTubeFormatDescriptor {
@@ -12,6 +14,7 @@ class YouTubeFormatDescriptor {
   final bool hasAudio;
   final bool hasVideo;
   final bool isPlayableDescriptor;
+  final YouTubeMediaCandidate? mediaCandidate;
 
   const YouTubeFormatDescriptor({
     required this.id,
@@ -25,5 +28,6 @@ class YouTubeFormatDescriptor {
     required this.hasAudio,
     required this.hasVideo,
     this.isPlayableDescriptor = true,
+    this.mediaCandidate,
   });
 }

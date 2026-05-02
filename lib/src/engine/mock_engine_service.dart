@@ -78,11 +78,7 @@ class MockEngineService {
         selectedFormat.formatLabel.toLowerCase(),
         sourceUrl,
       ],
-      DownloadFormatKind.subtitles => [
-        '--subtitles',
-        '--text-only',
-        sourceUrl,
-      ],
+      DownloadFormatKind.subtitles => ['--subtitles', '--text-only', sourceUrl],
     };
 
     return EngineCommandPlan(

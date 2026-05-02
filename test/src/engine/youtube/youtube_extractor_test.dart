@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:clipflow_downloader/src/engine/youtube/youtube_extractor.dart';
 import 'package:clipflow_downloader/src/engine/youtube/youtube_format_descriptor.dart';
 import 'package:clipflow_downloader/src/engine/youtube/youtube_html_metadata_parser.dart';
+import 'package:clipflow_downloader/src/engine/youtube/youtube_media_candidate.dart';
 import 'package:clipflow_downloader/src/engine/youtube/youtube_page_fetcher.dart';
 import 'package:clipflow_downloader/src/engine/youtube/youtube_video_metadata.dart';
 import 'package:clipflow_downloader/src/engine/youtube/youtube_video_reference.dart';
@@ -212,6 +213,90 @@ void main() {
       expect(result, isNotNull);
       expect(result!.formats.first.formatLabel, 'MP4');
       expect(result.formats.first.qualityLabel, '1080p');
+    });
+
+    test('detailsLabel menciona URL direta quando candidate direct', () async {
+      const metadata = YouTubeVideoMetadata(
+        videoId: 'abc123',
+        title: 'Titulo real',
+        durationLabel: '04:20',
+        formatDescriptors: [
+          YouTubeFormatDescriptor(
+            id: '18',
+            kind: YouTubeFormatKind.muxed,
+            mimeType: 'video/mp4',
+            extension: 'MP4',
+            qualityLabel: '360p',
+            bitrateLabel: '--',
+            sizeLabel: '--',
+            detailsLabel: 'YouTube · itag 18 · vídeo+áudio',
+            hasAudio: true,
+            hasVideo: true,
+            mediaCandidate: YouTubeMediaCandidate(
+              formatId: '18',
+              kind: YouTubeMediaCandidateKind.direct,
+              safeHostLabel: 'example.com',
+              canAttemptDirectDownload: true,
+              reasonLabel: 'URL direta detectada pelo player',
+            ),
+          ),
+        ],
+      );
+      final metadataExtractor = YouTubeExtractor(
+        fetcher: const _FakeFetcher('<html>ok</html>'),
+        metadataParser: const _FakeParser(metadata),
+      );
+
+      final result = await metadataExtractor.analyzeUrlMetadata(
+        rawUrl: 'https://www.youtube.com/watch?v=abc123',
+      );
+
+      expect(result, isNotNull);
+      expect(
+        result!.formats.first.detailsLabel,
+        contains('URL direta detectada'),
+      );
+    });
+
+    test('detailsLabel menciona assinatura quando requiresSignature', () async {
+      const metadata = YouTubeVideoMetadata(
+        videoId: 'abc123',
+        title: 'Titulo real',
+        durationLabel: '04:20',
+        formatDescriptors: [
+          YouTubeFormatDescriptor(
+            id: '140',
+            kind: YouTubeFormatKind.audio,
+            mimeType: 'audio/mp4',
+            extension: 'M4A',
+            qualityLabel: 'Áudio',
+            bitrateLabel: '--',
+            sizeLabel: '--',
+            detailsLabel: 'YouTube · itag 140 · áudio',
+            hasAudio: true,
+            hasVideo: false,
+            mediaCandidate: YouTubeMediaCandidate(
+              formatId: '140',
+              kind: YouTubeMediaCandidateKind.requiresSignature,
+              canAttemptDirectDownload: false,
+              reasonLabel:
+                  'Formato exige assinatura; não suportado nesta versão',
+            ),
+          ),
+        ],
+      );
+      final metadataExtractor = YouTubeExtractor(
+        fetcher: const _FakeFetcher('<html>ok</html>'),
+        metadataParser: const _FakeParser(metadata),
+      );
+
+      final result = await metadataExtractor.analyzeUrlMetadata(
+        rawUrl: 'https://www.youtube.com/watch?v=abc123',
+      );
+
+      expect(result, isNotNull);
+      expect(result!.formats.first.detailsLabel, contains('exige assinatura'));
+      expect(result.canDownloadDirectly, isFalse);
     });
 
     test('quando metadata nao tem descriptors usa mock fallback', () async {

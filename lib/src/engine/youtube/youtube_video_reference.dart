@@ -1,9 +1,4 @@
-enum YouTubeUrlKind {
-  watch,
-  short,
-  embed,
-  shortLink,
-}
+enum YouTubeUrlKind { watch, short, embed, shortLink }
 
 class YouTubeVideoReference {
   final Uri uri;

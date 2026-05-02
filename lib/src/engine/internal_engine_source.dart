@@ -1,8 +1,4 @@
-enum InternalEngineSourceKind {
-  directFile,
-  webpage,
-  unsupported,
-}
+enum InternalEngineSourceKind { directFile, webpage, unsupported }
 
 class InternalEngineSource {
   final Uri? uri;

@@ -28,7 +28,9 @@ class YouTubePageFetcher {
       final request = await client
           .getUrl(uri)
           .timeout(const Duration(seconds: 8));
-      final response = await request.close().timeout(const Duration(seconds: 8));
+      final response = await request.close().timeout(
+        const Duration(seconds: 8),
+      );
 
       if (response.statusCode != HttpStatus.ok) {
         throw YouTubePageFetchException(
@@ -58,7 +60,9 @@ class YouTubePageFetcher {
         'Falha de rede ao buscar página do YouTube',
       );
     } on HttpException catch (e) {
-      throw YouTubePageFetchException('Erro HTTP ao buscar YouTube: ${e.message}');
+      throw YouTubePageFetchException(
+        'Erro HTTP ao buscar YouTube: ${e.message}',
+      );
     } finally {
       client.close(force: true);
     }

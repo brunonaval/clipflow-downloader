@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'youtube_format_descriptor.dart';
+import 'youtube_media_candidate.dart';
 import 'youtube_video_metadata.dart';
 
 class YouTubeHtmlMetadataParser {
@@ -112,6 +113,10 @@ class YouTubeHtmlMetadataParser {
         final bitrateLabel = _bitrateLabel(map['bitrate']);
         final sizeLabel = _sizeLabel(map['contentLength']);
         final detailsLabel = _detailsLabelFor(kind: kind, itag: itag);
+        final mediaCandidate = _mediaCandidateFor(
+          formatId: itag,
+          formatMap: map,
+        );
 
         descriptors.add(
           YouTubeFormatDescriptor(
@@ -126,6 +131,7 @@ class YouTubeHtmlMetadataParser {
             hasAudio: hasAudio,
             hasVideo: hasVideo,
             isPlayableDescriptor: true,
+            mediaCandidate: mediaCandidate,
           ),
         );
       }
@@ -135,6 +141,40 @@ class YouTubeHtmlMetadataParser {
     addFromList(streamingData['adaptiveFormats']);
 
     return descriptors;
+  }
+
+  YouTubeMediaCandidate _mediaCandidateFor({
+    required String formatId,
+    required Map<String, dynamic> formatMap,
+  }) {
+    final rawUrl = formatMap['url']?.toString().trim();
+    if (rawUrl != null && rawUrl.isNotEmpty) {
+      final uri = Uri.tryParse(rawUrl);
+      return YouTubeMediaCandidate(
+        formatId: formatId,
+        kind: YouTubeMediaCandidateKind.direct,
+        safeHostLabel: uri?.host.isNotEmpty == true ? uri!.host : null,
+        canAttemptDirectDownload: true,
+        reasonLabel: 'URL direta detectada pelo player',
+      );
+    }
+
+    if (formatMap.containsKey('signatureCipher') ||
+        formatMap.containsKey('cipher')) {
+      return YouTubeMediaCandidate(
+        formatId: formatId,
+        kind: YouTubeMediaCandidateKind.requiresSignature,
+        canAttemptDirectDownload: false,
+        reasonLabel: 'Formato exige assinatura; não suportado nesta versão',
+      );
+    }
+
+    return YouTubeMediaCandidate(
+      formatId: formatId,
+      kind: YouTubeMediaCandidateKind.unavailable,
+      canAttemptDirectDownload: false,
+      reasonLabel: 'Formato sem URL direta disponível',
+    );
   }
 
   String _extractCodecs(String mimeType) {

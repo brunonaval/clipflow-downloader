@@ -402,21 +402,24 @@ void main() {
       expect(updated, isNull);
     });
 
-    test('markItemReadyAfterInternalAnalysis marca URL inválida como failed', () {
-      final controller = DownloadQueueController();
-      final created = controller.addMockAuthorizedLink(
-        status: DownloadStatus.analyzing,
-        sourceUrl: 'nota-interna',
-      );
+    test(
+      'markItemReadyAfterInternalAnalysis marca URL inválida como failed',
+      () {
+        final controller = DownloadQueueController();
+        final created = controller.addMockAuthorizedLink(
+          status: DownloadStatus.analyzing,
+          sourceUrl: 'nota-interna',
+        );
 
-      final updated = controller.markItemReadyAfterInternalAnalysis(
-        id: created.id,
-      );
+        final updated = controller.markItemReadyAfterInternalAnalysis(
+          id: created.id,
+        );
 
-      expect(updated, isNotNull);
-      expect(updated!.status, DownloadStatus.failed);
-      expect(updated.sourceLabel, 'URL não suportada pelo motor interno');
-    });
+        expect(updated, isNotNull);
+        expect(updated!.status, DownloadStatus.failed);
+        expect(updated.sourceLabel, 'URL não suportada pelo motor interno');
+      },
+    );
     test('markItemReadyAfterInternalAnalysis marca mp4 direto como ready', () {
       final controller = DownloadQueueController();
       final created = controller.addMockAuthorizedLink(
@@ -448,41 +451,49 @@ void main() {
       expect(updated.selectedFormatId, isNotNull);
     });
 
-    test('markItemReadyAfterInternalAnalysis deixa URL do YouTube como ready', () {
-      final controller = DownloadQueueController();
-      final created = controller.addMockAuthorizedLink(
-        status: DownloadStatus.analyzing,
-        sourceUrl: 'https://www.youtube.com/watch?v=abc123',
-      );
+    test(
+      'markItemReadyAfterInternalAnalysis deixa URL do YouTube como ready',
+      () {
+        final controller = DownloadQueueController();
+        final created = controller.addMockAuthorizedLink(
+          status: DownloadStatus.analyzing,
+          sourceUrl: 'https://www.youtube.com/watch?v=abc123',
+        );
 
-      final updated = controller.markItemReadyAfterInternalAnalysis(
-        id: created.id,
-      );
+        final updated = controller.markItemReadyAfterInternalAnalysis(
+          id: created.id,
+        );
 
-      expect(updated, isNotNull);
-      expect(updated!.status, DownloadStatus.ready);
-      expect(updated.availableFormats, isNotEmpty);
-      expect(
-        updated.title.contains('YouTube') || updated.sourceLabel.contains('YouTube'),
-        isTrue,
-      );
-    });
+        expect(updated, isNotNull);
+        expect(updated!.status, DownloadStatus.ready);
+        expect(updated.availableFormats, isNotEmpty);
+        expect(
+          updated.title.contains('YouTube') ||
+              updated.sourceLabel.contains('YouTube'),
+          isTrue,
+        );
+      },
+    );
 
-    test('markItemReadyAfterInternalAnalysis marca URL inválida como failed', () {
-      final controller = DownloadQueueController();
-      final created = controller.addMockAuthorizedLink(
-        status: DownloadStatus.analyzing,
-        sourceUrl: 'nota-interna',
-      );
+    test(
+      'markItemReadyAfterInternalAnalysis marca URL inválida como failed',
+      () {
+        final controller = DownloadQueueController();
+        final created = controller.addMockAuthorizedLink(
+          status: DownloadStatus.analyzing,
+          sourceUrl: 'nota-interna',
+        );
 
-      final updated = controller.markItemReadyAfterInternalAnalysis(
-        id: created.id,
-      );
+        final updated = controller.markItemReadyAfterInternalAnalysis(
+          id: created.id,
+        );
 
-      expect(updated, isNotNull);
-      expect(updated!.status, DownloadStatus.failed);
-    });
-    test('selectFormatForItem altera selectedFormatId quando formato existe',
+        expect(updated, isNotNull);
+        expect(updated!.status, DownloadStatus.failed);
+      },
+    );
+    test(
+      'selectFormatForItem altera selectedFormatId quando formato existe',
       () {
         final controller = DownloadQueueController();
         final created = controller.addMockAuthorizedLink(
@@ -536,8 +547,7 @@ void main() {
 
     test('attachMockCommandPreview retorna null para item inexistente', () {
       final controller = DownloadQueueController();
-      final updated = controller.attachMockCommandPreview(
-        itemId: 'missing-id',      );
+      final updated = controller.attachMockCommandPreview(itemId: 'missing-id');
       expect(updated, isNull);
     });
 
@@ -549,8 +559,7 @@ void main() {
           status: DownloadStatus.ready,
         );
 
-        final updated = controller.attachMockCommandPreview(
-          itemId: created.id,        );
+        final updated = controller.attachMockCommandPreview(itemId: created.id);
 
         expect(updated, isNull);
       },
@@ -567,7 +576,8 @@ void main() {
         controller.markItemReadyAfterMockAnalysis(created.id);
 
         final updated = controller.attachMockCommandPreview(
-          itemId: created.id,          outputFolderLabel: 'vídeos',
+          itemId: created.id,
+          outputFolderLabel: 'vídeos',
         );
 
         expect(updated, isNotNull);
@@ -583,15 +593,13 @@ void main() {
         sourceUrl: 'https://example.com/video',
       );
       controller.markItemReadyAfterMockAnalysis(created.id);
-      controller.attachMockCommandPreview(
-        itemId: created.id,      );
+      controller.attachMockCommandPreview(itemId: created.id);
       final before = controller.items
           .firstWhere((item) => item.id == created.id)
           .commandPreviewLabel;
 
       controller.selectFormatForItem(created.id, 'audio-m4a');
-      final after = controller.attachMockCommandPreview(
-        itemId: created.id,      );
+      final after = controller.attachMockCommandPreview(itemId: created.id);
 
       expect(after, isNotNull);
       expect(after!.commandPreviewLabel, isNotNull);
@@ -628,6 +636,3 @@ void main() {
     });
   });
 }
-
-
-
