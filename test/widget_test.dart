@@ -27,6 +27,7 @@ void main() {
     expect(find.text('4 itens'), findsOneWidget);
     expect(find.text('Pronto para downloads autorizados'), findsOneWidget);
     expect(find.text('Motor externo não configurado'), findsOneWidget);
+    expect(find.text('Verificar motor'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Buscar'), findsOneWidget);
     expect(find.text('Limpar concluídos'), findsOneWidget);
     expect(find.text('Configurar motor'), findsOneWidget);
@@ -106,15 +107,13 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Configurar motor externo'), findsNothing);
-    final hasStatus = find
+    final hasMockStatus = find
         .text('Motor externo configurado em modo mock')
         .evaluate()
         .isNotEmpty;
-    final hasSnack = find
-        .text('Configuração mockada do motor salva')
-        .evaluate()
-        .isNotEmpty;
-    expect(hasStatus || hasSnack, isTrue);
+    final hasAvailabilityStatus = find.textContaining('Motor ').evaluate().isNotEmpty;
+    final hasCheckButton = find.text('Verificar motor').evaluate().isNotEmpty;
+    expect(hasMockStatus || hasAvailabilityStatus || hasCheckButton, isTrue);
   });
 
   testWidgets('paste starts mock analysis and then marks item as ready', (

@@ -8,6 +8,8 @@ import '../downloads/download_format_option.dart';
 import '../downloads/download_options.dart';
 import '../downloads/download_queue_controller.dart';
 import '../downloads/download_queue_filter.dart';
+import '../engine/engine_availability_checker.dart';
+import '../engine/engine_availability_result.dart';
 import '../engine/engine_settings.dart';
 import '../engine/engine_settings_dialog.dart';
 import 'mock_download_item.dart';
@@ -26,6 +28,9 @@ class _HomeScreenState extends State<HomeScreen> {
   DownloadQueueFilter _activeFilter = DownloadQueueFilter.all;
   DownloadOptions _downloadOptions = const DownloadOptions();
   EngineSettings _engineSettings = const EngineSettings();
+  EngineAvailabilityResult _engineAvailability =
+      EngineAvailabilityResult.unknown('yt-dlp');
+  bool _isCheckingEngine = false;
   String _searchQuery = '';
   Timer? _fakeProgressTimer;
   Timer? _mockAnalysisTimer;
@@ -203,6 +208,35 @@ class _HomeScreenState extends State<HomeScreen> {
         duration: Duration(seconds: 2),
       ),
     );
+
+    _checkEngineAvailability();
+  }
+
+  Future<void> _checkEngineAvailability() async {
+    if (_isCheckingEngine) return;
+
+    setState(() {
+      _isCheckingEngine = true;
+    });
+
+    final result = await const EngineAvailabilityChecker().check(_engineSettings);
+    if (!mounted) return;
+
+    setState(() {
+      _engineAvailability = result;
+      _isCheckingEngine = false;
+    });
+
+    final message = result.isAvailable
+        ? 'Motor detectado: ${result.versionLabel ?? 'versão detectada'}'
+        : 'Motor não disponível: ${result.message}';
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
@@ -279,7 +313,10 @@ class _HomeScreenState extends State<HomeScreen> {
           _StatusBar(
             onClearFinished: _clearFinishedItems,
             onConfigureEngine: _openEngineSettingsDialog,
+            onCheckEngineAvailability: _checkEngineAvailability,
             engineStatus: _engineSettings.status,
+            engineAvailability: _engineAvailability,
+            isCheckingEngine: _isCheckingEngine,
           ),
         ],
       ),
@@ -905,19 +942,34 @@ class _EmptyFilterState extends StatelessWidget {
 class _StatusBar extends StatelessWidget {
   final VoidCallback onClearFinished;
   final VoidCallback onConfigureEngine;
+  final VoidCallback onCheckEngineAvailability;
   final EngineSetupStatus engineStatus;
+  final EngineAvailabilityResult engineAvailability;
+  final bool isCheckingEngine;
 
   const _StatusBar({
     required this.onClearFinished,
     required this.onConfigureEngine,
+    required this.onCheckEngineAvailability,
     required this.engineStatus,
+    required this.engineAvailability,
+    required this.isCheckingEngine,
   });
 
-  String get _engineStatusLabel => switch (engineStatus) {
-    EngineSetupStatus.notConfigured => 'Motor externo não configurado',
-    EngineSetupStatus.configuredMock =>
-      'Motor externo configurado em modo mock',
-  };
+  String get _engineStatusLabel {
+    if (isCheckingEngine) return 'Verificando motor...';
+    return switch (engineAvailability.status) {
+      EngineAvailabilityStatus.available =>
+        'Motor disponível: ${engineAvailability.executableLabel} ${engineAvailability.versionLabel ?? ''}'
+            .trim(),
+      EngineAvailabilityStatus.unavailable => 'Motor indisponível',
+      EngineAvailabilityStatus.unknown => switch (engineStatus) {
+          EngineSetupStatus.notConfigured => 'Motor externo não configurado',
+          EngineSetupStatus.configuredMock =>
+            'Motor externo configurado em modo mock',
+        },
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -984,6 +1036,25 @@ class _StatusBar extends StatelessWidget {
                     ),
                     child: const Text(
                       'Configurar motor',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: isCheckingEngine
+                        ? null
+                        : onCheckEngineAvailability,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white54),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text(
+                      'Verificar motor',
                       style: TextStyle(fontSize: 13),
                     ),
                   ),
