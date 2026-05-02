@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../downloads/download_item.dart';
 import 'mock_download_item.dart';
 
 const _kGreen = Color(0xFF2E7D32);
@@ -19,6 +21,44 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedFormat = 'MP4';
   String _selectedFolder = 'Vídeos';
 
+  List<DownloadItem> _downloads = List.of(initialMockDownloadItems);
+
+  Future<void> _handlePaste() async {
+    String? url;
+    try {
+      final data = await Clipboard.getData('text/plain');
+      final text = data?.text ?? '';
+      if (text.isNotEmpty) url = text;
+    } catch (_) {
+      // Clipboard may be unavailable; proceed without URL.
+    }
+
+    if (!mounted) return;
+
+    final count = _downloads.length + 1;
+    final item = DownloadItem(
+      id: 'new-${DateTime.now().millisecondsSinceEpoch}',
+      title: 'Novo link autorizado #$count',
+      sourceUrl: url,
+      durationLabel: '--:--',
+      sizeLabel: 'Aguardando',
+      formatLabel: _selectedFormat,
+      qualityLabel: _selectedQuality,
+      fpsLabel: '--fps',
+      sourceLabel: 'Aguardando análise',
+      status: DownloadStatus.queued,
+    );
+
+    setState(() => _downloads = [item, ..._downloads]);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Link adicionado à fila mockada'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -36,10 +76,12 @@ class _HomeScreenState extends State<HomeScreen> {
             onQualityChanged: (v) => setState(() => _selectedQuality = v),
             onFormatChanged: (v) => setState(() => _selectedFormat = v),
             onFolderChanged: (v) => setState(() => _selectedFolder = v),
+            onPaste: _handlePaste,
           ),
           const Divider(height: 1, thickness: 1, color: _kDivider),
           _FilterTabs(
             selectedIndex: _selectedTab,
+            itemCount: _downloads.length,
             onChanged: (i) => setState(() => _selectedTab = i),
           ),
           const Divider(height: 1, thickness: 1, color: _kDivider),
@@ -47,8 +89,8 @@ class _HomeScreenState extends State<HomeScreen> {
             child: ColoredBox(
               color: Colors.white,
               child: ListView.builder(
-                itemCount: kMockItems.length,
-                itemBuilder: (_, i) => _DownloadListItem(item: kMockItems[i]),
+                itemCount: _downloads.length,
+                itemBuilder: (_, i) => _DownloadListItem(item: _downloads[i]),
               ),
             ),
           ),
@@ -127,6 +169,7 @@ class _Toolbar extends StatelessWidget {
   final ValueChanged<String> onQualityChanged;
   final ValueChanged<String> onFormatChanged;
   final ValueChanged<String> onFolderChanged;
+  final VoidCallback onPaste;
 
   const _Toolbar({
     required this.selectedType,
@@ -137,6 +180,7 @@ class _Toolbar extends StatelessWidget {
     required this.onQualityChanged,
     required this.onFormatChanged,
     required this.onFolderChanged,
+    required this.onPaste,
   });
 
   @override
@@ -153,7 +197,7 @@ class _Toolbar extends StatelessWidget {
               child: Row(
                 children: [
                   ElevatedButton(
-                    onPressed: () {},
+                    onPressed: onPaste,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _kGreen,
                       foregroundColor: Colors.white,
@@ -301,9 +345,14 @@ class _SelectorButton extends StatelessWidget {
 
 class _FilterTabs extends StatelessWidget {
   final int selectedIndex;
+  final int itemCount;
   final ValueChanged<int> onChanged;
 
-  const _FilterTabs({required this.selectedIndex, required this.onChanged});
+  const _FilterTabs({
+    required this.selectedIndex,
+    required this.itemCount,
+    required this.onChanged,
+  });
 
   static const _tabs = [
     'Todos',
@@ -369,7 +418,7 @@ class _FilterTabs extends StatelessWidget {
             child: Row(
               children: [
                 Text(
-                  '${kMockItems.length} itens',
+                  '$itemCount itens',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                 ),
                 const SizedBox(width: 4),
@@ -401,15 +450,14 @@ class _FilterTabs extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _DownloadListItem extends StatelessWidget {
-  final MockDownloadItem item;
+  final DownloadItem item;
 
   const _DownloadListItem({required this.item});
 
   @override
   Widget build(BuildContext context) {
-    final meta =
-        '${item.duration} · ${item.size} · ${item.format} · '
-        '${item.resolution} · ${item.fps} · ${item.source}';
+    final isDownloading =
+        item.status == DownloadStatus.downloading && item.progress > 0;
 
     return Column(
       children: [
@@ -448,15 +496,27 @@ class _DownloadListItem extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      meta,
+                      item.metadataLabel,
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade500,
                       ),
                     ),
+                    if (isDownloading)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: LinearProgressIndicator(
+                          value: item.progress,
+                          backgroundColor: Colors.grey.shade200,
+                          valueColor: const AlwaysStoppedAnimation(_kGreen),
+                          minHeight: 3,
+                        ),
+                      ),
                   ],
                 ),
               ),
+              const SizedBox(width: 12),
+              _StatusBadge(item: item),
             ],
           ),
         ),
@@ -466,6 +526,33 @@ class _DownloadListItem extends StatelessWidget {
           color: Colors.grey.shade100,
         ),
       ],
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  final DownloadItem item;
+
+  const _StatusBadge({required this.item});
+
+  static Color _colorFor(DownloadStatus s) => switch (s) {
+        DownloadStatus.completed => Color(0xFF2E7D32),
+        DownloadStatus.failed => Colors.red,
+        DownloadStatus.canceled => Colors.grey,
+        DownloadStatus.downloading => Colors.blue,
+        DownloadStatus.ready => Colors.teal,
+        _ => Colors.grey,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      item.statusLabel,
+      style: TextStyle(
+        fontSize: 11,
+        color: _colorFor(item.status),
+        fontWeight: FontWeight.w500,
+      ),
     );
   }
 }
