@@ -593,6 +593,30 @@ void main() {
       expect(completed.progress, 1.0);
     });
 
+    test('markItemCompletedWithMessage conclui e atualiza sourceLabel', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(
+            id: '1',
+            title: 'Run',
+            status: DownloadStatus.downloading,
+            progress: 0.4,
+            sourceLabel: 'Origem antiga',
+          ),
+        ],
+      );
+
+      final completed = controller.markItemCompletedWithMessage(
+        '1',
+        'Salvo em Downloads/ClipFlow',
+      );
+
+      expect(completed, isNotNull);
+      expect(completed!.status, DownloadStatus.completed);
+      expect(completed.progress, 1.0);
+      expect(completed.sourceLabel, 'Salvo em Downloads/ClipFlow');
+    });
+
     test('markItemFailed marca failed', () {
       final controller = DownloadQueueController(
         initialItems: [

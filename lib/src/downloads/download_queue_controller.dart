@@ -269,6 +269,18 @@ class DownloadQueueController {
     return _replaceAt(index, updated);
   }
 
+  DownloadItem? markItemCompletedWithMessage(String id, String message) {
+    final index = _indexOf(id);
+    if (index < 0) return null;
+    final item = _items[index];
+    final updated = item.copyWith(
+      status: DownloadStatus.completed,
+      progress: 1,
+      sourceLabel: message,
+    );
+    return _replaceAt(index, updated);
+  }
+
   DownloadItem? markItemFailed(String id, String message) {
     final index = _indexOf(id);
     if (index < 0) return null;

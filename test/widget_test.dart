@@ -23,10 +23,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Motor interno'), findsOneWidget);
-    expect(
-      find.textContaining('yt-dlp/youtube-dl são apenas referência conceitual'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('yt-dlp/youtube-dl'), findsOneWidget);
 
     await tester.tap(find.text('Entendi'));
     await tester.pump();

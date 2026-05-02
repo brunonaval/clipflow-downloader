@@ -14,6 +14,7 @@ import '../engine/download/internal_download_progress.dart';
 import '../engine/download/internal_download_request.dart';
 import '../engine/download/internal_download_result.dart';
 import '../engine/download/internal_http_downloader.dart';
+import '../engine/download/download_output_planner.dart';
 import '../engine/youtube/youtube_url_parser.dart';
 import 'mock_download_item.dart';
 
@@ -36,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _mockAnalysisTimer;
   final Map<String, InternalDownloadCancellation> _downloadCancellations = {};
   static const _httpDownloader = InternalHttpDownloader();
+  static const _outputPlanner = DownloadOutputPlanner();
 
   late final DownloadQueueController _queueController;
 
@@ -298,15 +300,14 @@ class _HomeScreenState extends State<HomeScreen> {
     _downloadCancellations[item.id] = cancellation;
 
     IOSink? sink;
+    String? savedFileName;
     try {
-      final tempDir = await Directory.systemTemp.createTemp(
-        'clipflow_downloads_',
-      );
       final fileName = (item.outputFileName?.trim().isNotEmpty ?? false)
           ? item.outputFileName!.trim()
           : 'clipflow-download.bin';
-      final tempPath = '${tempDir.path}${Platform.pathSeparator}$fileName';
-      sink = File(tempPath).openWrite();
+      final outputPlan = await _outputPlanner.plan(requestedFileName: fileName);
+      savedFileName = outputPlan.fileName;
+      sink = outputPlan.file.openWrite();
 
       final result = await _httpDownloader.download(
         request: InternalDownloadRequest(sourceUri: uri, fileName: fileName),
@@ -325,11 +326,14 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       switch (result.status) {
         case InternalDownloadStatus.completed:
-          _queueController.markItemCompleted(item.id);
+          _queueController.markItemCompletedWithMessage(
+            item.id,
+            'Salvo em Downloads/ClipFlow',
+          );
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Download concluído em pasta temporária'),
-              duration: Duration(seconds: 2),
+            SnackBar(
+              content: Text('Download concluído: $savedFileName'),
+              duration: const Duration(seconds: 2),
             ),
           );
           break;
