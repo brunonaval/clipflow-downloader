@@ -137,7 +137,7 @@ void main() {
           ),
           _item(
             id: '2',
-            title: 'Aula de vÃƒÂ­deo',
+            title: 'Aula de vídeo',
             transferType: DownloadTransferType.video,
           ),
         ],
@@ -155,7 +155,7 @@ void main() {
       final controller = DownloadQueueController(
         initialItems: [
           _item(id: '1', title: 'A', sourceLabel: 'Pasta Downloads'),
-          _item(id: '2', title: 'B', sourceLabel: 'Pasta VÃ­deos'),
+          _item(id: '2', title: 'B', sourceLabel: 'Pasta Vídeos'),
         ],
       );
 
@@ -403,7 +403,7 @@ void main() {
       expect(updated, isNull);
     });
 
-    test('markItemReadyAfterInternalAnalysis marca URL invÃƒÂ¡lida como failed', () {
+    test('markItemReadyAfterInternalAnalysis marca URL inválida como failed', () {
       final controller = DownloadQueueController();
       final created = controller.addMockAuthorizedLink(
         status: DownloadStatus.analyzing,
@@ -449,7 +449,7 @@ void main() {
       expect(updated.selectedFormatId, isNotNull);
     });
 
-    test('markItemReadyAfterInternalAnalysis marca URL invÃƒÂ¡lida como failed', () {
+    test('markItemReadyAfterInternalAnalysis marca URL inválida como failed', () {
       final controller = DownloadQueueController();
       final created = controller.addMockAuthorizedLink(
         status: DownloadStatus.analyzing,
@@ -478,7 +478,7 @@ void main() {
       },
     );
 
-    test('selectFormatForItem retorna null quando item nÃƒÂ£o existe', () {
+    test('selectFormatForItem retorna null quando item não existe', () {
       final controller = DownloadQueueController();
 
       final updated = controller.selectFormatForItem('missing-id', 'audio-m4a');
@@ -486,7 +486,7 @@ void main() {
       expect(updated, isNull);
     });
 
-    test('selectFormatForItem retorna null quando formato nÃƒÂ£o existe', () {
+    test('selectFormatForItem retorna null quando formato não existe', () {
       final controller = DownloadQueueController();
       final created = controller.addMockAuthorizedLink(
         status: DownloadStatus.analyzing,
@@ -525,7 +525,7 @@ void main() {
     });
 
     test(
-      'attachMockCommandPreview retorna null se item nÃƒÂ£o tiver formato selecionado',
+      'attachMockCommandPreview retorna null se item não tiver formato selecionado',
       () {
         final controller = DownloadQueueController();
         final created = controller.addMockAuthorizedLink(

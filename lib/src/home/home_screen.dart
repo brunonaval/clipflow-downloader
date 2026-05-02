@@ -902,27 +902,27 @@ class _ItemActions extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.play_arrow, size: 18),
             onPressed: onStart,
-            tooltip: 'Configura\u00e7\u00f5es',
+            tooltip: 'Iniciar',
             visualDensity: VisualDensity.compact,
           ),
         if (_canPause)
           IconButton(
             icon: const Icon(Icons.pause, size: 18),
             onPressed: onPause,
-            tooltip: 'Configura\u00e7\u00f5es',
+            tooltip: 'Pausar',
             visualDensity: VisualDensity.compact,
           ),
         if (_canCancel)
           IconButton(
             icon: const Icon(Icons.cancel_outlined, size: 18),
             onPressed: onCancel,
-            tooltip: 'Configura\u00e7\u00f5es',
+            tooltip: 'Cancelar',
             visualDensity: VisualDensity.compact,
           ),
         IconButton(
           icon: const Icon(Icons.delete_outline, size: 18),
           onPressed: onRemove,
-          tooltip: 'Configura\u00e7\u00f5es',
+          tooltip: 'Remover',
           visualDensity: VisualDensity.compact,
         ),
       ],

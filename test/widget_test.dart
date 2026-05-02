@@ -12,6 +12,8 @@ void main() {
     expect(find.text('Configurar motor'), findsOneWidget);
     expect(find.text('Verificar motor'), findsOneWidget);
     expect(find.textContaining('Motor '), findsWidgets);
+    expect(find.byTooltip('Remover'), findsWidgets);
+    expect(find.byTooltip('Configurações'), findsOneWidget);
   });
 
   testWidgets('opens engine settings dialog from status bar', (
