@@ -1,4 +1,4 @@
-﻿import '../downloads/download_format_option.dart';
+import '../downloads/download_format_option.dart';
 import 'internal_engine_analysis_result.dart';
 import 'internal_engine_source.dart';
 import 'youtube/youtube_extractor.dart';

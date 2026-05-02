@@ -12,6 +12,7 @@ import '../engine/engine_availability_checker.dart';
 import '../engine/engine_availability_result.dart';
 import '../engine/engine_settings.dart';
 import '../engine/engine_settings_dialog.dart';
+import '../engine/youtube/youtube_url_parser.dart';
 import 'mock_download_item.dart';
 
 const _kGreen = Color(0xFF2E7D32);
@@ -25,6 +26,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const _youtubeUrlParser = YouTubeUrlParser();
   DownloadQueueFilter _activeFilter = DownloadQueueFilter.all;
   DownloadOptions _downloadOptions = const DownloadOptions();
   EngineSettings _engineSettings = const EngineSettings();
@@ -106,6 +108,67 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final safeUrl = (url ?? '').trim();
     if (_isHttpUrl(safeUrl)) {
+      if (_youtubeUrlParser.isYouTubeUrl(safeUrl)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Análise do YouTube iniciada'),
+            duration: Duration(milliseconds: 1200),
+          ),
+        );
+
+        final youtubeUpdated = await _queueController
+            .markItemReadyAfterYouTubeMetadataAnalysis(
+              id: addedItem.id,
+              outputFolderLabel: _downloadOptions.outputFolderLabel,
+            );
+        if (!mounted) return;
+
+        if (youtubeUpdated != null && youtubeUpdated.status == DownloadStatus.ready) {
+          _queueController.attachMockCommandPreview(
+            itemId: addedItem.id,
+            settings: _engineSettings,
+            outputFolderLabel: _downloadOptions.outputFolderLabel,
+          );
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Metadados do YouTube extraídos'),
+              duration: Duration(milliseconds: 1200),
+            ),
+          );
+          return;
+        }
+
+        final fallbackUpdated = _queueController.markItemReadyAfterInternalAnalysis(
+          id: addedItem.id,
+          outputFolderLabel: _downloadOptions.outputFolderLabel,
+        );
+        if (fallbackUpdated != null && fallbackUpdated.status == DownloadStatus.ready) {
+          _queueController.attachMockCommandPreview(
+            itemId: addedItem.id,
+            settings: _engineSettings,
+            outputFolderLabel: _downloadOptions.outputFolderLabel,
+          );
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Usando análise estrutural do YouTube'),
+              duration: Duration(milliseconds: 1200),
+            ),
+          );
+          return;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Usando análise estrutural do YouTube'),
+            duration: Duration(milliseconds: 1200),
+          ),
+        );
+        _scheduleMockAnalysis(addedItem.id);
+        return;
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('An\u00e1lise interna iniciada'),

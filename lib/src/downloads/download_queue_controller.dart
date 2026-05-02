@@ -1,6 +1,7 @@
 import '../engine/mock_engine_service.dart';
 import '../engine/internal_engine_service.dart';
 import '../engine/engine_settings.dart';
+import '../engine/youtube/youtube_extractor.dart';
 import 'download_item.dart';
 import 'download_options.dart';
 import 'download_queue_filter.dart';
@@ -16,6 +17,7 @@ class DownloadQueueController {
   final MockEngineService _engineService;
   final InternalEngineService _internalEngineService =
       const InternalEngineService();
+  final YouTubeExtractor _youtubeExtractor = const YouTubeExtractor();
   List<DownloadItem> _items;
   int _nextMockItemNumber;
 
@@ -173,6 +175,45 @@ class DownloadQueueController {
     if (result.formats.isEmpty) {
       final failed = item.copyWith(
         status: DownloadStatus.failed,
+        sourceLabel: result.sourceLabel,
+        progress: 0,
+      );
+      return _replaceAt(index, failed);
+    }
+
+    final updated = item.copyWith(
+      status: DownloadStatus.ready,
+      progress: 0,
+      title: result.title,
+      durationLabel: result.durationLabel,
+      sourceLabel: result.sourceLabel,
+      availableFormats: result.formats,
+      selectedFormatId: result.recommendedFormatId,
+    );
+    return _replaceAt(index, updated);
+  }
+
+  Future<DownloadItem?> markItemReadyAfterYouTubeMetadataAnalysis({
+    required String id,
+    String outputFolderLabel = 'Vídeos',
+  }) async {
+    final index = _indexOf(id);
+    if (index < 0) return null;
+
+    final item = _items[index];
+    if (item.status != DownloadStatus.analyzing) return null;
+
+    final result = await _youtubeExtractor.analyzeUrlMetadata(
+      rawUrl: item.sourceUrl ?? '',
+      outputFolderLabel: outputFolderLabel,
+    );
+    if (result == null) return null;
+
+    if (result.formats.isEmpty) {
+      final failed = item.copyWith(
+        status: DownloadStatus.failed,
+        title: result.title,
+        durationLabel: result.durationLabel,
         sourceLabel: result.sourceLabel,
         progress: 0,
       );
