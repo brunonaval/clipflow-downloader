@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +7,8 @@ import '../downloads/download_item.dart';
 import '../downloads/download_options.dart';
 import '../downloads/download_queue_controller.dart';
 import '../downloads/download_queue_filter.dart';
+import '../engine/engine_settings.dart';
+import '../engine/engine_settings_dialog.dart';
 import 'mock_download_item.dart';
 
 const _kGreen = Color(0xFF2E7D32);
@@ -22,6 +24,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   DownloadQueueFilter _activeFilter = DownloadQueueFilter.all;
   DownloadOptions _downloadOptions = const DownloadOptions();
+  EngineSettings _engineSettings = const EngineSettings();
   String _searchQuery = '';
   Timer? _fakeProgressTimer;
 
@@ -142,6 +145,26 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _openEngineSettingsDialog() async {
+    final updated = await showDialog<EngineSettings>(
+      context: context,
+      builder: (_) => EngineSettingsDialog(initialSettings: _engineSettings),
+    );
+
+    if (!mounted || updated == null) return;
+
+    setState(() {
+      _engineSettings = updated;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Configuração mockada do motor salva'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final visibleItems = _queueController.filteredItems(
@@ -207,6 +230,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           _StatusBar(
             onClearFinished: _clearFinishedItems,
+            onConfigureEngine: _openEngineSettingsDialog,
+            engineStatus: _engineSettings.status,
           ),
         ],
       ),
@@ -753,8 +778,20 @@ class _EmptyFilterState extends StatelessWidget {
 
 class _StatusBar extends StatelessWidget {
   final VoidCallback onClearFinished;
+  final VoidCallback onConfigureEngine;
+  final EngineSetupStatus engineStatus;
 
-  const _StatusBar({required this.onClearFinished});
+  const _StatusBar({
+    required this.onClearFinished,
+    required this.onConfigureEngine,
+    required this.engineStatus,
+  });
+
+  String get _engineStatusLabel => switch (engineStatus) {
+        EngineSetupStatus.notConfigured => 'Motor externo não configurado',
+        EngineSetupStatus.configuredMock =>
+          'Motor externo configurado em modo mock',
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -764,54 +801,71 @@ class _StatusBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          const Expanded(
-            child: Text(
-              'Pronto para downloads autorizados',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                OutlinedButton(
-                  onPressed: onClearFinished,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white54),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  child: const Text(
-                    'Limpar concluídos',
-                    style: TextStyle(fontSize: 13),
+                const Text(
+                  'Pronto para downloads autorizados',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
                   ),
                 ),
-                const SizedBox(width: 8),
-                OutlinedButton(
-                  onPressed: () {},
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white54),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  child: const Text(
-                    'Configurar motor',
-                    style: TextStyle(fontSize: 13),
+                Text(
+                  _engineStatusLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
                   ),
                 ),
               ],
+            ),
+          ),
+          Flexible(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  OutlinedButton(
+                    onPressed: onClearFinished,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white54),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text(
+                      'Limpar concluídos',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: onConfigureEngine,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white54),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text(
+                      'Configurar motor',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
