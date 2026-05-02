@@ -15,6 +15,7 @@ import '../engine/download/internal_download_request.dart';
 import '../engine/download/internal_download_result.dart';
 import '../engine/download/internal_http_downloader.dart';
 import '../engine/download/download_output_planner.dart';
+import '../engine/youtube/youtube_direct_media_failure.dart';
 import '../engine/youtube/youtube_extractor.dart';
 import '../engine/youtube/youtube_url_parser.dart';
 import 'mock_download_item.dart';
@@ -381,30 +382,41 @@ class _HomeScreenState extends State<HomeScreen> {
 
     IOSink? sink;
     try {
-      final reference = await _youtubeExtractor.locateDirectMediaForFormat(
+      final lookup = await _youtubeExtractor.lookupDirectMediaForFormat(
         rawUrl: item.sourceUrl ?? '',
         formatId: selectedFormat.id,
       );
 
-      if (reference == null) {
-        _queueController.markItemFailed(
-          item.id,
-          'Formato exige assinatura ou ainda não é suportado pelo motor interno',
-        );
+      if (!lookup.hasReference) {
+        final failure = lookup.failure;
+        final message =
+            failure?.message ??
+            'Formato ainda não suportado pelo motor interno.';
+        _queueController.markItemFailed(item.id, message);
+        final snackBarMessage = switch (failure?.reason) {
+          YouTubeDirectMediaFailureReason.requiresSignature =>
+            'Formato exige assinatura; escolha outro formato.',
+          YouTubeDirectMediaFailureReason.noDirectUrl =>
+            'Formato sem URL direta disponível.',
+          YouTubeDirectMediaFailureReason.formatNotFound =>
+            'Formato não encontrado no player.',
+          YouTubeDirectMediaFailureReason.invalidUrl =>
+            'URL de mídia inválida.',
+          YouTubeDirectMediaFailureReason.unsupported ||
+          null => 'Formato ainda não suportado pelo motor interno.',
+        };
         if (mounted) {
           setState(() {});
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Formato exige assinatura ou ainda não é suportado pelo motor interno',
-              ),
-              duration: Duration(seconds: 2),
+            SnackBar(
+              content: Text(snackBarMessage),
+              duration: const Duration(seconds: 2),
             ),
           );
         }
         return;
       }
-
+      final reference = lookup.reference!;
       final baseName = _safeTitleAsFileBase(item.title);
       final suggestedName = '$baseName.${reference.fileExtension}';
       final outputPlan = await _outputPlanner.plan(

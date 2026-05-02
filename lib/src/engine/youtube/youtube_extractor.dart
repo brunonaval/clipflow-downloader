@@ -1,5 +1,6 @@
 import '../../downloads/download_format_option.dart';
 import '../internal_engine_analysis_result.dart';
+import 'youtube_direct_media_failure.dart';
 import 'youtube_direct_media_locator.dart';
 import 'youtube_format_descriptor.dart';
 import 'youtube_html_metadata_parser.dart';
@@ -87,19 +88,42 @@ class YouTubeExtractor {
     );
   }
 
-  Future<YouTubeDirectMediaReference?> locateDirectMediaForFormat({
+  Future<YouTubeDirectMediaLookupResult> lookupDirectMediaForFormat({
     required String rawUrl,
     required String formatId,
   }) async {
     final reference = _parser.parse(rawUrl);
-    if (reference == null) return null;
+    if (reference == null) {
+      return const YouTubeDirectMediaLookupResult.failure(
+        YouTubeDirectMediaFailure(
+          reason: YouTubeDirectMediaFailureReason.unsupported,
+          message: 'Formato ainda não suportado pelo motor interno.',
+        ),
+      );
+    }
 
     try {
       final html = await _fetcher.fetchWatchHtml(reference);
-      return _directLocator.locateDirectMedia(html: html, formatId: formatId);
+      return _directLocator.lookupDirectMedia(html: html, formatId: formatId);
     } catch (_) {
-      return null;
+      return const YouTubeDirectMediaLookupResult.failure(
+        YouTubeDirectMediaFailure(
+          reason: YouTubeDirectMediaFailureReason.unsupported,
+          message: 'Formato ainda não suportado pelo motor interno.',
+        ),
+      );
     }
+  }
+
+  Future<YouTubeDirectMediaReference?> locateDirectMediaForFormat({
+    required String rawUrl,
+    required String formatId,
+  }) async {
+    final result = await lookupDirectMediaForFormat(
+      rawUrl: rawUrl,
+      formatId: formatId,
+    );
+    return result.reference;
   }
 
   InternalEngineAnalysisResult analyzeReferenceMock({

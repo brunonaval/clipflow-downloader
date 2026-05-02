@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'youtube_direct_media_failure.dart';
+
 class YouTubeDirectMediaReference {
   final String formatId;
   final Uri mediaUri;
@@ -21,45 +23,108 @@ class YouTubeDirectMediaLocator {
     required String html,
     required String formatId,
   }) {
+    final result = lookupDirectMedia(html: html, formatId: formatId);
+    return result.reference;
+  }
+
+  YouTubeDirectMediaLookupResult lookupDirectMedia({
+    required String html,
+    required String formatId,
+  }) {
     final playerJson =
         _extractInitialPlayerResponseJson(html) ??
         _extractInitialPlayerResponsePropertyJson(html);
-    if (playerJson == null) return null;
+    if (playerJson == null) {
+      return const YouTubeDirectMediaLookupResult.failure(
+        YouTubeDirectMediaFailure(
+          reason: YouTubeDirectMediaFailureReason.unsupported,
+          message: 'Player do YouTube não suportado pelo motor interno.',
+        ),
+      );
+    }
 
     try {
       final decoded = jsonDecode(playerJson);
-      if (decoded is! Map<String, dynamic>) return null;
+      if (decoded is! Map<String, dynamic>) {
+        return const YouTubeDirectMediaLookupResult.failure(
+          YouTubeDirectMediaFailure(
+            reason: YouTubeDirectMediaFailureReason.unsupported,
+            message: 'Player do YouTube não suportado pelo motor interno.',
+          ),
+        );
+      }
 
       final streamingData = _asMap(decoded['streamingData']);
-      if (streamingData == null) return null;
+      if (streamingData == null) {
+        return const YouTubeDirectMediaLookupResult.failure(
+          YouTubeDirectMediaFailure(
+            reason: YouTubeDirectMediaFailureReason.unsupported,
+            message: 'Player do YouTube não suportado pelo motor interno.',
+          ),
+        );
+      }
 
       final format =
           _findFormat(streamingData['formats'], formatId) ??
           _findFormat(streamingData['adaptiveFormats'], formatId);
-      if (format == null) return null;
+      if (format == null) {
+        return const YouTubeDirectMediaLookupResult.failure(
+          YouTubeDirectMediaFailure(
+            reason: YouTubeDirectMediaFailureReason.formatNotFound,
+            message: 'Formato não encontrado no player.',
+          ),
+        );
+      }
 
       if (format.containsKey('signatureCipher') ||
           format.containsKey('cipher')) {
-        return null;
+        return const YouTubeDirectMediaLookupResult.failure(
+          YouTubeDirectMediaFailure(
+            reason: YouTubeDirectMediaFailureReason.requiresSignature,
+            message: 'Formato exige assinatura; escolha outro formato.',
+          ),
+        );
       }
 
       final rawUrl = format['url']?.toString().trim();
-      if (rawUrl == null || rawUrl.isEmpty) return null;
+      if (rawUrl == null || rawUrl.isEmpty) {
+        return const YouTubeDirectMediaLookupResult.failure(
+          YouTubeDirectMediaFailure(
+            reason: YouTubeDirectMediaFailureReason.noDirectUrl,
+            message: 'Formato sem URL direta disponível.',
+          ),
+        );
+      }
 
       final mediaUri = Uri.tryParse(rawUrl);
-      if (mediaUri == null || !mediaUri.hasScheme) return null;
+      if (mediaUri == null ||
+          !(mediaUri.scheme == 'http' || mediaUri.scheme == 'https')) {
+        return const YouTubeDirectMediaLookupResult.failure(
+          YouTubeDirectMediaFailure(
+            reason: YouTubeDirectMediaFailureReason.invalidUrl,
+            message: 'URL de mídia inválida.',
+          ),
+        );
+      }
 
       final mimeType = format['mimeType']?.toString() ?? '';
       final ext = _extensionFromMimeType(mimeType);
 
-      return YouTubeDirectMediaReference(
-        formatId: formatId,
-        mediaUri: mediaUri,
-        fileExtension: ext,
-        safeHostLabel: mediaUri.host,
+      return YouTubeDirectMediaLookupResult.reference(
+        YouTubeDirectMediaReference(
+          formatId: formatId,
+          mediaUri: mediaUri,
+          fileExtension: ext,
+          safeHostLabel: mediaUri.host,
+        ),
       );
     } catch (_) {
-      return null;
+      return const YouTubeDirectMediaLookupResult.failure(
+        YouTubeDirectMediaFailure(
+          reason: YouTubeDirectMediaFailureReason.unsupported,
+          message: 'Player do YouTube não suportado pelo motor interno.',
+        ),
+      );
     }
   }
 

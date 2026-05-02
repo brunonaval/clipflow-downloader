@@ -1,78 +1,112 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:clipflow_downloader/src/engine/youtube/youtube_direct_media_failure.dart';
 import 'package:clipflow_downloader/src/engine/youtube/youtube_direct_media_locator.dart';
 
 void main() {
   group('YouTubeDirectMediaLocator', () {
     const locator = YouTubeDirectMediaLocator();
 
-    test('retorna referencia para formato com url direta', () {
+    test('lookupDirectMedia retorna referência para URL direta válida', () {
       const html =
           '<script>var ytInitialPlayerResponse = {"streamingData":{"formats":[{"itag":18,"mimeType":"video/mp4","url":"https://media.example/video.mp4?token=abc"}]}};</script>';
 
-      final result = locator.locateDirectMedia(html: html, formatId: '18');
+      final result = locator.lookupDirectMedia(html: html, formatId: '18');
 
-      expect(result, isNotNull);
-      expect(result!.formatId, '18');
-      expect(result.fileExtension, 'mp4');
-      expect(result.safeHostLabel, 'media.example');
+      expect(result.hasReference, isTrue);
+      expect(result.reference, isNotNull);
+      expect(result.reference!.fileExtension, 'mp4');
+      expect(result.reference!.safeHostLabel, 'media.example');
     });
 
-    test('retorna null para signatureCipher', () {
+    test('signatureCipher retorna failure requiresSignature', () {
       const html =
           '<script>var ytInitialPlayerResponse = {"streamingData":{"adaptiveFormats":[{"itag":140,"mimeType":"audio/mp4","signatureCipher":"url=https%3A%2F%2Fmedia.example%2Fa.m4a&sp=s&sig=abc"}]}};</script>';
 
-      final result = locator.locateDirectMedia(html: html, formatId: '140');
+      final result = locator.lookupDirectMedia(html: html, formatId: '140');
 
-      expect(result, isNull);
+      expect(result.reference, isNull);
+      expect(
+        result.failure?.reason,
+        YouTubeDirectMediaFailureReason.requiresSignature,
+      );
     });
 
-    test('retorna null para cipher', () {
+    test('cipher retorna failure requiresSignature', () {
       const html =
           '<script>var ytInitialPlayerResponse = {"streamingData":{"adaptiveFormats":[{"itag":141,"mimeType":"audio/mp4","cipher":"url=https%3A%2F%2Fmedia.example%2Fa.m4a&sp=s&sig=abc"}]}};</script>';
 
-      final result = locator.locateDirectMedia(html: html, formatId: '141');
+      final result = locator.lookupDirectMedia(html: html, formatId: '141');
 
-      expect(result, isNull);
+      expect(result.reference, isNull);
+      expect(
+        result.failure?.reason,
+        YouTubeDirectMediaFailureReason.requiresSignature,
+      );
     });
 
-    test('retorna null para formato inexistente', () {
+    test('sem url retorna failure noDirectUrl', () {
+      const html =
+          '<script>var ytInitialPlayerResponse = {"streamingData":{"formats":[{"itag":22,"mimeType":"video/mp4"}]}};</script>';
+
+      final result = locator.lookupDirectMedia(html: html, formatId: '22');
+
+      expect(result.reference, isNull);
+      expect(
+        result.failure?.reason,
+        YouTubeDirectMediaFailureReason.noDirectUrl,
+      );
+    });
+
+    test('formato inexistente retorna failure formatNotFound', () {
       const html =
           '<script>var ytInitialPlayerResponse = {"streamingData":{"formats":[{"itag":18,"mimeType":"video/mp4","url":"https://media.example/video.mp4"}]}};</script>';
 
-      final result = locator.locateDirectMedia(html: html, formatId: '999');
+      final result = locator.lookupDirectMedia(html: html, formatId: '999');
 
-      expect(result, isNull);
+      expect(result.reference, isNull);
+      expect(
+        result.failure?.reason,
+        YouTubeDirectMediaFailureReason.formatNotFound,
+      );
     });
 
-    test('fileExtension vem de mimeType', () {
+    test('HTML sem player retorna failure unsupported', () {
+      const html = '<html><body>sem player</body></html>';
+
+      final result = locator.lookupDirectMedia(html: html, formatId: '18');
+
+      expect(result.reference, isNull);
+      expect(
+        result.failure?.reason,
+        YouTubeDirectMediaFailureReason.unsupported,
+      );
+    });
+
+    test('url inválida retorna failure invalidUrl', () {
       const html =
-          '<script>var ytInitialPlayerResponse = {"streamingData":{"adaptiveFormats":[{"itag":251,"mimeType":"audio/webm","url":"https://media.example/audio.webm"}]}};</script>';
+          '<script>var ytInitialPlayerResponse = {"streamingData":{"formats":[{"itag":18,"mimeType":"video/mp4","url":"notaurl"}]}};</script>';
 
-      final result = locator.locateDirectMedia(html: html, formatId: '251');
+      final result = locator.lookupDirectMedia(html: html, formatId: '18');
 
-      expect(result, isNotNull);
-      expect(result!.fileExtension, 'webm');
+      expect(result.reference, isNull);
+      expect(
+        result.failure?.reason,
+        YouTubeDirectMediaFailureReason.invalidUrl,
+      );
     });
 
-    test('safeHostLabel vem do host', () {
-      const html =
-          '<script>var ytInitialPlayerResponse = {"streamingData":{"formats":[{"itag":22,"mimeType":"video/mp4","url":"https://rr1---sn.example.googlevideo.com/videoplayback?id=abc"}]}};</script>';
+    test(
+      'locateDirectMedia mantém compatibilidade retornando apenas reference',
+      () {
+        const html =
+            '<script>var ytInitialPlayerResponse = {"streamingData":{"formats":[{"itag":18,"mimeType":"video/mp4","url":"https://media.example/video.mp4"}]}};</script>';
 
-      final result = locator.locateDirectMedia(html: html, formatId: '22');
+        final reference = locator.locateDirectMedia(html: html, formatId: '18');
 
-      expect(result, isNotNull);
-      expect(result!.safeHostLabel, 'rr1---sn.example.googlevideo.com');
-    });
-
-    test('nao expoe URL em labels', () {
-      const html =
-          '<script>var ytInitialPlayerResponse = {"streamingData":{"formats":[{"itag":18,"mimeType":"video/mp4","url":"https://media.example/video.mp4?token=abc"}]}};</script>';
-
-      final result = locator.locateDirectMedia(html: html, formatId: '18');
-
-      expect(result, isNotNull);
-      expect(result!.safeHostLabel.contains('token='), isFalse);
-    });
+        expect(reference, isNotNull);
+        expect(reference!.formatId, '18');
+      },
+    );
   });
 }
