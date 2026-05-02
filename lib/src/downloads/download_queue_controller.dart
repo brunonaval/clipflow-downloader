@@ -61,7 +61,10 @@ class DownloadQueueController {
     required DownloadQueueFilter filter,
     String searchQuery = '',
   }) {
-    final count = filteredItems(filter: filter, searchQuery: searchQuery).length;
+    final count = filteredItems(
+      filter: filter,
+      searchQuery: searchQuery,
+    ).length;
     if (count == 0) return '0 itens';
     if (count == 1) return '1 item';
     return '$count itens';
@@ -73,6 +76,7 @@ class DownloadQueueController {
     String formatLabel = 'MP4',
     String qualityLabel = 'Ótima',
     String outputFolderLabel = 'Vídeos',
+    DownloadStatus status = DownloadStatus.queued,
   }) {
     final currentNumber = _nextMockItemNumber;
     _nextMockItemNumber += 1;
@@ -88,7 +92,7 @@ class DownloadQueueController {
       fpsLabel: '--fps',
       sourceLabel: 'Aguardando análise · $outputFolderLabel',
       transferType: transferType,
-      status: DownloadStatus.queued,
+      status: status,
       progress: 0,
     );
 
@@ -113,6 +117,22 @@ class DownloadQueueController {
     final updated = item.copyWith(
       status: DownloadStatus.downloading,
       progress: item.progress >= 1 ? 0 : item.progress,
+    );
+    return _replaceAt(index, updated);
+  }
+
+  DownloadItem? markItemReadyAfterMockAnalysis(String id) {
+    final index = _indexOf(id);
+    if (index < 0) return null;
+
+    final item = _items[index];
+    if (item.status != DownloadStatus.analyzing) return null;
+
+    final outputFolder = _extractOutputFolderFromSource(item.sourceLabel);
+    final updated = item.copyWith(
+      status: DownloadStatus.ready,
+      progress: 0,
+      sourceLabel: 'Análise mockada concluída · $outputFolder',
     );
     return _replaceAt(index, updated);
   }
@@ -165,7 +185,10 @@ class DownloadQueueController {
 
       final nextProgress = item.progress + safeStep;
       if (nextProgress >= 1) {
-        _items[i] = item.copyWith(status: DownloadStatus.completed, progress: 1);
+        _items[i] = item.copyWith(
+          status: DownloadStatus.completed,
+          progress: 1,
+        );
       } else {
         _items[i] = item.copyWith(
           status: DownloadStatus.downloading,
@@ -184,6 +207,13 @@ class DownloadQueueController {
   }
 
   int _indexOf(String id) => _items.indexWhere((item) => item.id == id);
+
+  String _extractOutputFolderFromSource(String sourceLabel) {
+    const separator = '·';
+    final index = sourceLabel.lastIndexOf(separator);
+    if (index < 0 || index == sourceLabel.length - 1) return 'Vídeos';
+    return sourceLabel.substring(index + 1).trim();
+  }
 
   DownloadItem _replaceAt(int index, DownloadItem updated) {
     _items[index] = updated;
