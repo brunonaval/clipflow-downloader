@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:clipflow_downloader/src/downloads/download_format_option.dart';
 import 'package:clipflow_downloader/src/engine/yt_dlp/yt_dlp_engine_service.dart';
 import 'package:clipflow_downloader/src/engine/yt_dlp/yt_dlp_executable.dart';
 
@@ -46,6 +47,12 @@ void main() {
   "duration": 201,
   "formats": [
     {
+      "format_id": "sb2",
+      "ext": "mhtml",
+      "vcodec": "none",
+      "acodec": "none"
+    },
+    {
       "format_id": "22",
       "ext": "mp4",
       "height": 720,
@@ -59,6 +66,14 @@ void main() {
       "vcodec": "none",
       "acodec": "mp4a",
       "filesize": 5242880
+    },
+    {
+      "format_id": "137",
+      "ext": "mp4",
+      "height": 1080,
+      "vcodec": "avc1",
+      "acodec": "none",
+      "filesize": 15728640
     }
   ]
 }
@@ -75,8 +90,14 @@ void main() {
       expect(result.title, 'Video Teste');
       expect(result.durationLabel, '03:21');
       expect(result.formats, isNotEmpty);
+      expect(result.formats.any((f) => f.id.startsWith('sb')), isFalse);
       expect(result.formats.any((f) => f.formatLabel == 'MP4'), isTrue);
+      expect(result.formats.first.id, '22');
       expect(result.recommendedFormatId, result.formats.first.id);
+      expect(
+        result.formats.any((f) => f.detailsLabel.contains('[video-only]')),
+        isTrue,
+      );
     });
 
     test('throws friendly error when executable is unavailable', () async {
@@ -95,6 +116,21 @@ void main() {
         '[download]  42.0% of 10.00MiB at 1.23MiB/s ETA 00:03',
       );
       expect(value, closeTo(0.42, 0.0001));
+    });
+
+    test('detects video-only option helper', () {
+      const videoOnly = DownloadFormatOption(
+        id: '137',
+        kind: DownloadFormatKind.video,
+        label: 'Vídeo sem áudio — requer FFmpeg futuro',
+        formatLabel: 'MP4',
+        qualityLabel: '1080p',
+        sizeLabel: '15 MB',
+        detailsLabel:
+            '[video-only] yt-dlp format 137 · vídeo sem áudio · requer FFmpeg futuro',
+      );
+
+      expect(YtDlpEngineService.isVideoOnlyOption(videoOnly), isTrue);
     });
   });
 }

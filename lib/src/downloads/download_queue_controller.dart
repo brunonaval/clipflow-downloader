@@ -267,7 +267,7 @@ class DownloadQueueController {
       progress: 0,
       title: result.title,
       durationLabel: result.durationLabel,
-      sourceLabel: 'Análise via yt-dlp concluída',
+      sourceLabel: 'Análise yt-dlp concluída',
       availableFormats: result.formats,
       selectedFormatId: result.recommendedFormatId,
       isYouTubeSource: true,

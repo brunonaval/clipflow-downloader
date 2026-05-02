@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -144,7 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
             setState(() {});
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Análise via yt-dlp concluída'),
+                content: Text('Análise yt-dlp concluída'),
                 duration: Duration(milliseconds: 1200),
               ),
             );
@@ -380,6 +380,21 @@ class _HomeScreenState extends State<HomeScreen> {
         'Selecione um formato antes de iniciar.',
       );
       if (mounted) setState(() {});
+      return;
+    }
+    if (YtDlpEngineService.isVideoOnlyOption(selectedFormat)) {
+      const message =
+          'Este formato contém apenas vídeo e requer FFmpeg para juntar áudio.';
+      _queueController.markItemFailed(item.id, message);
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(message),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
       return;
     }
 
@@ -1296,3 +1311,5 @@ class _StatusBar extends StatelessWidget {
     );
   }
 }
+
+

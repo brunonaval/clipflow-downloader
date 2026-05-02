@@ -58,24 +58,28 @@ class YtDlpEngineService {
       );
     }
 
-    if (result.exitCode != 0) {
+    final rawJson = result.stdout.toString().trim();
+    dynamic decoded;
+
+    if (rawJson.isNotEmpty) {
+      try {
+        decoded = jsonDecode(rawJson);
+      } catch (_) {
+        if (result.exitCode != 0) {
+          final errorText = _shortError(result.stderr, result.stdout);
+          throw YtDlpEngineException('Falha na análise do yt-dlp: $errorText');
+        }
+        throw const YtDlpEngineException(
+          'yt-dlp retornou metadados inválidos para análise.',
+        );
+      }
+    } else if (result.exitCode != 0) {
       final errorText = _shortError(result.stderr, result.stdout);
       throw YtDlpEngineException('Falha na análise do yt-dlp: $errorText');
-    }
-
-    final rawJson = result.stdout.toString().trim();
-    if (rawJson.isEmpty) {
+    } else {
       throw const YtDlpEngineException('yt-dlp não retornou metadados.');
     }
 
-    dynamic decoded;
-    try {
-      decoded = jsonDecode(rawJson);
-    } catch (_) {
-      throw const YtDlpEngineException(
-        'yt-dlp retornou metadados inválidos para análise.',
-      );
-    }
     if (decoded is! Map<String, dynamic>) {
       throw const YtDlpEngineException(
         'yt-dlp retornou estrutura inesperada de metadados.',
@@ -233,6 +237,10 @@ class YtDlpEngineService {
     return (value / 100).clamp(0.0, 1.0);
   }
 
+  static bool isVideoOnlyOption(DownloadFormatOption option) {
+    return option.detailsLabel.contains('[video-only]');
+  }
+
   List<DownloadFormatOption> _mapFormats(Map<String, dynamic> json) {
     final rawFormats = json['formats'];
     if (rawFormats is! List) return const [];
@@ -248,21 +256,42 @@ class YtDlpEngineService {
 
       final formatId = map['format_id']?.toString().trim();
       if (formatId == null || formatId.isEmpty) continue;
+      if (formatId.toLowerCase().startsWith('sb')) continue;
 
-      final ext = (map['ext']?.toString().trim().toUpperCase() ?? 'BIN');
+      final extRaw = (map['ext']?.toString().trim().toLowerCase() ?? 'bin');
+      if (extRaw == 'mhtml') continue;
+      final ext = extRaw.toUpperCase();
+
       final vcodec = map['vcodec']?.toString() ?? '';
+      final acodec = map['acodec']?.toString() ?? '';
       final hasVideo = vcodec.isNotEmpty && vcodec != 'none';
-      final kind = hasVideo
-          ? DownloadFormatKind.video
-          : DownloadFormatKind.audio;
+      final hasAudio = acodec.isNotEmpty && acodec != 'none';
+      if (!hasVideo && !hasAudio) continue;
+
+      final category = _classifyFormat(hasVideo: hasVideo, hasAudio: hasAudio);
+      final kind = category == _YtDlpFormatCategory.audioOnly
+          ? DownloadFormatKind.audio
+          : DownloadFormatKind.video;
 
       final quality = _qualityLabel(map, hasVideo);
       final size = _sizeLabel(map['filesize'] ?? map['filesize_approx']);
-      final label = hasVideo ? 'Vídeo $ext $quality' : 'Áudio $ext';
+      final label = switch (category) {
+        _YtDlpFormatCategory.muxed => 'Vídeo $ext $quality',
+        _YtDlpFormatCategory.videoOnly =>
+          'Vídeo sem áudio — requer FFmpeg futuro',
+        _YtDlpFormatCategory.audioOnly => 'Áudio $ext',
+      };
+
       final note = map['format_note']?.toString().trim();
-      final details = note == null || note.isEmpty
+      final baseDetails = note == null || note.isEmpty
           ? 'yt-dlp format $formatId'
           : 'yt-dlp format $formatId · $note';
+      final details = switch (category) {
+        _YtDlpFormatCategory.muxed => '[muxed] $baseDetails',
+        _YtDlpFormatCategory.videoOnly =>
+          '[video-only] $baseDetails · vídeo sem áudio · requer FFmpeg futuro',
+        _YtDlpFormatCategory.audioOnly => '[audio-only] $baseDetails',
+      };
 
       mapped.add(
         DownloadFormatOption(
@@ -303,22 +332,33 @@ class YtDlpEngineService {
   int _formatPriority(DownloadFormatOption option) {
     final ext = option.formatLabel.toUpperCase();
     final quality = option.qualityLabel;
+    final isVideoOnly = option.detailsLabel.contains('[video-only]');
+    final isAudioOnly = option.detailsLabel.contains('[audio-only]');
+    final isMuxed = option.detailsLabel.contains('[muxed]');
 
-    if (option.kind == DownloadFormatKind.video && ext == 'MP4') {
+    if (isMuxed && ext == 'MP4') {
       return _qualityRank(quality);
     }
-    if (option.kind == DownloadFormatKind.audio && ext == 'M4A') return 100;
-    if (option.kind == DownloadFormatKind.video) {
-      return 200 + _qualityRank(quality);
+    if (isMuxed && ext == 'WEBM') {
+      return 100 + _qualityRank(quality);
     }
-    if (option.kind == DownloadFormatKind.audio) return 300;
-    return 400;
+    if (isAudioOnly && ext == 'M4A') return 200;
+    if (isAudioOnly) return 300;
+    if (isVideoOnly) return 400 + _qualityRank(quality);
+    return 500;
   }
 
   int _qualityRank(String quality) {
     final numbers = RegExp(r'(\d{3,4})p').firstMatch(quality.toLowerCase());
     final value = numbers == null ? 0 : int.tryParse(numbers.group(1)!) ?? 0;
-    return 9999 - value;
+    if (value >= 2160) return 0;
+    if (value >= 1440) return 1;
+    if (value >= 1080) return 2;
+    if (value >= 720) return 3;
+    if (value >= 480) return 4;
+    if (value >= 360) return 5;
+    if (value > 0) return 6;
+    return 9;
   }
 
   String _durationLabel(Object? rawDuration) {
@@ -372,6 +412,17 @@ class YtDlpEngineService {
     if (stdoutText.isNotEmpty) return stdoutText.split('\n').last.trim();
     return 'erro desconhecido';
   }
+}
+
+enum _YtDlpFormatCategory { muxed, videoOnly, audioOnly }
+
+_YtDlpFormatCategory _classifyFormat({
+  required bool hasVideo,
+  required bool hasAudio,
+}) {
+  if (hasVideo && hasAudio) return _YtDlpFormatCategory.muxed;
+  if (hasVideo) return _YtDlpFormatCategory.videoOnly;
+  return _YtDlpFormatCategory.audioOnly;
 }
 
 abstract class YtDlpProcessRunner {

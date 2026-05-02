@@ -770,6 +770,7 @@ void main() {
       expect(updated.isYouTubeSource, isTrue);
       expect(updated.selectedFormatId, '22');
       expect(updated.directDownloadUrl, isNull);
+      expect(updated.sourceLabel, 'Análise yt-dlp concluída');
     });
   });
 }
