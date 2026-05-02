@@ -14,5 +14,6 @@ void main() {
     expect(find.text('Podcast próprio — episódio teste'), findsOneWidget);
     expect(find.text('Material de treino vocal — arquivo permitido'), findsOneWidget);
     expect(find.text('4 itens'), findsOneWidget);
+    expect(find.text('Pronto para downloads autorizados'), findsOneWidget);
   });
 }

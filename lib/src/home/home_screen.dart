@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../downloads/download_item.dart';
+import '../downloads/download_queue_controller.dart';
 import 'mock_download_item.dart';
 
 const _kGreen = Color(0xFF2E7D32);
@@ -21,35 +22,37 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedFormat = 'MP4';
   String _selectedFolder = 'Vídeos';
 
-  List<DownloadItem> _downloads = List.of(initialMockDownloadItems);
+  late final DownloadQueueController _queueController;
+
+  @override
+  void initState() {
+    super.initState();
+    _queueController = DownloadQueueController(
+      initialItems: initialMockDownloadItems,
+    );
+  }
 
   Future<void> _handlePaste() async {
     String? url;
     try {
       final data = await Clipboard.getData('text/plain');
       final text = data?.text ?? '';
-      if (text.isNotEmpty) url = text;
+      if (text.isNotEmpty) {
+        url = text;
+      }
     } catch (_) {
       // Clipboard may be unavailable; proceed without URL.
     }
 
     if (!mounted) return;
 
-    final count = _downloads.length + 1;
-    final item = DownloadItem(
-      id: 'new-${DateTime.now().millisecondsSinceEpoch}',
-      title: 'Novo link autorizado #$count',
+    _queueController.addMockAuthorizedLink(
       sourceUrl: url,
-      durationLabel: '--:--',
-      sizeLabel: 'Aguardando',
       formatLabel: _selectedFormat,
       qualityLabel: _selectedQuality,
-      fpsLabel: '--fps',
-      sourceLabel: 'Aguardando análise',
-      status: DownloadStatus.queued,
     );
 
-    setState(() => _downloads = [item, ..._downloads]);
+    setState(() {});
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -81,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const Divider(height: 1, thickness: 1, color: _kDivider),
           _FilterTabs(
             selectedIndex: _selectedTab,
-            itemCount: _downloads.length,
+            itemCountLabel: _queueController.itemCountLabel,
             onChanged: (i) => setState(() => _selectedTab = i),
           ),
           const Divider(height: 1, thickness: 1, color: _kDivider),
@@ -89,8 +92,9 @@ class _HomeScreenState extends State<HomeScreen> {
             child: ColoredBox(
               color: Colors.white,
               child: ListView.builder(
-                itemCount: _downloads.length,
-                itemBuilder: (_, i) => _DownloadListItem(item: _downloads[i]),
+                itemCount: _queueController.itemCount,
+                itemBuilder: (_, i) =>
+                    _DownloadListItem(item: _queueController.items[i]),
               ),
             ),
           ),
@@ -100,10 +104,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Menu bar
-// ---------------------------------------------------------------------------
 
 class _MenuBar extends StatelessWidget {
   const _MenuBar();
@@ -155,10 +155,6 @@ class _MenuBar extends StatelessWidget {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Toolbar
-// ---------------------------------------------------------------------------
 
 class _Toolbar extends StatelessWidget {
   final String selectedType;
@@ -339,18 +335,14 @@ class _SelectorButton extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Filter tabs
-// ---------------------------------------------------------------------------
-
 class _FilterTabs extends StatelessWidget {
   final int selectedIndex;
-  final int itemCount;
+  final String itemCountLabel;
   final ValueChanged<int> onChanged;
 
   const _FilterTabs({
     required this.selectedIndex,
-    required this.itemCount,
+    required this.itemCountLabel,
     required this.onChanged,
   });
 
@@ -418,7 +410,7 @@ class _FilterTabs extends StatelessWidget {
             child: Row(
               children: [
                 Text(
-                  '$itemCount itens',
+                  itemCountLabel,
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                 ),
                 const SizedBox(width: 4),
@@ -444,10 +436,6 @@ class _FilterTabs extends StatelessWidget {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Download list item
-// ---------------------------------------------------------------------------
 
 class _DownloadListItem extends StatelessWidget {
   final DownloadItem item;
@@ -556,10 +544,6 @@ class _StatusBadge extends StatelessWidget {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Status bar
-// ---------------------------------------------------------------------------
 
 class _StatusBar extends StatelessWidget {
   const _StatusBar();
