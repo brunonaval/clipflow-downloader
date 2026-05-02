@@ -1,9 +1,14 @@
-import '../downloads/download_format_option.dart';
+﻿import '../downloads/download_format_option.dart';
 import 'internal_engine_analysis_result.dart';
 import 'internal_engine_source.dart';
+import 'youtube/youtube_extractor.dart';
 
 class InternalEngineService {
-  const InternalEngineService();
+  const InternalEngineService({
+    YouTubeExtractor youtubeExtractor = const YouTubeExtractor(),
+  }) : _youtubeExtractor = youtubeExtractor;
+
+  final YouTubeExtractor _youtubeExtractor;
 
   InternalEngineSource classifyUrl(String rawUrl) {
     final trimmed = rawUrl.trim();
@@ -23,6 +28,14 @@ class InternalEngineService {
         uri: null,
         kind: InternalEngineSourceKind.unsupported,
         label: 'URL inválida',
+      );
+    }
+
+    if (_youtubeExtractor.isYouTubeUrl(trimmed)) {
+      return InternalEngineSource(
+        uri: uri,
+        kind: InternalEngineSourceKind.webpage,
+        label: 'YouTube detectado',
       );
     }
 
@@ -73,6 +86,14 @@ class InternalEngineService {
         recommendedFormatId: null,
         canDownloadDirectly: false,
       );
+    }
+
+    final youtubeResult = _youtubeExtractor.analyzeUrlMock(
+      rawUrl: rawUrl,
+      outputFolderLabel: outputFolderLabel,
+    );
+    if (youtubeResult != null) {
+      return youtubeResult;
     }
 
     if (source.kind == InternalEngineSourceKind.directFile) {

@@ -1,4 +1,4 @@
-import 'package:flutter_test/flutter_test.dart';
+﻿import 'package:flutter_test/flutter_test.dart';
 
 import 'package:clipflow_downloader/src/engine/internal_engine_service.dart';
 import 'package:clipflow_downloader/src/engine/internal_engine_source.dart';
@@ -12,9 +12,15 @@ void main() {
       expect(source.kind, InternalEngineSourceKind.unsupported);
     });
 
-    test('classifyUrl rejeita esquema não http/https', () {
+    test('classifyUrl rejeita esquema nao http/https', () {
       final source = service.classifyUrl('ftp://example.com/file.mp4');
       expect(source.kind, InternalEngineSourceKind.unsupported);
+    });
+
+    test('classifyUrl detecta URL do YouTube como webpage com label YouTube', () {
+      final source = service.classifyUrl('https://www.youtube.com/watch?v=abc123');
+      expect(source.kind, InternalEngineSourceKind.webpage);
+      expect(source.label, contains('YouTube'));
     });
 
     test('classifyUrl detecta mp4 como directFile', () {
@@ -29,6 +35,24 @@ void main() {
       expect(m4a.kind, InternalEngineSourceKind.directFile);
     });
 
+    test('analyzeUrl para YouTube retorna title contendo YouTube', () {
+      final result = service.analyzeUrl(
+        rawUrl: 'https://www.youtube.com/watch?v=abc123',
+      );
+      expect(result.title, contains('YouTube'));
+    });
+
+    test('analyzeUrl para YouTube retorna formatos', () {
+      final result = service.analyzeUrl(rawUrl: 'https://youtu.be/abc123');
+      expect(result.formats, isNotEmpty);
+      expect(result.recommendedFormatId, isNotNull);
+    });
+
+    test('analyzeUrl para YouTube retorna canDownloadDirectly false', () {
+      final result = service.analyzeUrl(rawUrl: 'https://youtu.be/abc123');
+      expect(result.canDownloadDirectly, isFalse);
+    });
+
     test('analyzeUrl para mp4 retorna canDownloadDirectly true', () {
       final result = service.analyzeUrl(rawUrl: 'https://example.com/video.mp4');
       expect(result.canDownloadDirectly, isTrue);
@@ -40,13 +64,7 @@ void main() {
       expect(result.recommendedFormatId, result.formats.first.id);
     });
 
-    test('analyzeUrl para webpage retorna canDownloadDirectly false', () {
-      final result = service.analyzeUrl(rawUrl: 'https://example.com/watch?v=1');
-      expect(result.canDownloadDirectly, isFalse);
-      expect(result.formats, isNotEmpty);
-    });
-
-    test('analyzeUrl para URL inválida retorna formatos vazios', () {
+    test('analyzeUrl para URL invalida retorna formatos vazios', () {
       final result = service.analyzeUrl(rawUrl: 'nota interna');
       expect(result.formats, isEmpty);
       expect(result.canDownloadDirectly, isFalse);

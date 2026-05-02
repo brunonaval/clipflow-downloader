@@ -449,6 +449,26 @@ void main() {
       expect(updated.selectedFormatId, isNotNull);
     });
 
+    test('markItemReadyAfterInternalAnalysis deixa URL do YouTube como ready', () {
+      final controller = DownloadQueueController();
+      final created = controller.addMockAuthorizedLink(
+        status: DownloadStatus.analyzing,
+        sourceUrl: 'https://www.youtube.com/watch?v=abc123',
+      );
+
+      final updated = controller.markItemReadyAfterInternalAnalysis(
+        id: created.id,
+      );
+
+      expect(updated, isNotNull);
+      expect(updated!.status, DownloadStatus.ready);
+      expect(updated.availableFormats, isNotEmpty);
+      expect(
+        updated.title.contains('YouTube') || updated.sourceLabel.contains('YouTube'),
+        isTrue,
+      );
+    });
+
     test('markItemReadyAfterInternalAnalysis marca URL inválida como failed', () {
       final controller = DownloadQueueController();
       final created = controller.addMockAuthorizedLink(
