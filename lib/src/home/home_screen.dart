@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'mock_download_item.dart';
 
 const _kGreen = Color(0xFF2E7D32);
+const _kDivider = Color(0xFFE0E0E0);
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,6 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Column(
         children: [
           const _MenuBar(),
+          const Divider(height: 1, thickness: 1, color: _kDivider),
           _Toolbar(
             selectedType: _selectedType,
             selectedQuality: _selectedQuality,
@@ -35,12 +37,12 @@ class _HomeScreenState extends State<HomeScreen> {
             onFormatChanged: (v) => setState(() => _selectedFormat = v),
             onFolderChanged: (v) => setState(() => _selectedFolder = v),
           ),
-          const Divider(height: 1, thickness: 1),
+          const Divider(height: 1, thickness: 1, color: _kDivider),
           _FilterTabs(
             selectedIndex: _selectedTab,
             onChanged: (i) => setState(() => _selectedTab = i),
           ),
-          const Divider(height: 1, thickness: 1),
+          const Divider(height: 1, thickness: 1, color: _kDivider),
           Expanded(
             child: ColoredBox(
               color: Colors.white,
@@ -69,24 +71,44 @@ class _MenuBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 44,
-      color: const Color(0xFFF0F0F0),
-      child: Row(
-        children: _items
-            .map(
+      height: 40,
+      color: const Color(0xFFFAFAFA),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                'ClipFlow Downloader',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+            const VerticalDivider(
+              width: 1,
+              thickness: 1,
+              indent: 8,
+              endIndent: 8,
+            ),
+            ..._items.map(
               (item) => TextButton(
                 onPressed: () {},
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.black87,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  minimumSize: const Size(0, 44),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minimumSize: const Size(0, 40),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   shape: const RoundedRectangleBorder(),
                 ),
                 child: Text(item, style: const TextStyle(fontSize: 13)),
               ),
-            )
-            .toList(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -122,7 +144,7 @@ class _Toolbar extends StatelessWidget {
     return Container(
       height: 64,
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
           Expanded(
@@ -137,12 +159,12 @@ class _Toolbar extends StatelessWidget {
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 20,
-                        vertical: 12,
+                        vertical: 10,
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      elevation: 0,
+                      elevation: 1,
                     ),
                     child: const Text(
                       'Colar link',
@@ -206,10 +228,11 @@ class _Toolbar extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.settings_outlined, size: 22),
+            icon: const Icon(Icons.settings_outlined, size: 20),
             onPressed: () {},
             tooltip: 'Configurações',
             color: Colors.black54,
+            visualDensity: VisualDensity.compact,
           ),
         ],
       ),
@@ -242,24 +265,29 @@ class _SelectorButton extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border.all(color: Colors.grey.shade300),
           borderRadius: BorderRadius.circular(4),
-          color: Colors.grey.shade50,
+          color: const Color(0xFFF8F8F8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               '$prefix ',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
             ),
             Text(
               value,
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
+                color: Colors.black87,
               ),
             ),
             const SizedBox(width: 2),
-            const Icon(Icons.arrow_drop_down, size: 16, color: Colors.black54),
+            const Icon(
+              Icons.arrow_drop_down,
+              size: 16,
+              color: Colors.black45,
+            ),
           ],
         ),
       ),
@@ -289,43 +317,80 @@ class _FilterTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 40,
-      child: ColoredBox(
-        color: Colors.white,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: List.generate(_tabs.length, (i) {
-              final selected = i == selectedIndex;
-              return InkWell(
-                onTap: () => onChanged(i),
-                child: Container(
-                  height: 40,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        color: selected ? _kGreen : Colors.transparent,
-                        width: 2,
+    return Container(
+      height: 48,
+      color: Colors.white,
+      child: Row(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: List.generate(_tabs.length, (i) {
+                  final selected = i == selectedIndex;
+                  return InkWell(
+                    onTap: () => onChanged(i),
+                    child: Container(
+                      height: 48,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: selected ? _kGreen : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        _tabs[i],
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: selected ? _kGreen : Colors.black87,
+                          fontWeight: selected
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                        ),
                       ),
                     ),
-                  ),
-                  child: Text(
-                    _tabs[i],
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: selected ? _kGreen : Colors.black87,
-                      fontWeight:
-                          selected ? FontWeight.w600 : FontWeight.normal,
-                    ),
-                  ),
-                ),
-              );
-            }),
+                  );
+                }),
+              ),
+            ),
           ),
-        ),
+          const VerticalDivider(
+            width: 1,
+            thickness: 1,
+            indent: 8,
+            endIndent: 8,
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              children: [
+                Text(
+                  '${kMockItems.length} itens',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.search, size: 18),
+                  onPressed: () {},
+                  tooltip: 'Buscar',
+                  color: Colors.black54,
+                  visualDensity: VisualDensity.compact,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.sort, size: 18),
+                  onPressed: () {},
+                  tooltip: 'Ordenar',
+                  color: Colors.black54,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -349,21 +414,21 @@ class _DownloadListItem extends StatelessWidget {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                width: 80,
-                height: 56,
+                width: 78,
+                height: 48,
                 decoration: BoxDecoration(
                   color: const Color(0xFF2D2D2D),
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(3),
                 ),
                 child: const Icon(
                   Icons.play_arrow_rounded,
                   color: Colors.white54,
-                  size: 30,
+                  size: 26,
                 ),
               ),
               const SizedBox(width: 12),
@@ -381,12 +446,12 @@ class _DownloadListItem extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Text(
                       meta,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade600,
+                        color: Colors.grey.shade500,
                       ),
                     ),
                   ],
@@ -395,7 +460,11 @@ class _DownloadListItem extends StatelessWidget {
             ],
           ),
         ),
-        const Divider(height: 1, thickness: 1),
+        Divider(
+          height: 1,
+          thickness: 1,
+          color: Colors.grey.shade100,
+        ),
       ],
     );
   }
@@ -441,9 +510,17 @@ class _StatusBar extends StatelessWidget {
             onPressed: () {},
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.white,
-              side: const BorderSide(color: Colors.white70),
+              side: const BorderSide(color: Colors.white54),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4),
+              ),
+              visualDensity: VisualDensity.compact,
             ),
-            child: const Text('Configurar motor'),
+            child: const Text(
+              'Configurar motor',
+              style: TextStyle(fontSize: 13),
+            ),
           ),
         ],
       ),
