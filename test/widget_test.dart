@@ -8,6 +8,10 @@ void main() {
 
     expect(find.text('ClipFlow Downloader'), findsOneWidget);
     expect(find.text('Colar link'), findsOneWidget);
+    expect(find.text('Transferir Vídeo'), findsOneWidget);
+    expect(find.text('Qualidade Ótima'), findsOneWidget);
+    expect(find.text('Para MP4'), findsOneWidget);
+    expect(find.text('Guardar em Vídeos'), findsOneWidget);
     expect(find.text('Todos'), findsOneWidget);
     expect(find.text('Aula de violão — exemplo autorizado'), findsOneWidget);
     expect(find.text('Clipe independente — Creative Commons'), findsOneWidget);

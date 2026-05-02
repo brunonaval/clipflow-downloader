@@ -1,4 +1,5 @@
 import 'download_item.dart';
+import 'download_options.dart';
 
 class DownloadQueueController {
   DownloadQueueController({List<DownloadItem>? initialItems})
@@ -20,8 +21,10 @@ class DownloadQueueController {
 
   DownloadItem addMockAuthorizedLink({
     String? sourceUrl,
+    DownloadTransferType transferType = DownloadTransferType.video,
     String formatLabel = 'MP4',
     String qualityLabel = 'Ótima',
+    String outputFolderLabel = 'Vídeos',
   }) {
     final currentNumber = _nextMockItemNumber;
     _nextMockItemNumber += 1;
@@ -35,10 +38,18 @@ class DownloadQueueController {
       formatLabel: formatLabel,
       qualityLabel: qualityLabel,
       fpsLabel: '--fps',
-      sourceLabel: 'Aguardando análise',
+      sourceLabel: 'Aguardando análise · $outputFolderLabel',
       status: DownloadStatus.queued,
       progress: 0,
     );
+
+    switch (transferType) {
+      case DownloadTransferType.video:
+      case DownloadTransferType.audio:
+      case DownloadTransferType.subtitles:
+      case DownloadTransferType.audioTracks:
+        break;
+    }
 
     _items.insert(0, item);
     return item;

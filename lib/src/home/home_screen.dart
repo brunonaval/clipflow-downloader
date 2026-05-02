@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../downloads/download_item.dart';
+import '../downloads/download_options.dart';
 import '../downloads/download_queue_controller.dart';
 import 'mock_download_item.dart';
 
@@ -17,10 +18,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedTab = 0;
-  String _selectedType = 'Vídeo';
-  String _selectedQuality = 'Ótima';
-  String _selectedFormat = 'MP4';
-  String _selectedFolder = 'Vídeos';
+  DownloadOptions _downloadOptions = const DownloadOptions();
 
   late final DownloadQueueController _queueController;
 
@@ -48,8 +46,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _queueController.addMockAuthorizedLink(
       sourceUrl: url,
-      formatLabel: _selectedFormat,
-      qualityLabel: _selectedQuality,
+      transferType: _downloadOptions.transferType,
+      formatLabel: _downloadOptions.formatLabel,
+      qualityLabel: _downloadOptions.qualityLabel,
+      outputFolderLabel: _downloadOptions.outputFolderLabel,
     );
 
     setState(() {});
@@ -71,14 +71,20 @@ class _HomeScreenState extends State<HomeScreen> {
           const _MenuBar(),
           const Divider(height: 1, thickness: 1, color: _kDivider),
           _Toolbar(
-            selectedType: _selectedType,
-            selectedQuality: _selectedQuality,
-            selectedFormat: _selectedFormat,
-            selectedFolder: _selectedFolder,
-            onTypeChanged: (v) => setState(() => _selectedType = v),
-            onQualityChanged: (v) => setState(() => _selectedQuality = v),
-            onFormatChanged: (v) => setState(() => _selectedFormat = v),
-            onFolderChanged: (v) => setState(() => _selectedFolder = v),
+            selectedTransferLabel: _downloadOptions.toolbarTransferLabel,
+            selectedQualityLabel: _downloadOptions.toolbarQualityLabel,
+            selectedFormatLabel: _downloadOptions.toolbarFormatLabel,
+            selectedOutputFolderLabel: _downloadOptions.toolbarOutputFolderLabel,
+            onTransferChanged: (type) =>
+                setState(() => _downloadOptions = _downloadOptions.copyWith(transferType: type)),
+            onQualityChanged: (value) =>
+                setState(() => _downloadOptions = _downloadOptions.copyWith(qualityLabel: value)),
+            onFormatChanged: (value) =>
+                setState(() => _downloadOptions = _downloadOptions.copyWith(formatLabel: value)),
+            onOutputFolderChanged: (value) => setState(
+              () => _downloadOptions =
+                  _downloadOptions.copyWith(outputFolderLabel: value),
+            ),
             onPaste: _handlePaste,
           ),
           const Divider(height: 1, thickness: 1, color: _kDivider),
@@ -157,25 +163,25 @@ class _MenuBar extends StatelessWidget {
 }
 
 class _Toolbar extends StatelessWidget {
-  final String selectedType;
-  final String selectedQuality;
-  final String selectedFormat;
-  final String selectedFolder;
-  final ValueChanged<String> onTypeChanged;
+  final String selectedTransferLabel;
+  final String selectedQualityLabel;
+  final String selectedFormatLabel;
+  final String selectedOutputFolderLabel;
+  final ValueChanged<DownloadTransferType> onTransferChanged;
   final ValueChanged<String> onQualityChanged;
   final ValueChanged<String> onFormatChanged;
-  final ValueChanged<String> onFolderChanged;
+  final ValueChanged<String> onOutputFolderChanged;
   final VoidCallback onPaste;
 
   const _Toolbar({
-    required this.selectedType,
-    required this.selectedQuality,
-    required this.selectedFormat,
-    required this.selectedFolder,
-    required this.onTypeChanged,
+    required this.selectedTransferLabel,
+    required this.selectedQualityLabel,
+    required this.selectedFormatLabel,
+    required this.selectedOutputFolderLabel,
+    required this.onTransferChanged,
     required this.onQualityChanged,
     required this.onFormatChanged,
-    required this.onFolderChanged,
+    required this.onOutputFolderChanged,
     required this.onPaste,
   });
 
@@ -215,52 +221,54 @@ class _Toolbar extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  _SelectorButton(
-                    prefix: 'Transferir',
-                    value: selectedType,
-                    options: const [
-                      'Vídeo',
-                      'Áudio',
-                      'Legendas',
-                      'Faixas de áudio',
-                    ],
-                    onChanged: onTypeChanged,
+                  _SelectorButton<DownloadTransferType>(
+                    valueLabel: selectedTransferLabel,
+                    options: const {
+                      DownloadTransferType.video: 'Vídeo',
+                      DownloadTransferType.audio: 'Áudio',
+                      DownloadTransferType.subtitles: 'Legendas',
+                      DownloadTransferType.audioTracks: 'Faixas de áudio',
+                    },
+                    onChanged: onTransferChanged,
                   ),
                   const SizedBox(width: 8),
-                  _SelectorButton(
-                    prefix: 'Qualidade',
-                    value: selectedQuality,
-                    options: const [
-                      'Ótima',
-                      '8K',
-                      '4K',
-                      '1080p',
-                      '720p',
-                      '480p',
-                      '360p',
-                      '240p',
-                    ],
+                  _SelectorButton<String>(
+                    valueLabel: selectedQualityLabel,
+                    options: const {
+                      'Ótima': 'Ótima',
+                      '8K': '8K',
+                      '4K': '4K',
+                      '1080p': '1080p',
+                      '720p': '720p',
+                      '480p': '480p',
+                      '360p': '360p',
+                      '240p': '240p',
+                    },
                     onChanged: onQualityChanged,
                   ),
                   const SizedBox(width: 8),
-                  _SelectorButton(
-                    prefix: 'Para',
-                    value: selectedFormat,
-                    options: const ['Automático', 'MP4', 'MKV', 'MP3', 'M4A'],
+                  _SelectorButton<String>(
+                    valueLabel: selectedFormatLabel,
+                    options: const {
+                      'Automático': 'Automático',
+                      'MP4': 'MP4',
+                      'MKV': 'MKV',
+                      'MP3': 'MP3',
+                      'M4A': 'M4A',
+                    },
                     onChanged: onFormatChanged,
                   ),
                   const SizedBox(width: 8),
-                  _SelectorButton(
-                    prefix: 'Guardar em',
-                    value: selectedFolder,
-                    options: const [
-                      'Vídeos',
-                      'Downloads',
-                      'Imagens',
-                      'Documentos',
-                      'Navegar...',
-                    ],
-                    onChanged: onFolderChanged,
+                  _SelectorButton<String>(
+                    valueLabel: selectedOutputFolderLabel,
+                    options: const {
+                      'Vídeos': 'Vídeos',
+                      'Downloads': 'Downloads',
+                      'Imagens': 'Imagens',
+                      'Documentos': 'Documentos',
+                      'Navegar...': 'Navegar...',
+                    },
+                    onChanged: onOutputFolderChanged,
                   ),
                 ],
               ),
@@ -280,26 +288,27 @@ class _Toolbar extends StatelessWidget {
   }
 }
 
-class _SelectorButton extends StatelessWidget {
-  final String prefix;
-  final String value;
-  final List<String> options;
-  final ValueChanged<String> onChanged;
+class _SelectorButton<T> extends StatelessWidget {
+  final String valueLabel;
+  final Map<T, String> options;
+  final ValueChanged<T> onChanged;
 
   const _SelectorButton({
-    required this.prefix,
-    required this.value,
+    required this.valueLabel,
     required this.options,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      initialValue: value,
+    return PopupMenuButton<T>(
       onSelected: onChanged,
-      itemBuilder: (_) =>
-          options.map((o) => PopupMenuItem(value: o, child: Text(o))).toList(),
+      itemBuilder: (_) => options.entries
+          .map((entry) => PopupMenuItem<T>(
+                value: entry.key,
+                child: Text(entry.value),
+              ))
+          .toList(),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
@@ -311,11 +320,7 @@ class _SelectorButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '$prefix ',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-            ),
-            Text(
-              value,
+              valueLabel,
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,

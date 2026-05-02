@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:clipflow_downloader/src/downloads/download_item.dart';
+import 'package:clipflow_downloader/src/downloads/download_options.dart';
 import 'package:clipflow_downloader/src/downloads/download_queue_controller.dart';
 
 void main() {
@@ -73,8 +74,10 @@ void main() {
 
       final created = controller.addMockAuthorizedLink(
         sourceUrl: 'https://example.com/video',
-        formatLabel: 'MKV',
+        transferType: DownloadTransferType.audio,
+        formatLabel: 'MP3',
         qualityLabel: '1080p',
+        outputFolderLabel: 'Downloads',
       );
 
       expect(controller.itemCount, 2);
@@ -82,8 +85,9 @@ void main() {
       expect(created.status, DownloadStatus.queued);
       expect(created.progress, 0);
       expect(created.sourceUrl, 'https://example.com/video');
-      expect(created.formatLabel, 'MKV');
+      expect(created.formatLabel, 'MP3');
       expect(created.qualityLabel, '1080p');
+      expect(created.sourceLabel, contains('Downloads'));
       expect(created.title, startsWith('Novo link autorizado #'));
     });
 
