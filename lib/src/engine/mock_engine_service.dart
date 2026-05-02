@@ -1,7 +1,6 @@
-import '../downloads/download_format_option.dart';
+﻿import '../downloads/download_format_option.dart';
 import 'engine_analysis_result.dart';
 import 'engine_command_plan.dart';
-import 'engine_settings.dart';
 
 class MockEngineService {
   const MockEngineService();
@@ -59,18 +58,17 @@ class MockEngineService {
   }
 
   EngineCommandPlan buildMockDownloadPlan({
-    required EngineSettings settings,
     required String sourceUrl,
     required DownloadFormatOption selectedFormat,
     String outputFolderLabel = 'Vídeos',
   }) {
-    final executable = settings.engineLabel;
+    const engineLabel = 'Motor interno';
 
     final arguments = switch (selectedFormat.kind) {
       DownloadFormatKind.video => [
         '--format',
         selectedFormat.id,
-        '--merge-output-format',
+        '--container',
         selectedFormat.formatLabel.toLowerCase(),
         sourceUrl,
       ],
@@ -81,18 +79,18 @@ class MockEngineService {
         sourceUrl,
       ],
       DownloadFormatKind.subtitles => [
-        '--write-subs',
-        '--skip-download',
+        '--subtitles',
+        '--text-only',
         sourceUrl,
       ],
     };
 
     return EngineCommandPlan(
       type: EngineCommandPlanType.download,
-      executableLabel: executable,
+      engineLabel: engineLabel,
       arguments: arguments,
       summaryLabel:
-          'Plano mockado: $executable · ${selectedFormat.label} · $outputFolderLabel',
+          'Plano mockado: $engineLabel · ${selectedFormat.label} · $outputFolderLabel',
       isExecutable: false,
     );
   }

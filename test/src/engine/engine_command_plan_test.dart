@@ -1,24 +1,24 @@
-import 'package:flutter_test/flutter_test.dart';
+﻿import 'package:flutter_test/flutter_test.dart';
 
 import 'package:clipflow_downloader/src/engine/engine_command_plan.dart';
 
 void main() {
   group('EngineCommandPlan', () {
-    test('preview contém executableLabel', () {
+    test('preview contem engineLabel', () {
       const plan = EngineCommandPlan(
         type: EngineCommandPlanType.download,
-        executableLabel: 'yt-dlp',
+        engineLabel: 'Motor interno',
         arguments: ['--format', 'video-mp4-1080p'],
         summaryLabel: 'Plano',
       );
 
-      expect(plan.preview, contains('yt-dlp'));
+      expect(plan.preview, contains('Motor interno'));
     });
 
-    test('preview contém argumentos', () {
+    test('preview contem argumentos', () {
       const plan = EngineCommandPlan(
         type: EngineCommandPlanType.download,
-        executableLabel: 'yt-dlp',
+        engineLabel: 'Motor interno',
         arguments: ['--format', 'video-mp4-1080p'],
         summaryLabel: 'Plano',
       );
@@ -27,10 +27,10 @@ void main() {
       expect(plan.preview, contains('video-mp4-1080p'));
     });
 
-    test('isExecutable default é false', () {
+    test('isExecutable default e false', () {
       const plan = EngineCommandPlan(
         type: EngineCommandPlanType.download,
-        executableLabel: 'yt-dlp',
+        engineLabel: 'Motor interno',
         arguments: [],
         summaryLabel: 'Plano',
       );
@@ -38,10 +38,10 @@ void main() {
       expect(plan.isExecutable, isFalse);
     });
 
-    test('type é preservado', () {
+    test('type e preservado', () {
       const plan = EngineCommandPlan(
         type: EngineCommandPlanType.analyze,
-        executableLabel: 'yt-dlp',
+        engineLabel: 'Motor interno',
         arguments: [],
         summaryLabel: 'Plano',
       );

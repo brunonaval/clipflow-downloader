@@ -8,10 +8,6 @@ import '../downloads/download_format_option.dart';
 import '../downloads/download_options.dart';
 import '../downloads/download_queue_controller.dart';
 import '../downloads/download_queue_filter.dart';
-import '../engine/engine_availability_checker.dart';
-import '../engine/engine_availability_result.dart';
-import '../engine/engine_settings.dart';
-import '../engine/engine_settings_dialog.dart';
 import '../engine/youtube/youtube_url_parser.dart';
 import 'mock_download_item.dart';
 
@@ -29,10 +25,6 @@ class _HomeScreenState extends State<HomeScreen> {
   static const _youtubeUrlParser = YouTubeUrlParser();
   DownloadQueueFilter _activeFilter = DownloadQueueFilter.all;
   DownloadOptions _downloadOptions = const DownloadOptions();
-  EngineSettings _engineSettings = const EngineSettings();
-  EngineAvailabilityResult _engineAvailability =
-      EngineAvailabilityResult.unknown('yt-dlp');
-  bool _isCheckingEngine = false;
   String _searchQuery = '';
   Timer? _fakeProgressTimer;
   Timer? _mockAnalysisTimer;
@@ -126,7 +118,6 @@ class _HomeScreenState extends State<HomeScreen> {
         if (youtubeUpdated != null && youtubeUpdated.status == DownloadStatus.ready) {
           _queueController.attachMockCommandPreview(
             itemId: addedItem.id,
-            settings: _engineSettings,
             outputFolderLabel: _downloadOptions.outputFolderLabel,
           );
           setState(() {});
@@ -146,7 +137,6 @@ class _HomeScreenState extends State<HomeScreen> {
         if (fallbackUpdated != null && fallbackUpdated.status == DownloadStatus.ready) {
           _queueController.attachMockCommandPreview(
             itemId: addedItem.id,
-            settings: _engineSettings,
             outputFolderLabel: _downloadOptions.outputFolderLabel,
           );
           setState(() {});
@@ -184,7 +174,6 @@ class _HomeScreenState extends State<HomeScreen> {
       if (updated != null && updated.status == DownloadStatus.ready) {
         _queueController.attachMockCommandPreview(
           itemId: addedItem.id,
-          settings: _engineSettings,
           outputFolderLabel: _downloadOptions.outputFolderLabel,
         );
         setState(() {});
@@ -222,7 +211,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
       _queueController.attachMockCommandPreview(
         itemId: itemId,
-        settings: _engineSettings,
         outputFolderLabel: _downloadOptions.outputFolderLabel,
       );
 
@@ -277,10 +265,30 @@ class _HomeScreenState extends State<HomeScreen> {
     if (updated == null) return;
     _queueController.attachMockCommandPreview(
       itemId: item.id,
-      settings: _engineSettings,
       outputFolderLabel: _downloadOptions.outputFolderLabel,
     );
     setState(() {});
+  }
+
+  Future<void> _showInternalEngineDialog() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Motor interno'),
+          content: const Text(
+            'ClipFlow usa um motor interno próprio para reconhecer links do YouTube e preparar downloads autorizados. yt-dlp/youtube-dl são apenas referência conceitual e não são necessários para usar este app.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Entendi'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _clearFinishedItems() {
@@ -291,55 +299,6 @@ class _HomeScreenState extends State<HomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Itens finalizados removidos: $removed'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  Future<void> _openEngineSettingsDialog() async {
-    final updated = await showDialog<EngineSettings>(
-      context: context,
-      builder: (_) => EngineSettingsDialog(initialSettings: _engineSettings),
-    );
-
-    if (!mounted || updated == null) return;
-
-    setState(() {
-      _engineSettings = updated;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Configura\u00e7\u00e3o mockada do motor salva'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-
-    _checkEngineAvailability();
-  }
-
-  Future<void> _checkEngineAvailability() async {
-    if (_isCheckingEngine) return;
-
-    setState(() {
-      _isCheckingEngine = true;
-    });
-
-    final result = await const EngineAvailabilityChecker().check(_engineSettings);
-    if (!mounted) return;
-
-    setState(() {
-      _engineAvailability = result;
-      _isCheckingEngine = false;
-    });
-
-    final message = result.isAvailable
-        ? 'Motor detectado: ${result.versionLabel ?? 'vers\u00e3o detectada'}'
-        : 'Motor n\u00e3o dispon\u00edvel: ${result.message}';
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -418,11 +377,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           _StatusBar(
             onClearFinished: _clearFinishedItems,
-            onConfigureEngine: _openEngineSettingsDialog,
-            onCheckEngineAvailability: _checkEngineAvailability,
-            engineStatus: _engineSettings.status,
-            engineAvailability: _engineAvailability,
-            isCheckingEngine: _isCheckingEngine,
+            onShowEngineInfo: _showInternalEngineDialog,
           ),
         ],
       ),
@@ -1047,40 +1002,17 @@ class _EmptyFilterState extends StatelessWidget {
 
 class _StatusBar extends StatelessWidget {
   final VoidCallback onClearFinished;
-  final VoidCallback onConfigureEngine;
-  final VoidCallback onCheckEngineAvailability;
-  final EngineSetupStatus engineStatus;
-  final EngineAvailabilityResult engineAvailability;
-  final bool isCheckingEngine;
+  final VoidCallback onShowEngineInfo;
 
   const _StatusBar({
     required this.onClearFinished,
-    required this.onConfigureEngine,
-    required this.onCheckEngineAvailability,
-    required this.engineStatus,
-    required this.engineAvailability,
-    required this.isCheckingEngine,
+    required this.onShowEngineInfo,
   });
-
-  String get _engineStatusLabel {
-    if (isCheckingEngine) return 'Verificando motor...';
-    return switch (engineAvailability.status) {
-      EngineAvailabilityStatus.available =>
-        'Motor dispon\u00edvel: ${engineAvailability.executableLabel} ${engineAvailability.versionLabel ?? ''}'
-            .trim(),
-      EngineAvailabilityStatus.unavailable => 'Motor indispon\u00edvel',
-      EngineAvailabilityStatus.unknown => switch (engineStatus) {
-          EngineSetupStatus.notConfigured => 'Motor interno ativo',
-          EngineSetupStatus.configuredMock =>
-            'Motor externo configurado em modo mock',
-        },
-    };
-  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 56,
+      height: 68,
       color: _kGreen,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -1098,12 +1030,18 @@ class _StatusBar extends StatelessWidget {
                     fontSize: 13,
                   ),
                 ),
-                Text(
-                  _engineStatusLabel,
+                const Text(
+                  'Motor interno ativo',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  style: TextStyle(color: Colors.white70, fontSize: 11),
                 ),
+                const Text(
+                  'YouTube extractor interno em desenvolvimento',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: Colors.white70, fontSize: 10),
+                )
               ],
             ),
           ),
@@ -1130,7 +1068,7 @@ class _StatusBar extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   OutlinedButton(
-                    onPressed: onConfigureEngine,
+                    onPressed: onShowEngineInfo,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white,
                       side: const BorderSide(color: Colors.white54),
@@ -1141,26 +1079,7 @@ class _StatusBar extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                     ),
                     child: const Text(
-                      'Configurar motor',
-                      style: TextStyle(fontSize: 13),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton(
-                    onPressed: isCheckingEngine
-                        ? null
-                        : onCheckEngineAvailability,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Colors.white54),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    child: const Text(
-                      'Verificar motor',
+                      'Sobre o motor',
                       style: TextStyle(fontSize: 13),
                     ),
                   ),

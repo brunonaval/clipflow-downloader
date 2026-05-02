@@ -1,10 +1,9 @@
-import 'package:flutter_test/flutter_test.dart';
+﻿import 'package:flutter_test/flutter_test.dart';
 
 import 'package:clipflow_downloader/src/downloads/download_item.dart';
 import 'package:clipflow_downloader/src/downloads/download_options.dart';
 import 'package:clipflow_downloader/src/downloads/download_queue_controller.dart';
 import 'package:clipflow_downloader/src/downloads/download_queue_filter.dart';
-import 'package:clipflow_downloader/src/engine/engine_settings.dart';
 
 DownloadItem _item({
   required String id,
@@ -155,7 +154,7 @@ void main() {
       final controller = DownloadQueueController(
         initialItems: [
           _item(id: '1', title: 'A', sourceLabel: 'Pasta Downloads'),
-          _item(id: '2', title: 'B', sourceLabel: 'Pasta Vídeos'),
+          _item(id: '2', title: 'B', sourceLabel: 'Pasta vídeos'),
         ],
       );
 
@@ -538,9 +537,7 @@ void main() {
     test('attachMockCommandPreview retorna null para item inexistente', () {
       final controller = DownloadQueueController();
       final updated = controller.attachMockCommandPreview(
-        itemId: 'missing-id',
-        settings: const EngineSettings(),
-      );
+        itemId: 'missing-id',      );
       expect(updated, isNull);
     });
 
@@ -553,9 +550,7 @@ void main() {
         );
 
         final updated = controller.attachMockCommandPreview(
-          itemId: created.id,
-          settings: const EngineSettings(),
-        );
+          itemId: created.id,        );
 
         expect(updated, isNull);
       },
@@ -572,14 +567,12 @@ void main() {
         controller.markItemReadyAfterMockAnalysis(created.id);
 
         final updated = controller.attachMockCommandPreview(
-          itemId: created.id,
-          settings: const EngineSettings(),
-          outputFolderLabel: 'Vídeos',
+          itemId: created.id,          outputFolderLabel: 'vídeos',
         );
 
         expect(updated, isNotNull);
         expect(updated!.commandPreviewLabel, isNotNull);
-        expect(updated.commandPreviewLabel, contains('yt-dlp'));
+        expect(updated.commandPreviewLabel, contains('Motor interno'));
       },
     );
 
@@ -591,18 +584,14 @@ void main() {
       );
       controller.markItemReadyAfterMockAnalysis(created.id);
       controller.attachMockCommandPreview(
-        itemId: created.id,
-        settings: const EngineSettings(),
-      );
+        itemId: created.id,      );
       final before = controller.items
           .firstWhere((item) => item.id == created.id)
           .commandPreviewLabel;
 
       controller.selectFormatForItem(created.id, 'audio-m4a');
       final after = controller.attachMockCommandPreview(
-        itemId: created.id,
-        settings: const EngineSettings(),
-      );
+        itemId: created.id,      );
 
       expect(after, isNotNull);
       expect(after!.commandPreviewLabel, isNotNull);
@@ -639,3 +628,6 @@ void main() {
     });
   });
 }
+
+
+

@@ -1,4 +1,4 @@
-﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 import 'package:clipflow_downloader/src/engine/youtube/youtube_extractor.dart';
 import 'package:clipflow_downloader/src/engine/youtube/youtube_html_metadata_parser.dart';

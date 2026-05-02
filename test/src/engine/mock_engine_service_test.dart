@@ -1,14 +1,14 @@
-import 'package:flutter_test/flutter_test.dart';
+﻿import 'package:flutter_test/flutter_test.dart';
 
 import 'package:clipflow_downloader/src/downloads/download_format_option.dart';
-import 'package:clipflow_downloader/src/engine/engine_settings.dart';
+import 'package:clipflow_downloader/src/engine/engine_command_plan.dart';
 import 'package:clipflow_downloader/src/engine/mock_engine_service.dart';
 
 void main() {
   group('MockEngineService', () {
     const service = MockEngineService();
 
-    test('analyzeMockUrl retorna título mockado', () {
+    test('analyzeMockUrl retorna titulo mockado', () {
       final result = service.analyzeMockUrl(sourceUrl: 'https://example.com');
       expect(result.title, 'Link autorizado analisado');
     });
@@ -18,12 +18,12 @@ void main() {
       expect(result.formats, hasLength(4));
     });
 
-    test('recommendedFormatId é video-mp4-1080p', () {
+    test('recommendedFormatId e video-mp4-1080p', () {
       final result = service.analyzeMockUrl();
       expect(result.recommendedFormatId, 'video-mp4-1080p');
     });
 
-    test('formato recomendado existe e isRecommended é true', () {
+    test('formato recomendado existe e isRecommended e true', () {
       final result = service.analyzeMockUrl();
       final recommended = result.formats.firstWhere(
         (f) => f.id == result.recommendedFormatId,
@@ -36,7 +36,7 @@ void main() {
       expect(result.sourceLabel, contains('Downloads'));
     });
 
-    test('lista de formatos é imutável para uso básico', () {
+    test('lista de formatos e imutavel para uso basico', () {
       final result = service.analyzeMockUrl();
       expect(
         () => result.formats.add(result.formats.first),
@@ -44,9 +44,8 @@ void main() {
       );
     });
 
-    test('buildMockDownloadPlan para vídeo retorna type download', () {
+    test('buildMockDownloadPlan para video retorna type download', () {
       final plan = service.buildMockDownloadPlan(
-        settings: const EngineSettings(),
         sourceUrl: 'https://example.com/video',
         selectedFormat: const DownloadFormatOption(
           id: 'video-mp4-1080p',
@@ -59,13 +58,11 @@ void main() {
         ),
       );
 
-      expect(plan.type, isNotNull);
-      expect(plan.type.name, 'download');
+      expect(plan.type, EngineCommandPlanType.download);
     });
 
-    test('plano de vídeo contém --format', () {
+    test('plano de video contem --format', () {
       final plan = service.buildMockDownloadPlan(
-        settings: const EngineSettings(),
         sourceUrl: 'https://example.com/video',
         selectedFormat: const DownloadFormatOption(
           id: 'video-mp4-1080p',
@@ -81,9 +78,8 @@ void main() {
       expect(plan.arguments, contains('--format'));
     });
 
-    test('plano de áudio contém --extract-audio', () {
+    test('plano de audio contem --extract-audio', () {
       final plan = service.buildMockDownloadPlan(
-        settings: const EngineSettings(),
         sourceUrl: 'https://example.com/video',
         selectedFormat: const DownloadFormatOption(
           id: 'audio-m4a',
@@ -99,9 +95,8 @@ void main() {
       expect(plan.arguments, contains('--extract-audio'));
     });
 
-    test('plano de legenda contém --write-subs e --skip-download', () {
+    test('plano de legenda contem --subtitles e --text-only', () {
       final plan = service.buildMockDownloadPlan(
-        settings: const EngineSettings(),
         sourceUrl: 'https://example.com/video',
         selectedFormat: const DownloadFormatOption(
           id: 'subtitles-srt',
@@ -114,13 +109,12 @@ void main() {
         ),
       );
 
-      expect(plan.arguments, contains('--write-subs'));
-      expect(plan.arguments, contains('--skip-download'));
+      expect(plan.arguments, contains('--subtitles'));
+      expect(plan.arguments, contains('--text-only'));
     });
 
-    test('plano usa settings.engineLabel', () {
+    test('plano usa Motor interno como engineLabel', () {
       final plan = service.buildMockDownloadPlan(
-        settings: const EngineSettings(engineType: EngineType.youtubeDl),
         sourceUrl: 'https://example.com/video',
         selectedFormat: const DownloadFormatOption(
           id: 'video-mp4-720p',
@@ -133,12 +127,11 @@ void main() {
         ),
       );
 
-      expect(plan.executableLabel, 'youtube-dl');
+      expect(plan.engineLabel, 'Motor interno');
     });
 
-    test('plan.isExecutable é false', () {
+    test('plan.isExecutable e false', () {
       final plan = service.buildMockDownloadPlan(
-        settings: const EngineSettings(),
         sourceUrl: 'https://example.com/video',
         selectedFormat: const DownloadFormatOption(
           id: 'video-mp4-1080p',

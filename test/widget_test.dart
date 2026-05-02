@@ -1,5 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
+﻿import 'package:flutter_test/flutter_test.dart';
 
 import 'package:clipflow_downloader/src/app.dart';
 
@@ -9,26 +8,30 @@ void main() {
 
     expect(find.text('ClipFlow Downloader'), findsOneWidget);
     expect(find.text('Colar link'), findsOneWidget);
-    expect(find.text('Configurar motor'), findsOneWidget);
-    expect(find.text('Verificar motor'), findsOneWidget);
-    expect(find.textContaining('Motor '), findsWidgets);
+    expect(find.text('Sobre o motor'), findsOneWidget);
+    expect(find.text('Motor interno ativo'), findsOneWidget);
     expect(find.byTooltip('Remover'), findsWidgets);
     expect(find.byTooltip('Configurações'), findsOneWidget);
   });
 
-  testWidgets('opens engine settings dialog from status bar', (
+  testWidgets('opens internal engine dialog from status bar', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const ClipFlowApp());
 
-    final configureButton = find.text('Configurar motor');
-    await tester.ensureVisible(configureButton);
-    await tester.tap(configureButton);
+    await tester.tap(find.text('Sobre o motor'));
     await tester.pump();
 
-    expect(find.text('Configurar motor externo'), findsOneWidget);
-    expect(find.text('Tipo de motor'), findsOneWidget);
-    expect(find.byKey(const Key('engineSettingsSaveButton')), findsOneWidget);
+    expect(find.text('Motor interno'), findsOneWidget);
+    expect(
+      find.textContaining('yt-dlp/youtube-dl são apenas referência conceitual'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Entendi'));
+    await tester.pump();
+
+    expect(find.text('Motor interno'), findsNothing);
   });
 
   testWidgets('paste flow finishes with ready item and format section', (

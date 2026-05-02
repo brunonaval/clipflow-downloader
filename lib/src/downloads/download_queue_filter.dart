@@ -1,4 +1,4 @@
-﻿enum DownloadQueueFilter {
+enum DownloadQueueFilter {
   all,
   video,
   audio,

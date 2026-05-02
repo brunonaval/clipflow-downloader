@@ -1,4 +1,4 @@
-import 'package:flutter_test/flutter_test.dart';
+﻿import 'package:flutter_test/flutter_test.dart';
 
 import 'package:clipflow_downloader/src/downloads/download_format_option.dart';
 import 'package:clipflow_downloader/src/downloads/download_item.dart';
@@ -153,12 +153,12 @@ void main() {
 
       final copied = item.copyWith(
         commandPreviewLabel:
-            'yt-dlp --format video-mp4-1080p https://example.com',
+            'Motor interno --format video-mp4-1080p https://example.com',
       );
 
       expect(
         copied.commandPreviewLabel,
-        'yt-dlp --format video-mp4-1080p https://example.com',
+        'Motor interno --format video-mp4-1080p https://example.com',
       );
     });
 
@@ -250,3 +250,5 @@ void main() {
     });
   });
 }
+
+

@@ -1,6 +1,5 @@
 import '../engine/mock_engine_service.dart';
 import '../engine/internal_engine_service.dart';
-import '../engine/engine_settings.dart';
 import '../engine/youtube/youtube_extractor.dart';
 import 'download_item.dart';
 import 'download_options.dart';
@@ -246,7 +245,6 @@ class DownloadQueueController {
 
   DownloadItem? attachMockCommandPreview({
     required String itemId,
-    required EngineSettings settings,
     String outputFolderLabel = 'Vídeos',
   }) {
     final index = _indexOf(itemId);
@@ -267,7 +265,6 @@ class DownloadQueueController {
         : 'https://mock.local/authorized-link';
 
     final plan = _engineService.buildMockDownloadPlan(
-      settings: settings,
       sourceUrl: sourceUrl,
       selectedFormat: selected.first,
       outputFolderLabel: outputFolderLabel,
