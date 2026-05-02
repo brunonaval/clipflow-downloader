@@ -4,6 +4,7 @@ import 'package:clipflow_downloader/src/downloads/download_item.dart';
 import 'package:clipflow_downloader/src/downloads/download_options.dart';
 import 'package:clipflow_downloader/src/downloads/download_queue_controller.dart';
 import 'package:clipflow_downloader/src/downloads/download_queue_filter.dart';
+import 'package:clipflow_downloader/src/engine/engine_settings.dart';
 
 DownloadItem _item({
   required String id,
@@ -453,6 +454,81 @@ void main() {
 
       expect(started, isNotNull);
       expect(started!.status, DownloadStatus.downloading);
+    });
+
+    test('attachMockCommandPreview retorna null para item inexistente', () {
+      final controller = DownloadQueueController();
+      final updated = controller.attachMockCommandPreview(
+        itemId: 'missing-id',
+        settings: const EngineSettings(),
+      );
+      expect(updated, isNull);
+    });
+
+    test(
+      'attachMockCommandPreview retorna null se item não tiver formato selecionado',
+      () {
+        final controller = DownloadQueueController();
+        final created = controller.addMockAuthorizedLink(
+          status: DownloadStatus.ready,
+        );
+
+        final updated = controller.attachMockCommandPreview(
+          itemId: created.id,
+          settings: const EngineSettings(),
+        );
+
+        expect(updated, isNull);
+      },
+    );
+
+    test(
+      'attachMockCommandPreview salva commandPreviewLabel para item ready com formato selecionado',
+      () {
+        final controller = DownloadQueueController();
+        final created = controller.addMockAuthorizedLink(
+          status: DownloadStatus.analyzing,
+          sourceUrl: 'https://example.com/video',
+        );
+        controller.markItemReadyAfterMockAnalysis(created.id);
+
+        final updated = controller.attachMockCommandPreview(
+          itemId: created.id,
+          settings: const EngineSettings(),
+          outputFolderLabel: 'Vídeos',
+        );
+
+        expect(updated, isNotNull);
+        expect(updated!.commandPreviewLabel, isNotNull);
+        expect(updated.commandPreviewLabel, contains('yt-dlp'));
+      },
+    );
+
+    test('trocar formato e anexar preview atualiza commandPreviewLabel', () {
+      final controller = DownloadQueueController();
+      final created = controller.addMockAuthorizedLink(
+        status: DownloadStatus.analyzing,
+        sourceUrl: 'https://example.com/video',
+      );
+      controller.markItemReadyAfterMockAnalysis(created.id);
+      controller.attachMockCommandPreview(
+        itemId: created.id,
+        settings: const EngineSettings(),
+      );
+      final before = controller.items
+          .firstWhere((item) => item.id == created.id)
+          .commandPreviewLabel;
+
+      controller.selectFormatForItem(created.id, 'audio-m4a');
+      final after = controller.attachMockCommandPreview(
+        itemId: created.id,
+        settings: const EngineSettings(),
+      );
+
+      expect(after, isNotNull);
+      expect(after!.commandPreviewLabel, isNotNull);
+      expect(after.commandPreviewLabel, contains('--extract-audio'));
+      expect(after.commandPreviewLabel, isNot(equals(before)));
     });
 
     test('item can start downloading after mock analysis is completed', () {

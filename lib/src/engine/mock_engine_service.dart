@@ -1,5 +1,7 @@
 import '../downloads/download_format_option.dart';
 import 'engine_analysis_result.dart';
+import 'engine_command_plan.dart';
+import 'engine_settings.dart';
 
 class MockEngineService {
   const MockEngineService();
@@ -53,6 +55,45 @@ class MockEngineService {
         ),
       ],
       recommendedFormatId: 'video-mp4-1080p',
+    );
+  }
+
+  EngineCommandPlan buildMockDownloadPlan({
+    required EngineSettings settings,
+    required String sourceUrl,
+    required DownloadFormatOption selectedFormat,
+    String outputFolderLabel = 'Vídeos',
+  }) {
+    final executable = settings.engineLabel;
+
+    final arguments = switch (selectedFormat.kind) {
+      DownloadFormatKind.video => [
+        '--format',
+        selectedFormat.id,
+        '--merge-output-format',
+        selectedFormat.formatLabel.toLowerCase(),
+        sourceUrl,
+      ],
+      DownloadFormatKind.audio => [
+        '--extract-audio',
+        '--audio-format',
+        selectedFormat.formatLabel.toLowerCase(),
+        sourceUrl,
+      ],
+      DownloadFormatKind.subtitles => [
+        '--write-subs',
+        '--skip-download',
+        sourceUrl,
+      ],
+    };
+
+    return EngineCommandPlan(
+      type: EngineCommandPlanType.download,
+      executableLabel: executable,
+      arguments: arguments,
+      summaryLabel:
+          'Plano mockado: $executable · ${selectedFormat.label} · $outputFolderLabel',
+      isExecutable: false,
     );
   }
 }

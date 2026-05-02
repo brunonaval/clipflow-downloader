@@ -1,4 +1,5 @@
 import '../engine/mock_engine_service.dart';
+import '../engine/engine_settings.dart';
 import 'download_item.dart';
 import 'download_options.dart';
 import 'download_queue_filter.dart';
@@ -160,6 +161,39 @@ class DownloadQueueController {
     if (!exists) return null;
 
     final updated = item.copyWith(selectedFormatId: formatId);
+    return _replaceAt(index, updated);
+  }
+
+  DownloadItem? attachMockCommandPreview({
+    required String itemId,
+    required EngineSettings settings,
+    String outputFolderLabel = 'Vídeos',
+  }) {
+    final index = _indexOf(itemId);
+    if (index < 0) return null;
+
+    final item = _items[index];
+    if (item.availableFormats.isEmpty || item.selectedFormatId == null) {
+      return null;
+    }
+
+    final selected = item.availableFormats.where((f) {
+      return f.id == item.selectedFormatId;
+    }).toList();
+    if (selected.isEmpty) return null;
+
+    final sourceUrl = (item.sourceUrl?.trim().isNotEmpty ?? false)
+        ? item.sourceUrl!.trim()
+        : 'https://mock.local/authorized-link';
+
+    final plan = _engineService.buildMockDownloadPlan(
+      settings: settings,
+      sourceUrl: sourceUrl,
+      selectedFormat: selected.first,
+      outputFolderLabel: outputFolderLabel,
+    );
+
+    final updated = item.copyWith(commandPreviewLabel: plan.preview);
     return _replaceAt(index, updated);
   }
 

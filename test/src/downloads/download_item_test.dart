@@ -51,6 +51,7 @@ void main() {
 
       expect(item.availableFormats, isEmpty);
       expect(item.selectedFormatId, isNull);
+      expect(item.commandPreviewLabel, isNull);
     });
 
     test('copyWith preserves fields not overridden', () {
@@ -136,6 +137,29 @@ void main() {
       final copied = item.copyWith(selectedFormatId: 'video-mp4-1080p');
 
       expect(copied.selectedFormatId, 'video-mp4-1080p');
+    });
+
+    test('copyWith updates commandPreviewLabel', () {
+      final item = DownloadItem(
+        id: 'preview',
+        title: 'Preview',
+        durationLabel: '-',
+        sizeLabel: '-',
+        formatLabel: 'MP4',
+        qualityLabel: '720p',
+        fpsLabel: '-',
+        sourceLabel: '-',
+      );
+
+      final copied = item.copyWith(
+        commandPreviewLabel:
+            'yt-dlp --format video-mp4-1080p https://example.com',
+      );
+
+      expect(
+        copied.commandPreviewLabel,
+        'yt-dlp --format video-mp4-1080p https://example.com',
+      );
     });
 
     test('progress is clamped to 0.0 for values below 0', () {

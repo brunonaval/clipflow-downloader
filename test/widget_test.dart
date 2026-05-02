@@ -153,5 +153,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 2000));
 
     expect(find.textContaining('Vídeo MP4 1080p'), findsWidgets);
+    expect(find.textContaining('Plano:'), findsWidgets);
   });
 }

@@ -27,6 +27,7 @@ class DownloadItem {
   final double progress;
   final List<DownloadFormatOption> availableFormats;
   final String? selectedFormatId;
+  final String? commandPreviewLabel;
 
   DownloadItem({
     required this.id,
@@ -42,6 +43,7 @@ class DownloadItem {
     this.status = DownloadStatus.queued,
     List<DownloadFormatOption> availableFormats = const [],
     this.selectedFormatId,
+    this.commandPreviewLabel,
     double progress = 0.0,
   }) : progress = progress.clamp(0.0, 1.0),
        availableFormats = List.unmodifiable(availableFormats);
@@ -75,6 +77,7 @@ class DownloadItem {
     double? progress,
     List<DownloadFormatOption>? availableFormats,
     String? selectedFormatId,
+    String? commandPreviewLabel,
   }) {
     return DownloadItem(
       id: id ?? this.id,
@@ -91,6 +94,7 @@ class DownloadItem {
       progress: progress ?? this.progress,
       availableFormats: availableFormats ?? this.availableFormats,
       selectedFormatId: selectedFormatId ?? this.selectedFormatId,
+      commandPreviewLabel: commandPreviewLabel ?? this.commandPreviewLabel,
     );
   }
 }

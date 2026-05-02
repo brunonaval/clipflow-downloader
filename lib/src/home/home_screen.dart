@@ -113,6 +113,12 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       if (!mounted || updated == null) return;
 
+      _queueController.attachMockCommandPreview(
+        itemId: addedItem.id,
+        settings: _engineSettings,
+        outputFolderLabel: _downloadOptions.outputFolderLabel,
+      );
+
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -158,6 +164,11 @@ class _HomeScreenState extends State<HomeScreen> {
   void _selectFormatForItem(DownloadItem item, String formatId) {
     final updated = _queueController.selectFormatForItem(item.id, formatId);
     if (updated == null) return;
+    _queueController.attachMockCommandPreview(
+      itemId: item.id,
+      settings: _engineSettings,
+      outputFolderLabel: _downloadOptions.outputFolderLabel,
+    );
     setState(() {});
   }
 
@@ -661,6 +672,19 @@ class _DownloadListItem extends StatelessWidget {
                     if (item.status == DownloadStatus.ready &&
                         item.availableFormats.isNotEmpty)
                       _FormatSelector(item: item, onSelected: onFormatSelected),
+                    if (item.commandPreviewLabel != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Plano: ${item.commandPreviewLabel}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
                     if (isDownloading)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
