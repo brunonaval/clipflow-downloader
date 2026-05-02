@@ -1,0 +1,397 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import '../../downloads/download_format_option.dart';
+import '../download/internal_download_cancellation.dart';
+import '../download/internal_download_progress.dart';
+import '../download/internal_download_result.dart';
+import 'yt_dlp_analysis_result.dart';
+import 'yt_dlp_executable.dart';
+
+class YtDlpEngineException implements Exception {
+  final String message;
+  const YtDlpEngineException(this.message);
+
+  @override
+  String toString() => message;
+}
+
+class YtDlpEngineService {
+  const YtDlpEngineService({
+    YtDlpExecutableResolver resolver = const YtDlpExecutableResolver(),
+    YtDlpProcessRunner runner = const DefaultYtDlpProcessRunner(),
+  }) : _resolver = resolver,
+       _runner = runner;
+
+  final YtDlpExecutableResolver _resolver;
+  final YtDlpProcessRunner _runner;
+
+  Future<YtDlpAnalysisResult> analyzeUrl(String url) async {
+    final executable = await _resolver.resolve();
+    if (executable == null) {
+      throw const YtDlpEngineException(
+        'yt-dlp não disponível no sistema ou em tools/yt-dlp.exe.',
+      );
+    }
+
+    final safeUrl = url.trim();
+    if (safeUrl.isEmpty) {
+      throw const YtDlpEngineException('URL vazia para análise.');
+    }
+
+    ProcessResult result;
+    try {
+      result = await _runner
+          .run(executable.path, [
+            '--dump-single-json',
+            '--no-playlist',
+            '--skip-download',
+            safeUrl,
+          ])
+          .timeout(const Duration(seconds: 45));
+    } on TimeoutException {
+      throw const YtDlpEngineException('Tempo limite na análise com yt-dlp.');
+    } catch (_) {
+      throw const YtDlpEngineException(
+        'Falha ao executar yt-dlp para análise.',
+      );
+    }
+
+    if (result.exitCode != 0) {
+      final errorText = _shortError(result.stderr, result.stdout);
+      throw YtDlpEngineException('Falha na análise do yt-dlp: $errorText');
+    }
+
+    final rawJson = result.stdout.toString().trim();
+    if (rawJson.isEmpty) {
+      throw const YtDlpEngineException('yt-dlp não retornou metadados.');
+    }
+
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(rawJson);
+    } catch (_) {
+      throw const YtDlpEngineException(
+        'yt-dlp retornou metadados inválidos para análise.',
+      );
+    }
+    if (decoded is! Map<String, dynamic>) {
+      throw const YtDlpEngineException(
+        'yt-dlp retornou estrutura inesperada de metadados.',
+      );
+    }
+
+    final formats = _mapFormats(decoded).take(12).toList();
+    return YtDlpAnalysisResult(
+      title: decoded['title']?.toString().trim().isNotEmpty == true
+          ? decoded['title'].toString()
+          : 'YouTube',
+      durationLabel: _durationLabel(decoded['duration']),
+      formats: formats,
+      recommendedFormatId: formats.isNotEmpty ? formats.first.id : null,
+    );
+  }
+
+  Future<InternalDownloadResult> download({
+    required String url,
+    required String formatId,
+    required String outputTemplate,
+    required void Function(InternalDownloadProgress progress) onProgress,
+    InternalDownloadCancellation? cancellation,
+  }) async {
+    final executable = await _resolver.resolve();
+    if (executable == null) {
+      return const InternalDownloadResult(
+        status: InternalDownloadStatus.failed,
+        message: 'yt-dlp não disponível no sistema ou em tools/yt-dlp.exe.',
+        receivedBytes: 0,
+      );
+    }
+
+    final safeUrl = url.trim();
+    if (safeUrl.isEmpty) {
+      return const InternalDownloadResult(
+        status: InternalDownloadStatus.failed,
+        message: 'URL vazia para download.',
+        receivedBytes: 0,
+      );
+    }
+
+    Process process;
+    try {
+      process = await _runner.start(executable.path, [
+        '--newline',
+        '--no-playlist',
+        '-f',
+        formatId,
+        '-o',
+        outputTemplate,
+        safeUrl,
+      ]);
+    } catch (_) {
+      return const InternalDownloadResult(
+        status: InternalDownloadStatus.failed,
+        message: 'Falha ao iniciar processo do yt-dlp.',
+        receivedBytes: 0,
+      );
+    }
+
+    var receivedBytes = 0;
+    String lastError = '';
+
+    final stdoutSub = process.stdout
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((line) {
+          final percent = parseProgressPercent(line);
+          if (percent != null) {
+            final scaled = (percent * 1000000).round();
+            receivedBytes = scaled;
+            onProgress(
+              InternalDownloadProgress(
+                receivedBytes: scaled,
+                totalBytes: 1000000,
+                isDone: percent >= 1.0,
+              ),
+            );
+          }
+        });
+
+    final stderrSub = process.stderr
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((line) {
+          final percent = parseProgressPercent(line);
+          if (percent != null) {
+            final scaled = (percent * 1000000).round();
+            receivedBytes = scaled;
+            onProgress(
+              InternalDownloadProgress(
+                receivedBytes: scaled,
+                totalBytes: 1000000,
+                isDone: percent >= 1.0,
+              ),
+            );
+          } else if (line.trim().isNotEmpty) {
+            lastError = line.trim();
+          }
+        });
+
+    Timer? cancelTimer;
+    if (cancellation != null) {
+      cancelTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
+        if (!cancellation.isCanceled) return;
+        process.kill(ProcessSignal.sigterm);
+      });
+    }
+
+    final exitCode = await process.exitCode;
+    await stdoutSub.cancel();
+    await stderrSub.cancel();
+    cancelTimer?.cancel();
+
+    if (cancellation?.isCanceled ?? false) {
+      return InternalDownloadResult(
+        status: InternalDownloadStatus.canceled,
+        message: 'Download cancelado.',
+        receivedBytes: receivedBytes,
+      );
+    }
+
+    if (exitCode == 0) {
+      onProgress(
+        const InternalDownloadProgress(
+          receivedBytes: 1000000,
+          totalBytes: 1000000,
+          isDone: true,
+        ),
+      );
+      return const InternalDownloadResult(
+        status: InternalDownloadStatus.completed,
+        message: 'Download concluído.',
+        receivedBytes: 1000000,
+      );
+    }
+
+    return InternalDownloadResult(
+      status: InternalDownloadStatus.failed,
+      message: lastError.isNotEmpty
+          ? 'Falha no download com yt-dlp: $lastError'
+          : 'Falha no download com yt-dlp.',
+      receivedBytes: receivedBytes,
+    );
+  }
+
+  static double? parseProgressPercent(String line) {
+    final match = RegExp(
+      r'\[download\]\s+([0-9]+(?:\.[0-9]+)?)%',
+    ).firstMatch(line);
+    if (match == null) return null;
+    final value = double.tryParse(match.group(1)!);
+    if (value == null) return null;
+    return (value / 100).clamp(0.0, 1.0);
+  }
+
+  List<DownloadFormatOption> _mapFormats(Map<String, dynamic> json) {
+    final rawFormats = json['formats'];
+    if (rawFormats is! List) return const [];
+
+    final mapped = <DownloadFormatOption>[];
+    for (final raw in rawFormats) {
+      if (raw is! Map) continue;
+
+      final map = <String, dynamic>{};
+      for (final entry in raw.entries) {
+        map[entry.key.toString()] = entry.value;
+      }
+
+      final formatId = map['format_id']?.toString().trim();
+      if (formatId == null || formatId.isEmpty) continue;
+
+      final ext = (map['ext']?.toString().trim().toUpperCase() ?? 'BIN');
+      final vcodec = map['vcodec']?.toString() ?? '';
+      final hasVideo = vcodec.isNotEmpty && vcodec != 'none';
+      final kind = hasVideo
+          ? DownloadFormatKind.video
+          : DownloadFormatKind.audio;
+
+      final quality = _qualityLabel(map, hasVideo);
+      final size = _sizeLabel(map['filesize'] ?? map['filesize_approx']);
+      final label = hasVideo ? 'Vídeo $ext $quality' : 'Áudio $ext';
+      final note = map['format_note']?.toString().trim();
+      final details = note == null || note.isEmpty
+          ? 'yt-dlp format $formatId'
+          : 'yt-dlp format $formatId · $note';
+
+      mapped.add(
+        DownloadFormatOption(
+          id: formatId,
+          kind: kind,
+          label: label,
+          formatLabel: ext,
+          qualityLabel: quality,
+          sizeLabel: size,
+          detailsLabel: details,
+        ),
+      );
+    }
+
+    mapped.sort((a, b) {
+      final aRank = _formatPriority(a);
+      final bRank = _formatPriority(b);
+      if (aRank != bRank) return aRank.compareTo(bRank);
+      return a.label.compareTo(b.label);
+    });
+
+    if (mapped.isNotEmpty) {
+      final first = mapped.first;
+      mapped[0] = DownloadFormatOption(
+        id: first.id,
+        kind: first.kind,
+        label: first.label,
+        formatLabel: first.formatLabel,
+        qualityLabel: first.qualityLabel,
+        sizeLabel: first.sizeLabel,
+        detailsLabel: first.detailsLabel,
+        isRecommended: true,
+      );
+    }
+    return mapped;
+  }
+
+  int _formatPriority(DownloadFormatOption option) {
+    final ext = option.formatLabel.toUpperCase();
+    final quality = option.qualityLabel;
+
+    if (option.kind == DownloadFormatKind.video && ext == 'MP4') {
+      return _qualityRank(quality);
+    }
+    if (option.kind == DownloadFormatKind.audio && ext == 'M4A') return 100;
+    if (option.kind == DownloadFormatKind.video) {
+      return 200 + _qualityRank(quality);
+    }
+    if (option.kind == DownloadFormatKind.audio) return 300;
+    return 400;
+  }
+
+  int _qualityRank(String quality) {
+    final numbers = RegExp(r'(\d{3,4})p').firstMatch(quality.toLowerCase());
+    final value = numbers == null ? 0 : int.tryParse(numbers.group(1)!) ?? 0;
+    return 9999 - value;
+  }
+
+  String _durationLabel(Object? rawDuration) {
+    final seconds = rawDuration is num
+        ? rawDuration.toInt()
+        : int.tryParse(rawDuration?.toString() ?? '');
+    if (seconds == null || seconds <= 0) return '--:--';
+
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    final s = seconds % 60;
+    if (h > 0) {
+      return '$h:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    }
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  String _qualityLabel(Map<String, dynamic> map, bool hasVideo) {
+    final qualityLabel = map['format_note']?.toString().trim();
+    if (qualityLabel != null && qualityLabel.isNotEmpty) return qualityLabel;
+
+    if (hasVideo) {
+      final height = map['height'];
+      if (height is num && height > 0) return '${height.toInt()}p';
+      final resolution = map['resolution']?.toString().trim();
+      if (resolution != null && resolution.isNotEmpty) return resolution;
+      return 'Vídeo';
+    }
+    return 'Áudio';
+  }
+
+  String _sizeLabel(Object? raw) {
+    final bytes = raw is num
+        ? raw.toInt()
+        : int.tryParse(raw?.toString() ?? '');
+    if (bytes == null || bytes <= 0) return '--';
+
+    if (bytes < 1024) return '$bytes B';
+    final kb = bytes / 1024;
+    if (kb < 1024) return '${kb.toStringAsFixed(1)} KB';
+    final mb = kb / 1024;
+    if (mb < 1024) return '${mb.toStringAsFixed(1)} MB';
+    final gb = mb / 1024;
+    return '${gb.toStringAsFixed(1)} GB';
+  }
+
+  String _shortError(Object? stderr, Object? stdout) {
+    final stderrText = stderr?.toString().trim() ?? '';
+    if (stderrText.isNotEmpty) return stderrText.split('\n').last.trim();
+    final stdoutText = stdout?.toString().trim() ?? '';
+    if (stdoutText.isNotEmpty) return stdoutText.split('\n').last.trim();
+    return 'erro desconhecido';
+  }
+}
+
+abstract class YtDlpProcessRunner {
+  const YtDlpProcessRunner();
+
+  Future<ProcessResult> run(String executable, List<String> arguments);
+
+  Future<Process> start(String executable, List<String> arguments);
+}
+
+class DefaultYtDlpProcessRunner extends YtDlpProcessRunner {
+  const DefaultYtDlpProcessRunner();
+
+  @override
+  Future<ProcessResult> run(String executable, List<String> arguments) {
+    return Process.run(executable, arguments);
+  }
+
+  @override
+  Future<Process> start(String executable, List<String> arguments) {
+    return Process.start(executable, arguments);
+  }
+}

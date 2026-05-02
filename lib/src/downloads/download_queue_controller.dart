@@ -1,6 +1,7 @@
 import '../engine/mock_engine_service.dart';
 import '../engine/internal_engine_service.dart';
 import '../engine/youtube/youtube_extractor.dart';
+import '../engine/yt_dlp/yt_dlp_analysis_result.dart';
 import 'download_item.dart';
 import 'download_format_option.dart';
 import 'download_options.dart';
@@ -249,6 +250,29 @@ class DownloadQueueController {
       directDownloadUrl: null,
       outputFileName: null,
       isYouTubeSource: true,
+    );
+    return _replaceAt(index, updated);
+  }
+
+  DownloadItem? applyYtDlpAnalysis({
+    required String id,
+    required YtDlpAnalysisResult result,
+  }) {
+    final index = _indexOf(id);
+    if (index < 0) return null;
+
+    final item = _items[index];
+    final updated = item.copyWith(
+      status: DownloadStatus.ready,
+      progress: 0,
+      title: result.title,
+      durationLabel: result.durationLabel,
+      sourceLabel: 'Análise via yt-dlp concluída',
+      availableFormats: result.formats,
+      selectedFormatId: result.recommendedFormatId,
+      isYouTubeSource: true,
+      directDownloadUrl: null,
+      outputFileName: null,
     );
     return _replaceAt(index, updated);
   }

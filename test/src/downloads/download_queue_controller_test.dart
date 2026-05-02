@@ -1,9 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:clipflow_downloader/src/downloads/download_item.dart';
+import 'package:clipflow_downloader/src/downloads/download_format_option.dart';
 import 'package:clipflow_downloader/src/downloads/download_options.dart';
 import 'package:clipflow_downloader/src/downloads/download_queue_controller.dart';
 import 'package:clipflow_downloader/src/downloads/download_queue_filter.dart';
+import 'package:clipflow_downloader/src/engine/yt_dlp/yt_dlp_analysis_result.dart';
 
 DownloadItem _item({
   required String id,
@@ -735,6 +737,39 @@ void main() {
         () => controller.items.removeAt(0),
         throwsA(isA<UnsupportedError>()),
       );
+    });
+
+    test('applyYtDlpAnalysis marca ready e isYouTubeSource', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(id: '1', title: 'Item', status: DownloadStatus.analyzing),
+        ],
+      );
+
+      const result = YtDlpAnalysisResult(
+        title: 'Título yt-dlp',
+        durationLabel: '02:00',
+        formats: [
+          DownloadFormatOption(
+            id: '22',
+            kind: DownloadFormatKind.video,
+            label: 'Vídeo MP4 720p',
+            formatLabel: 'MP4',
+            qualityLabel: '720p',
+            sizeLabel: '10 MB',
+            detailsLabel: 'yt-dlp format 22',
+          ),
+        ],
+        recommendedFormatId: '22',
+      );
+
+      final updated = controller.applyYtDlpAnalysis(id: '1', result: result);
+
+      expect(updated, isNotNull);
+      expect(updated!.status, DownloadStatus.ready);
+      expect(updated.isYouTubeSource, isTrue);
+      expect(updated.selectedFormatId, '22');
+      expect(updated.directDownloadUrl, isNull);
     });
   });
 }

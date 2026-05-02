@@ -15,9 +15,8 @@ import '../engine/download/internal_download_request.dart';
 import '../engine/download/internal_download_result.dart';
 import '../engine/download/internal_http_downloader.dart';
 import '../engine/download/download_output_planner.dart';
-import '../engine/youtube/youtube_direct_media_failure.dart';
-import '../engine/youtube/youtube_extractor.dart';
 import '../engine/youtube/youtube_url_parser.dart';
+import '../engine/yt_dlp/yt_dlp_engine_service.dart';
 import 'mock_download_item.dart';
 
 const _kGreen = Color(0xFF2E7D32);
@@ -40,7 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final Map<String, InternalDownloadCancellation> _downloadCancellations = {};
   static const _httpDownloader = InternalHttpDownloader();
   static const _outputPlanner = DownloadOutputPlanner();
-  static const _youtubeExtractor = YouTubeExtractor();
+  static const _ytDlpEngine = YtDlpEngineService();
 
   late final DownloadQueueController _queueController;
 
@@ -128,27 +127,40 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
 
-        final youtubeUpdated = await _queueController
-            .markItemReadyAfterYouTubeMetadataAnalysis(
-              id: addedItem.id,
+        try {
+          final result = await _ytDlpEngine.analyzeUrl(safeUrl);
+          if (!mounted) return;
+
+          final updated = _queueController.applyYtDlpAnalysis(
+            id: addedItem.id,
+            result: result,
+          );
+
+          if (updated != null) {
+            _queueController.attachMockCommandPreview(
+              itemId: addedItem.id,
               outputFolderLabel: _downloadOptions.outputFolderLabel,
             );
-        if (!mounted) return;
-
-        if (youtubeUpdated != null &&
-            youtubeUpdated.status == DownloadStatus.ready) {
-          _queueController.attachMockCommandPreview(
-            itemId: addedItem.id,
-            outputFolderLabel: _downloadOptions.outputFolderLabel,
-          );
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Metadados do YouTube extraídos'),
-              duration: Duration(milliseconds: 1200),
-            ),
-          );
-          return;
+            setState(() {});
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Análise via yt-dlp concluída'),
+                duration: Duration(milliseconds: 1200),
+              ),
+            );
+            return;
+          }
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'yt-dlp não disponível; usando análise interna limitada.',
+                ),
+                duration: Duration(milliseconds: 1500),
+              ),
+            );
+          }
         }
 
         final fallbackUpdated = _queueController
@@ -165,19 +177,13 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() {});
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Usando análise estrutural do YouTube'),
+              content: Text('Usando análise interna limitada para YouTube'),
               duration: Duration(milliseconds: 1200),
             ),
           );
           return;
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Usando análise estrutural do YouTube'),
-            duration: Duration(milliseconds: 1200),
-          ),
-        );
         _scheduleMockAnalysis(addedItem.id);
         return;
       }
@@ -265,7 +271,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     if (started.isYouTubeSource) {
-      _startYouTubeDirectCandidateDownload(started);
+      _startYouTubeWithYtDlpDownload(started);
       return;
     }
 
@@ -366,7 +372,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _startYouTubeDirectCandidateDownload(DownloadItem item) async {
+  Future<void> _startYouTubeWithYtDlpDownload(DownloadItem item) async {
     final selectedFormat = _queueController.selectedFormatForItem(item.id);
     if (selectedFormat == null) {
       _queueController.markItemFailed(
@@ -377,61 +383,29 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
+    final sourceUrl = (item.sourceUrl ?? '').trim();
+    if (sourceUrl.isEmpty) {
+      _queueController.markItemFailed(item.id, 'URL ausente para download.');
+      if (mounted) setState(() {});
+      return;
+    }
+
     final cancellation = InternalDownloadCancellation();
     _downloadCancellations[item.id] = cancellation;
 
-    IOSink? sink;
     try {
-      final lookup = await _youtubeExtractor.lookupDirectMediaForFormat(
-        rawUrl: item.sourceUrl ?? '',
-        formatId: selectedFormat.id,
-      );
-
-      if (!lookup.hasReference) {
-        final failure = lookup.failure;
-        final message =
-            failure?.message ??
-            'Formato ainda não suportado pelo motor interno.';
-        _queueController.markItemFailed(item.id, message);
-        final snackBarMessage = switch (failure?.reason) {
-          YouTubeDirectMediaFailureReason.requiresSignature =>
-            'Formato exige assinatura; escolha outro formato.',
-          YouTubeDirectMediaFailureReason.noDirectUrl =>
-            'Formato sem URL direta disponível.',
-          YouTubeDirectMediaFailureReason.formatNotFound =>
-            'Formato não encontrado no player.',
-          YouTubeDirectMediaFailureReason.invalidUrl =>
-            'URL de mídia inválida.',
-          YouTubeDirectMediaFailureReason.unsupported ||
-          null => 'Formato ainda não suportado pelo motor interno.',
-        };
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(snackBarMessage),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
-        return;
-      }
-      final reference = lookup.reference!;
+      final directory = _outputPlanner.defaultDownloadDirectory();
+      await directory.create(recursive: true);
       final baseName = _safeTitleAsFileBase(item.title);
-      final suggestedName = '$baseName.${reference.fileExtension}';
-      final outputPlan = await _outputPlanner.plan(
-        requestedFileName: suggestedName,
-      );
-      sink = outputPlan.file.openWrite();
+      final outputTemplate =
+          '${directory.path}${Platform.pathSeparator}$baseName-%(id)s.%(ext)s';
 
-      final result = await _httpDownloader.download(
-        request: InternalDownloadRequest(
-          sourceUri: reference.mediaUri,
-          fileName: outputPlan.fileName,
-        ),
-        sink: sink,
+      final result = await _ytDlpEngine.download(
+        url: sourceUrl,
+        formatId: selectedFormat.id,
+        outputTemplate: outputTemplate,
         cancellation: cancellation,
-        onProgress: (InternalDownloadProgress progress) {
+        onProgress: (progress) {
           final fraction = progress.fraction;
           if (fraction == null) return;
           _queueController.updateItemProgress(item.id, fraction);
@@ -447,9 +421,9 @@ class _HomeScreenState extends State<HomeScreen> {
             'Salvo em Downloads/ClipFlow',
           );
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Download concluído: ${outputPlan.fileName}'),
-              duration: const Duration(seconds: 2),
+            const SnackBar(
+              content: Text('Download concluído em Downloads/ClipFlow'),
+              duration: Duration(seconds: 2),
             ),
           );
           break;
@@ -464,11 +438,10 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {
       _queueController.markItemFailed(
         item.id,
-        'Falha ao iniciar download deste formato do YouTube.',
+        'Falha ao iniciar download via yt-dlp.',
       );
       if (mounted) setState(() {});
     } finally {
-      await sink?.close();
       _downloadCancellations.remove(item.id);
     }
   }
