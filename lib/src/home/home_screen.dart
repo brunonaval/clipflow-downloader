@@ -15,6 +15,7 @@ import '../engine/download/internal_download_request.dart';
 import '../engine/download/internal_download_result.dart';
 import '../engine/download/internal_http_downloader.dart';
 import '../engine/download/download_output_planner.dart';
+import '../engine/youtube/youtube_extractor.dart';
 import '../engine/youtube/youtube_url_parser.dart';
 import 'mock_download_item.dart';
 
@@ -38,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final Map<String, InternalDownloadCancellation> _downloadCancellations = {};
   static const _httpDownloader = InternalHttpDownloader();
   static const _outputPlanner = DownloadOutputPlanner();
+  static const _youtubeExtractor = YouTubeExtractor();
 
   late final DownloadQueueController _queueController;
 
@@ -261,6 +263,10 @@ class _HomeScreenState extends State<HomeScreen> {
       _startInternalDirectDownload(started);
       return;
     }
+    if (started.isYouTubeSource) {
+      _startYouTubeDirectCandidateDownload(started);
+      return;
+    }
 
     _ensureFakeProgressTimer();
   }
@@ -357,6 +363,112 @@ class _HomeScreenState extends State<HomeScreen> {
       await sink?.close();
       _downloadCancellations.remove(item.id);
     }
+  }
+
+  Future<void> _startYouTubeDirectCandidateDownload(DownloadItem item) async {
+    final selectedFormat = _queueController.selectedFormatForItem(item.id);
+    if (selectedFormat == null) {
+      _queueController.markItemFailed(
+        item.id,
+        'Selecione um formato antes de iniciar.',
+      );
+      if (mounted) setState(() {});
+      return;
+    }
+
+    final cancellation = InternalDownloadCancellation();
+    _downloadCancellations[item.id] = cancellation;
+
+    IOSink? sink;
+    try {
+      final reference = await _youtubeExtractor.locateDirectMediaForFormat(
+        rawUrl: item.sourceUrl ?? '',
+        formatId: selectedFormat.id,
+      );
+
+      if (reference == null) {
+        _queueController.markItemFailed(
+          item.id,
+          'Formato exige assinatura ou ainda não é suportado pelo motor interno',
+        );
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Formato exige assinatura ou ainda não é suportado pelo motor interno',
+              ),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        return;
+      }
+
+      final baseName = _safeTitleAsFileBase(item.title);
+      final suggestedName = '$baseName.${reference.fileExtension}';
+      final outputPlan = await _outputPlanner.plan(
+        requestedFileName: suggestedName,
+      );
+      sink = outputPlan.file.openWrite();
+
+      final result = await _httpDownloader.download(
+        request: InternalDownloadRequest(
+          sourceUri: reference.mediaUri,
+          fileName: outputPlan.fileName,
+        ),
+        sink: sink,
+        cancellation: cancellation,
+        onProgress: (InternalDownloadProgress progress) {
+          final fraction = progress.fraction;
+          if (fraction == null) return;
+          _queueController.updateItemProgress(item.id, fraction);
+          if (mounted) setState(() {});
+        },
+      );
+
+      if (!mounted) return;
+      switch (result.status) {
+        case InternalDownloadStatus.completed:
+          _queueController.markItemCompletedWithMessage(
+            item.id,
+            'Salvo em Downloads/ClipFlow',
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Download concluído: ${outputPlan.fileName}'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          break;
+        case InternalDownloadStatus.canceled:
+          _queueController.cancelItem(item.id);
+          break;
+        case InternalDownloadStatus.failed:
+          _queueController.markItemFailed(item.id, result.message);
+          break;
+      }
+      setState(() {});
+    } catch (_) {
+      _queueController.markItemFailed(
+        item.id,
+        'Falha ao iniciar download deste formato do YouTube.',
+      );
+      if (mounted) setState(() {});
+    } finally {
+      await sink?.close();
+      _downloadCancellations.remove(item.id);
+    }
+  }
+
+  String _safeTitleAsFileBase(String title) {
+    final cleaned = title
+        .trim()
+        .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
+        .replaceAll(RegExp(r'\s+'), ' ');
+    if (cleaned.isEmpty) return 'youtube-video';
+    if (cleaned.length <= 80) return cleaned;
+    return cleaned.substring(0, 80).trim();
   }
 
   void _removeItem(DownloadItem item) {

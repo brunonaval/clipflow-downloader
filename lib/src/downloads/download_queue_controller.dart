@@ -2,6 +2,7 @@ import '../engine/mock_engine_service.dart';
 import '../engine/internal_engine_service.dart';
 import '../engine/youtube/youtube_extractor.dart';
 import 'download_item.dart';
+import 'download_format_option.dart';
 import 'download_options.dart';
 import 'download_queue_filter.dart';
 
@@ -203,6 +204,7 @@ class DownloadQueueController {
       selectedFormatId: result.recommendedFormatId,
       directDownloadUrl: directDownloadUrl,
       outputFileName: outputFileName,
+      isYouTubeSource: _youtubeExtractor.isYouTubeUrl(item.sourceUrl ?? ''),
     );
     return _replaceAt(index, updated);
   }
@@ -246,6 +248,7 @@ class DownloadQueueController {
       selectedFormatId: result.recommendedFormatId,
       directDownloadUrl: null,
       outputFileName: null,
+      isYouTubeSource: true,
     );
     return _replaceAt(index, updated);
   }
@@ -302,6 +305,25 @@ class DownloadQueueController {
 
     final updated = item.copyWith(selectedFormatId: formatId);
     return _replaceAt(index, updated);
+  }
+
+  DownloadFormatOption? selectedFormatForItem(String itemId) {
+    final index = _indexOf(itemId);
+    if (index < 0) return null;
+
+    final item = _items[index];
+    if (item.availableFormats.isEmpty) return null;
+
+    final selectedId = item.selectedFormatId;
+    if (selectedId == null || selectedId.isEmpty) {
+      return item.availableFormats.first;
+    }
+
+    for (final format in item.availableFormats) {
+      if (format.id == selectedId) return format;
+    }
+
+    return null;
   }
 
   DownloadItem? attachMockCommandPreview({

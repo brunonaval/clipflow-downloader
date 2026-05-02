@@ -54,6 +54,7 @@ void main() {
       expect(item.commandPreviewLabel, isNull);
       expect(item.directDownloadUrl, isNull);
       expect(item.outputFileName, isNull);
+      expect(item.isYouTubeSource, isFalse);
     });
 
     test('copyWith preserves fields not overridden', () {
@@ -183,6 +184,23 @@ void main() {
 
       expect(copied.directDownloadUrl, 'https://example.com/file.mp4');
       expect(copied.outputFileName, 'file.mp4');
+    });
+
+    test('copyWith updates isYouTubeSource', () {
+      final item = DownloadItem(
+        id: 'yt',
+        title: 'YT',
+        durationLabel: '-',
+        sizeLabel: '-',
+        formatLabel: '-',
+        qualityLabel: '-',
+        fpsLabel: '-',
+        sourceLabel: '-',
+      );
+
+      final copied = item.copyWith(isYouTubeSource: true);
+
+      expect(copied.isYouTubeSource, isTrue);
     });
 
     test('progress is clamped to 0.0 for values below 0', () {

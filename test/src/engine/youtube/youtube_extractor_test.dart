@@ -342,5 +342,43 @@ void main() {
         expect(result.sourceLabel, contains('não reproduzível'));
       },
     );
+    test(
+      'locateDirectMediaForFormat retorna referencia quando HTML tem url direta',
+      () async {
+        final extractorWithHtml = YouTubeExtractor(
+          fetcher: const _FakeFetcher(
+            '<script>var ytInitialPlayerResponse = {"streamingData":{"formats":[{"itag":18,"mimeType":"video/mp4","url":"https://media.example/video.mp4?token=abc"}]}};</script>',
+          ),
+        );
+
+        final reference = await extractorWithHtml.locateDirectMediaForFormat(
+          rawUrl: 'https://www.youtube.com/watch?v=abc123',
+          formatId: '18',
+        );
+
+        expect(reference, isNotNull);
+        expect(reference!.formatId, '18');
+        expect(reference.fileExtension, 'mp4');
+        expect(reference.safeHostLabel, 'media.example');
+      },
+    );
+
+    test(
+      'locateDirectMediaForFormat retorna null quando HTML tem signatureCipher',
+      () async {
+        final extractorWithHtml = YouTubeExtractor(
+          fetcher: const _FakeFetcher(
+            '<script>var ytInitialPlayerResponse = {"streamingData":{"adaptiveFormats":[{"itag":140,"mimeType":"audio/mp4","signatureCipher":"url=https%3A%2F%2Fmedia.example%2Fa.m4a&sp=s&sig=abc"}]}};</script>',
+          ),
+        );
+
+        final reference = await extractorWithHtml.locateDirectMediaForFormat(
+          rawUrl: 'https://www.youtube.com/watch?v=abc123',
+          formatId: '140',
+        );
+
+        expect(reference, isNull);
+      },
+    );
   });
 }

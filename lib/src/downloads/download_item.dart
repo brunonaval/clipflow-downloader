@@ -30,6 +30,7 @@ class DownloadItem {
   final String? commandPreviewLabel;
   final String? directDownloadUrl;
   final String? outputFileName;
+  final bool isYouTubeSource;
 
   DownloadItem({
     required this.id,
@@ -48,6 +49,7 @@ class DownloadItem {
     this.commandPreviewLabel,
     this.directDownloadUrl,
     this.outputFileName,
+    this.isYouTubeSource = false,
     double progress = 0.0,
   }) : progress = progress.clamp(0.0, 1.0),
        availableFormats = List.unmodifiable(availableFormats);
@@ -84,6 +86,7 @@ class DownloadItem {
     String? commandPreviewLabel,
     String? directDownloadUrl,
     String? outputFileName,
+    bool? isYouTubeSource,
   }) {
     return DownloadItem(
       id: id ?? this.id,
@@ -103,6 +106,7 @@ class DownloadItem {
       commandPreviewLabel: commandPreviewLabel ?? this.commandPreviewLabel,
       directDownloadUrl: directDownloadUrl ?? this.directDownloadUrl,
       outputFileName: outputFileName ?? this.outputFileName,
+      isYouTubeSource: isYouTubeSource ?? this.isYouTubeSource,
     );
   }
 }

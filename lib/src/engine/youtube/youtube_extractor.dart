@@ -1,5 +1,6 @@
 import '../../downloads/download_format_option.dart';
 import '../internal_engine_analysis_result.dart';
+import 'youtube_direct_media_locator.dart';
 import 'youtube_format_descriptor.dart';
 import 'youtube_html_metadata_parser.dart';
 import 'youtube_media_candidate.dart';
@@ -11,15 +12,18 @@ class YouTubeExtractor {
   final YouTubeUrlParser _parser;
   final YouTubePageFetcher _fetcher;
   final YouTubeHtmlMetadataParser _metadataParser;
+  final YouTubeDirectMediaLocator _directLocator;
 
   const YouTubeExtractor({
     YouTubeUrlParser parser = const YouTubeUrlParser(),
     YouTubePageFetcher fetcher = const YouTubePageFetcher(),
     YouTubeHtmlMetadataParser metadataParser =
         const YouTubeHtmlMetadataParser(),
+    YouTubeDirectMediaLocator directLocator = const YouTubeDirectMediaLocator(),
   }) : _parser = parser,
        _fetcher = fetcher,
-       _metadataParser = metadataParser;
+       _metadataParser = metadataParser,
+       _directLocator = directLocator;
 
   YouTubeVideoReference? parseReference(String rawUrl) {
     return _parser.parse(rawUrl);
@@ -81,6 +85,21 @@ class YouTubeExtractor {
       canDownloadDirectly: false,
       directDownloadUri: null,
     );
+  }
+
+  Future<YouTubeDirectMediaReference?> locateDirectMediaForFormat({
+    required String rawUrl,
+    required String formatId,
+  }) async {
+    final reference = _parser.parse(rawUrl);
+    if (reference == null) return null;
+
+    try {
+      final html = await _fetcher.fetchWatchHtml(reference);
+      return _directLocator.locateDirectMedia(html: html, formatId: formatId);
+    } catch (_) {
+      return null;
+    }
   }
 
   InternalEngineAnalysisResult analyzeReferenceMock({

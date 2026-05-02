@@ -435,6 +435,7 @@ void main() {
       expect(updated!.status, DownloadStatus.ready);
       expect(updated.directDownloadUrl, 'https://example.com/video.mp4');
       expect(updated.outputFileName, 'video.mp4');
+      expect(updated.isYouTubeSource, isFalse);
     });
 
     test('markItemReadyAfterInternalAnalysis preenche availableFormats', () {
@@ -470,6 +471,7 @@ void main() {
         expect(updated!.status, DownloadStatus.ready);
         expect(updated.availableFormats, isNotEmpty);
         expect(updated.directDownloadUrl, isNull);
+        expect(updated.isYouTubeSource, isTrue);
         expect(
           updated.title.contains('YouTube') ||
               updated.sourceLabel.contains('YouTube'),
@@ -629,6 +631,20 @@ void main() {
       expect(failed, isNotNull);
       expect(failed!.status, DownloadStatus.failed);
       expect(failed.sourceLabel, 'Falha controlada');
+    });
+
+    test('selectedFormatForItem retorna formato selecionado', () {
+      final controller = DownloadQueueController();
+      final created = controller.addMockAuthorizedLink(
+        status: DownloadStatus.analyzing,
+      );
+      controller.markItemReadyAfterMockAnalysis(created.id);
+      controller.selectFormatForItem(created.id, 'audio-m4a');
+
+      final selected = controller.selectedFormatForItem(created.id);
+
+      expect(selected, isNotNull);
+      expect(selected!.id, 'audio-m4a');
     });
 
     test('attachMockCommandPreview retorna null para item inexistente', () {
