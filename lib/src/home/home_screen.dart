@@ -104,19 +104,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() {});
 
-    final safeUrl = url?.trim() ?? '';
-    final canTryRealAnalysis =
-        _engineAvailability.isAvailable && _isHttpUrl(safeUrl);
+    final safeUrl = (url ?? '').trim();
+    if (_isHttpUrl(safeUrl)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('AnÃƒÆ’Ã‚Â¡lise interna iniciada'),
+          duration: Duration(milliseconds: 1200),
+        ),
+      );
 
-    if (canTryRealAnalysis) {
-      final realResult = await _queueController.markItemReadyAfterRealAnalysis(
+      final updated = _queueController.markItemReadyAfterInternalAnalysis(
         id: addedItem.id,
-        settings: _engineSettings,
         outputFolderLabel: _downloadOptions.outputFolderLabel,
       );
-      if (!mounted) return;
 
-      if (realResult != null && realResult.status == DownloadStatus.ready) {
+      if (updated != null && updated.status == DownloadStatus.ready) {
         _queueController.attachMockCommandPreview(
           itemId: addedItem.id,
           settings: _engineSettings,
@@ -125,7 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Análise real concluída'),
+            content: Text('AnÃƒÆ’Ã‚Â¡lise interna concluÃƒÆ’Ã‚Â­da'),
             duration: Duration(milliseconds: 1200),
           ),
         );
@@ -134,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Análise real falhou; usando resultado mockado'),
+          content: Text('AnÃƒÆ’Ã‚Â¡lise interna falhou; usando resultado mockado'),
           duration: Duration(milliseconds: 1400),
         ),
       );
@@ -142,11 +144,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _scheduleMockAnalysis(addedItem.id);
   }
-
   void _scheduleMockAnalysis(String itemId) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Análise mockada iniciada'),
+        content: Text('AnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lise mockada iniciada'),
         duration: Duration(milliseconds: 1200),
       ),
     );
@@ -165,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Análise mockada concluída'),
+          content: Text('AnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lise mockada concluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­da'),
           duration: Duration(milliseconds: 1200),
         ),
       );
@@ -246,7 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('ConfiguraÃ§Ã£o mockada do motor salva'),
+        content: Text('ConfiguraÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o mockada do motor salva'),
         duration: Duration(seconds: 2),
       ),
     );
@@ -270,8 +271,8 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     final message = result.isAvailable
-        ? 'Motor detectado: ${result.versionLabel ?? 'versÃ£o detectada'}'
-        : 'Motor nÃ£o disponÃ­vel: ${result.message}';
+        ? 'Motor detectado: ${result.versionLabel ?? 'versÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o detectada'}'
+        : 'Motor nÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o disponÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­vel: ${result.message}';
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -479,10 +480,10 @@ class _Toolbar extends StatelessWidget {
                   _SelectorButton<DownloadTransferType>(
                     valueLabel: selectedTransferLabel,
                     options: const {
-                      DownloadTransferType.video: 'VÃ­deo',
-                      DownloadTransferType.audio: 'Ãudio',
+                      DownloadTransferType.video: 'VÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­deo',
+                      DownloadTransferType.audio: 'ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âudio',
                       DownloadTransferType.subtitles: 'Legendas',
-                      DownloadTransferType.audioTracks: 'Faixas de Ã¡udio',
+                      DownloadTransferType.audioTracks: 'Faixas de ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡udio',
                     },
                     onChanged: onTransferChanged,
                   ),
@@ -490,7 +491,7 @@ class _Toolbar extends StatelessWidget {
                   _SelectorButton<String>(
                     valueLabel: selectedQualityLabel,
                     options: const {
-                      'Ã“tima': 'Ã“tima',
+                      'ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“tima': 'ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“tima',
                       '8K': '8K',
                       '4K': '4K',
                       '1080p': '1080p',
@@ -505,7 +506,7 @@ class _Toolbar extends StatelessWidget {
                   _SelectorButton<String>(
                     valueLabel: selectedFormatLabel,
                     options: const {
-                      'AutomÃ¡tico': 'AutomÃ¡tico',
+                      'AutomÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡tico': 'AutomÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡tico',
                       'MP4': 'MP4',
                       'MKV': 'MKV',
                       'MP3': 'MP3',
@@ -517,7 +518,7 @@ class _Toolbar extends StatelessWidget {
                   _SelectorButton<String>(
                     valueLabel: selectedOutputFolderLabel,
                     options: const {
-                      'VÃ­deos': 'VÃ­deos',
+                      'VÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­deos': 'VÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­deos',
                       'Downloads': 'Downloads',
                       'Imagens': 'Imagens',
                       'Documentos': 'Documentos',
@@ -533,7 +534,7 @@ class _Toolbar extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.settings_outlined, size: 20),
             onPressed: () {},
-            tooltip: 'ConfiguraÃ§Ãµes',
+            tooltip: 'ConfiguraÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âµes',
             color: Colors.black54,
             visualDensity: VisualDensity.compact,
           ),
@@ -1002,11 +1003,11 @@ class _StatusBar extends StatelessWidget {
     if (isCheckingEngine) return 'Verificando motor...';
     return switch (engineAvailability.status) {
       EngineAvailabilityStatus.available =>
-        'Motor disponÃ­vel: ${engineAvailability.executableLabel} ${engineAvailability.versionLabel ?? ''}'
+        'Motor disponÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­vel: ${engineAvailability.executableLabel} ${engineAvailability.versionLabel ?? ''}'
             .trim(),
-      EngineAvailabilityStatus.unavailable => 'Motor indisponÃ­vel',
+      EngineAvailabilityStatus.unavailable => 'Motor indisponÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­vel',
       EngineAvailabilityStatus.unknown => switch (engineStatus) {
-          EngineSetupStatus.notConfigured => 'Motor externo nÃ£o configurado',
+          EngineSetupStatus.notConfigured => 'Motor interno ativo',
           EngineSetupStatus.configuredMock =>
             'Motor externo configurado em modo mock',
         },
@@ -1060,7 +1061,7 @@ class _StatusBar extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                     ),
                     child: const Text(
-                      'Limpar concluÃ­dos',
+                      'Limpar concluÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­dos',
                       style: TextStyle(fontSize: 13),
                     ),
                   ),
