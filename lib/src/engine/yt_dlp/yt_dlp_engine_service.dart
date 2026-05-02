@@ -87,13 +87,15 @@ class YtDlpEngineService {
     }
 
     final formats = _mapFormats(decoded).take(12).toList();
+    final recommendedId = _recommendedFormatId(formats);
+
     return YtDlpAnalysisResult(
       title: decoded['title']?.toString().trim().isNotEmpty == true
           ? decoded['title'].toString()
           : 'YouTube',
       durationLabel: _durationLabel(decoded['duration']),
       formats: formats,
-      recommendedFormatId: formats.isNotEmpty ? formats.first.id : null,
+      recommendedFormatId: recommendedId,
     );
   }
 
@@ -275,22 +277,26 @@ class YtDlpEngineService {
 
       final quality = _qualityLabel(map, hasVideo);
       final size = _sizeLabel(map['filesize'] ?? map['filesize_approx']);
+
       final label = switch (category) {
         _YtDlpFormatCategory.muxed => 'Vídeo $ext $quality',
-        _YtDlpFormatCategory.videoOnly =>
-          'Vídeo sem áudio — requer FFmpeg futuro',
-        _YtDlpFormatCategory.audioOnly => 'Áudio $ext',
+        _YtDlpFormatCategory.videoOnly => 'Vídeo sem áudio — requer FFmpeg',
+        _YtDlpFormatCategory.audioOnly => 'Áudio $ext $quality',
       };
 
       final note = map['format_note']?.toString().trim();
       final baseDetails = note == null || note.isEmpty
           ? 'yt-dlp format $formatId'
           : 'yt-dlp format $formatId · $note';
+      final sizeDetails = size == '--' ? '' : ' · $size';
+
       final details = switch (category) {
-        _YtDlpFormatCategory.muxed => '[muxed] $baseDetails',
+        _YtDlpFormatCategory.muxed =>
+          '[muxed] $baseDetails$sizeDetails · vídeo+áudio',
         _YtDlpFormatCategory.videoOnly =>
-          '[video-only] $baseDetails · vídeo sem áudio · requer FFmpeg futuro',
-        _YtDlpFormatCategory.audioOnly => '[audio-only] $baseDetails',
+          '[video-only] $baseDetails$sizeDetails · vídeo sem áudio · requer FFmpeg futuro',
+        _YtDlpFormatCategory.audioOnly =>
+          '[audio-only] $baseDetails$sizeDetails · áudio',
       };
 
       mapped.add(
@@ -313,19 +319,25 @@ class YtDlpEngineService {
       return a.label.compareTo(b.label);
     });
 
-    if (mapped.isNotEmpty) {
-      final first = mapped.first;
-      mapped[0] = DownloadFormatOption(
-        id: first.id,
-        kind: first.kind,
-        label: first.label,
-        formatLabel: first.formatLabel,
-        qualityLabel: first.qualityLabel,
-        sizeLabel: first.sizeLabel,
-        detailsLabel: first.detailsLabel,
-        isRecommended: true,
-      );
+    final recommendedId = _recommendedFormatId(mapped);
+    if (recommendedId != null) {
+      for (var i = 0; i < mapped.length; i++) {
+        final item = mapped[i];
+        if (item.id != recommendedId) continue;
+        mapped[i] = DownloadFormatOption(
+          id: item.id,
+          kind: item.kind,
+          label: item.label,
+          formatLabel: item.formatLabel,
+          qualityLabel: item.qualityLabel,
+          sizeLabel: item.sizeLabel,
+          detailsLabel: item.detailsLabel,
+          isRecommended: true,
+        );
+        break;
+      }
     }
+
     return mapped;
   }
 
@@ -336,16 +348,21 @@ class YtDlpEngineService {
     final isAudioOnly = option.detailsLabel.contains('[audio-only]');
     final isMuxed = option.detailsLabel.contains('[muxed]');
 
-    if (isMuxed && ext == 'MP4') {
-      return _qualityRank(quality);
-    }
-    if (isMuxed && ext == 'WEBM') {
-      return 100 + _qualityRank(quality);
-    }
+    if (isMuxed && ext == 'MP4') return _qualityRank(quality);
+    if (isMuxed && ext == 'WEBM') return 100 + _qualityRank(quality);
     if (isAudioOnly && ext == 'M4A') return 200;
-    if (isAudioOnly) return 300;
+    if (isAudioOnly && ext == 'WEBM') return 300;
+    if (isAudioOnly) return 350;
     if (isVideoOnly) return 400 + _qualityRank(quality);
     return 500;
+  }
+
+  String? _recommendedFormatId(List<DownloadFormatOption> options) {
+    for (final option in options) {
+      if (option.detailsLabel.contains('[video-only]')) continue;
+      return option.id;
+    }
+    return null;
   }
 
   int _qualityRank(String quality) {
@@ -385,9 +402,12 @@ class YtDlpEngineService {
       if (height is num && height > 0) return '${height.toInt()}p';
       final resolution = map['resolution']?.toString().trim();
       if (resolution != null && resolution.isNotEmpty) return resolution;
-      return 'Vídeo';
+      return 'vídeo';
     }
-    return 'Áudio';
+
+    final abr = map['abr'];
+    if (abr is num && abr > 0) return '${abr.toInt()}k';
+    return 'medium';
   }
 
   String _sizeLabel(Object? raw) {

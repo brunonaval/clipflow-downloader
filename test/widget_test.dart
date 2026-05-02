@@ -9,7 +9,7 @@ void main() {
     expect(find.text('ClipFlow Downloader'), findsOneWidget);
     expect(find.text('Colar link'), findsOneWidget);
     expect(find.text('Sobre o motor'), findsOneWidget);
-    expect(find.text('Motor interno ativo'), findsOneWidget);
+    expect(find.text('Motor yt-dlp ativo para YouTube'), findsOneWidget);
     expect(find.byTooltip('Remover'), findsWidgets);
     expect(find.byTooltip('Configurações'), findsOneWidget);
   });
@@ -23,7 +23,16 @@ void main() {
     await tester.pump();
 
     expect(find.text('Motor interno'), findsOneWidget);
-    expect(find.textContaining('yt-dlp/youtube-dl'), findsOneWidget);
+    expect(
+      find.textContaining('Motor yt-dlp ativo para YouTube'),
+      findsWidgets,
+    );
+    expect(
+      find.textContaining(
+        'FFmpeg ainda não configurado; qualidades altas podem exigir merge.',
+      ),
+      findsWidgets,
+    );
 
     await tester.tap(find.text('Entendi'));
     await tester.pump();

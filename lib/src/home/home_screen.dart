@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -497,7 +497,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return AlertDialog(
           title: const Text('Motor interno'),
           content: const Text(
-            'ClipFlow usa um motor interno próprio para reconhecer links do YouTube e preparar downloads autorizados. yt-dlp/youtube-dl são apenas referência conceitual e não são necessários para usar este app.',
+            'ClipFlow usa um motor interno próprio para reconhecer links do YouTube e preparar downloads autorizados. Motor yt-dlp ativo para YouTube. FFmpeg ainda não configurado; qualidades altas podem exigir merge.',
           ),
           actions: [
             TextButton(
@@ -1250,13 +1250,13 @@ class _StatusBar extends StatelessWidget {
                   ),
                 ),
                 const Text(
-                  'Motor interno ativo',
+                  'Motor yt-dlp ativo para YouTube',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: Colors.white70, fontSize: 11),
                 ),
                 const Text(
-                  'YouTube extractor interno em desenvolvimento',
+                  'FFmpeg ainda não configurado; qualidades altas podem exigir merge.',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: Colors.white70, fontSize: 10),
@@ -1311,5 +1311,3 @@ class _StatusBar extends StatelessWidget {
     );
   }
 }
-
-

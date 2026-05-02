@@ -65,6 +65,7 @@ void main() {
       "ext": "m4a",
       "vcodec": "none",
       "acodec": "mp4a",
+      "format_note": "medium",
       "filesize": 5242880
     },
     {
@@ -80,7 +81,9 @@ void main() {
 ''';
       final service = YtDlpEngineService(
         resolver: const _FakeResolverAvailable(),
-        runner: _FakeRunner(result: ProcessResult(1, 0, jsonOutput, '')),
+        runner: _FakeRunner(
+          result: ProcessResult(1, 0, jsonOutput, 'warning: ffmpeg not found'),
+        ),
       );
 
       final result = await service.analyzeUrl(
@@ -91,13 +94,19 @@ void main() {
       expect(result.durationLabel, '03:21');
       expect(result.formats, isNotEmpty);
       expect(result.formats.any((f) => f.id.startsWith('sb')), isFalse);
-      expect(result.formats.any((f) => f.formatLabel == 'MP4'), isTrue);
       expect(result.formats.first.id, '22');
-      expect(result.recommendedFormatId, result.formats.first.id);
-      expect(
-        result.formats.any((f) => f.detailsLabel.contains('[video-only]')),
-        isTrue,
-      );
+      expect(result.recommendedFormatId, '22');
+      expect(result.formats.first.label, 'Vídeo MP4 720p');
+      expect(result.formats.first.detailsLabel.contains('[muxed]'), isTrue);
+
+      final audioOnly = result.formats.firstWhere((f) => f.id == '140');
+      expect(audioOnly.label, 'Áudio M4A medium');
+      expect(audioOnly.detailsLabel.contains('[audio-only]'), isTrue);
+
+      final videoOnly = result.formats.firstWhere((f) => f.id == '137');
+      expect(videoOnly.label, 'Vídeo sem áudio — requer FFmpeg');
+      expect(videoOnly.detailsLabel.contains('requer FFmpeg futuro'), isTrue);
+      expect(videoOnly.detailsLabel.contains('[video-only]'), isTrue);
     });
 
     test('throws friendly error when executable is unavailable', () async {
@@ -122,7 +131,7 @@ void main() {
       const videoOnly = DownloadFormatOption(
         id: '137',
         kind: DownloadFormatKind.video,
-        label: 'Vídeo sem áudio — requer FFmpeg futuro',
+        label: 'Vídeo sem áudio — requer FFmpeg',
         formatLabel: 'MP4',
         qualityLabel: '1080p',
         sizeLabel: '15 MB',
