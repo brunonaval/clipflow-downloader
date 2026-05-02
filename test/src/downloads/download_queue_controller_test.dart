@@ -404,6 +404,26 @@ void main() {
     });
 
     test(
+      'markItemReadyAfterRealAnalysis com URL inválida falha de forma controlada',
+      () async {
+        final controller = DownloadQueueController();
+        final created = controller.addMockAuthorizedLink(
+          status: DownloadStatus.analyzing,
+          sourceUrl: 'nota-interna',
+        );
+
+        final updated = await controller.markItemReadyAfterRealAnalysis(
+          id: created.id,
+          settings: const EngineSettings(),
+        );
+
+        expect(updated, isNotNull);
+        expect(updated!.status, DownloadStatus.failed);
+        expect(updated.sourceLabel, 'Falha na análise real');
+      },
+    );
+
+    test(
       'selectFormatForItem altera selectedFormatId quando formato existe',
       () {
         final controller = DownloadQueueController();

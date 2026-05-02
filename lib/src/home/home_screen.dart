@@ -104,6 +104,46 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() {});
 
+    final safeUrl = url?.trim() ?? '';
+    final canTryRealAnalysis =
+        _engineAvailability.isAvailable && _isHttpUrl(safeUrl);
+
+    if (canTryRealAnalysis) {
+      final realResult = await _queueController.markItemReadyAfterRealAnalysis(
+        id: addedItem.id,
+        settings: _engineSettings,
+        outputFolderLabel: _downloadOptions.outputFolderLabel,
+      );
+      if (!mounted) return;
+
+      if (realResult != null && realResult.status == DownloadStatus.ready) {
+        _queueController.attachMockCommandPreview(
+          itemId: addedItem.id,
+          settings: _engineSettings,
+          outputFolderLabel: _downloadOptions.outputFolderLabel,
+        );
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Análise real concluída'),
+            duration: Duration(milliseconds: 1200),
+          ),
+        );
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Análise real falhou; usando resultado mockado'),
+          duration: Duration(milliseconds: 1400),
+        ),
+      );
+    }
+
+    _scheduleMockAnalysis(addedItem.id);
+  }
+
+  void _scheduleMockAnalysis(String itemId) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Análise mockada iniciada'),
@@ -113,13 +153,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _mockAnalysisTimer?.cancel();
     _mockAnalysisTimer = Timer(const Duration(milliseconds: 900), () {
-      final updated = _queueController.markItemReadyAfterMockAnalysis(
-        addedItem.id,
-      );
+      final updated = _queueController.markItemReadyAfterMockAnalysis(itemId);
       if (!mounted || updated == null) return;
 
       _queueController.attachMockCommandPreview(
-        itemId: addedItem.id,
+        itemId: itemId,
         settings: _engineSettings,
         outputFolderLabel: _downloadOptions.outputFolderLabel,
       );
@@ -134,6 +172,10 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  bool _isHttpUrl(String value) {
+    final lower = value.toLowerCase();
+    return lower.startsWith('http://') || lower.startsWith('https://');
+  }
   void _startItem(DownloadItem item) {
     final started = _queueController.startItem(item.id);
     if (started == null) return;
@@ -204,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Configuração mockada do motor salva'),
+        content: Text('ConfiguraÃ§Ã£o mockada do motor salva'),
         duration: Duration(seconds: 2),
       ),
     );
@@ -228,8 +270,8 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     final message = result.isAvailable
-        ? 'Motor detectado: ${result.versionLabel ?? 'versão detectada'}'
-        : 'Motor não disponível: ${result.message}';
+        ? 'Motor detectado: ${result.versionLabel ?? 'versÃ£o detectada'}'
+        : 'Motor nÃ£o disponÃ­vel: ${result.message}';
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -437,10 +479,10 @@ class _Toolbar extends StatelessWidget {
                   _SelectorButton<DownloadTransferType>(
                     valueLabel: selectedTransferLabel,
                     options: const {
-                      DownloadTransferType.video: 'Vídeo',
-                      DownloadTransferType.audio: 'Áudio',
+                      DownloadTransferType.video: 'VÃ­deo',
+                      DownloadTransferType.audio: 'Ãudio',
                       DownloadTransferType.subtitles: 'Legendas',
-                      DownloadTransferType.audioTracks: 'Faixas de áudio',
+                      DownloadTransferType.audioTracks: 'Faixas de Ã¡udio',
                     },
                     onChanged: onTransferChanged,
                   ),
@@ -448,7 +490,7 @@ class _Toolbar extends StatelessWidget {
                   _SelectorButton<String>(
                     valueLabel: selectedQualityLabel,
                     options: const {
-                      'Ótima': 'Ótima',
+                      'Ã“tima': 'Ã“tima',
                       '8K': '8K',
                       '4K': '4K',
                       '1080p': '1080p',
@@ -463,7 +505,7 @@ class _Toolbar extends StatelessWidget {
                   _SelectorButton<String>(
                     valueLabel: selectedFormatLabel,
                     options: const {
-                      'Automático': 'Automático',
+                      'AutomÃ¡tico': 'AutomÃ¡tico',
                       'MP4': 'MP4',
                       'MKV': 'MKV',
                       'MP3': 'MP3',
@@ -475,7 +517,7 @@ class _Toolbar extends StatelessWidget {
                   _SelectorButton<String>(
                     valueLabel: selectedOutputFolderLabel,
                     options: const {
-                      'Vídeos': 'Vídeos',
+                      'VÃ­deos': 'VÃ­deos',
                       'Downloads': 'Downloads',
                       'Imagens': 'Imagens',
                       'Documentos': 'Documentos',
@@ -491,7 +533,7 @@ class _Toolbar extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.settings_outlined, size: 20),
             onPressed: () {},
-            tooltip: 'Configurações',
+            tooltip: 'ConfiguraÃ§Ãµes',
             color: Colors.black54,
             visualDensity: VisualDensity.compact,
           ),
@@ -960,11 +1002,11 @@ class _StatusBar extends StatelessWidget {
     if (isCheckingEngine) return 'Verificando motor...';
     return switch (engineAvailability.status) {
       EngineAvailabilityStatus.available =>
-        'Motor disponível: ${engineAvailability.executableLabel} ${engineAvailability.versionLabel ?? ''}'
+        'Motor disponÃ­vel: ${engineAvailability.executableLabel} ${engineAvailability.versionLabel ?? ''}'
             .trim(),
-      EngineAvailabilityStatus.unavailable => 'Motor indisponível',
+      EngineAvailabilityStatus.unavailable => 'Motor indisponÃ­vel',
       EngineAvailabilityStatus.unknown => switch (engineStatus) {
-          EngineSetupStatus.notConfigured => 'Motor externo não configurado',
+          EngineSetupStatus.notConfigured => 'Motor externo nÃ£o configurado',
           EngineSetupStatus.configuredMock =>
             'Motor externo configurado em modo mock',
         },
@@ -1018,7 +1060,7 @@ class _StatusBar extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                     ),
                     child: const Text(
-                      'Limpar concluídos',
+                      'Limpar concluÃ­dos',
                       style: TextStyle(fontSize: 13),
                     ),
                   ),
@@ -1067,3 +1109,4 @@ class _StatusBar extends StatelessWidget {
     );
   }
 }
+

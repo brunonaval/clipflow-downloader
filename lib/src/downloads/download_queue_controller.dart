@@ -1,4 +1,5 @@
 import '../engine/mock_engine_service.dart';
+import '../engine/real_engine_analysis_service.dart';
 import '../engine/engine_settings.dart';
 import 'download_item.dart';
 import 'download_options.dart';
@@ -13,6 +14,8 @@ class DownloadQueueController {
        _nextMockItemNumber = (initialItems?.length ?? 0) + 1;
 
   final MockEngineService _engineService;
+  final RealEngineAnalysisService _realEngineAnalysisService =
+      const RealEngineAnalysisService();
   List<DownloadItem> _items;
   int _nextMockItemNumber;
 
@@ -150,6 +153,59 @@ class DownloadQueueController {
       selectedFormatId: result.recommendedFormatId,
     );
     return _replaceAt(index, updated);
+  }
+
+  Future<DownloadItem?> markItemReadyAfterRealAnalysis({
+    required String id,
+    required EngineSettings settings,
+    String outputFolderLabel = 'Vídeos',
+  }) async {
+    final index = _indexOf(id);
+    if (index < 0) return null;
+
+    final item = _items[index];
+    if (item.status != DownloadStatus.analyzing) return null;
+    final sourceUrl = item.sourceUrl?.trim() ?? '';
+    final isHttpUrl =
+        sourceUrl.startsWith('http://') || sourceUrl.startsWith('https://');
+    if (!isHttpUrl) {
+      final failed = item.copyWith(
+        status: DownloadStatus.failed,
+        sourceLabel: 'Falha na análise real',
+      );
+      return _replaceAt(index, failed);
+    }
+
+    try {
+      final result = await _realEngineAnalysisService.analyzeUrl(
+        settings: settings,
+        sourceUrl: sourceUrl,
+        outputFolderLabel: outputFolderLabel,
+      );
+
+      final updated = item.copyWith(
+        status: DownloadStatus.ready,
+        progress: 0,
+        title: result.title,
+        durationLabel: result.durationLabel,
+        sourceLabel: result.sourceLabel,
+        availableFormats: result.formats,
+        selectedFormatId: result.recommendedFormatId,
+      );
+      return _replaceAt(index, updated);
+    } on EngineAnalysisException {
+      final failed = item.copyWith(
+        status: DownloadStatus.failed,
+        sourceLabel: 'Falha na análise real',
+      );
+      return _replaceAt(index, failed);
+    } catch (_) {
+      final failed = item.copyWith(
+        status: DownloadStatus.failed,
+        sourceLabel: 'Falha na análise real',
+      );
+      return _replaceAt(index, failed);
+    }
   }
 
   DownloadItem? selectFormatForItem(String itemId, String formatId) {
