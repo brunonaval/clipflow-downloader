@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -27,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   EngineSettings _engineSettings = const EngineSettings();
   String _searchQuery = '';
   Timer? _fakeProgressTimer;
+  Timer? _mockAnalysisTimer;
 
   late final DownloadQueueController _queueController;
 
@@ -42,6 +43,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _fakeProgressTimer?.cancel();
     _fakeProgressTimer = null;
+    _mockAnalysisTimer?.cancel();
+    _mockAnalysisTimer = null;
     super.dispose();
   }
 
@@ -71,7 +74,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _handlePaste() async {
     String? url;
     try {
-      final data = await Clipboard.getData('text/plain');
+      final data = await Clipboard.getData(
+        'text/plain',
+      ).timeout(const Duration(milliseconds: 150), onTimeout: () => null);
       final text = data?.text ?? '';
       if (text.isNotEmpty) {
         url = text;
@@ -82,22 +87,39 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (!mounted) return;
 
-    _queueController.addMockAuthorizedLink(
+    final addedItem = _queueController.addMockAuthorizedLink(
       sourceUrl: url,
       transferType: _downloadOptions.transferType,
       formatLabel: _downloadOptions.formatLabel,
       qualityLabel: _downloadOptions.qualityLabel,
       outputFolderLabel: _downloadOptions.outputFolderLabel,
+      status: DownloadStatus.analyzing,
     );
 
     setState(() {});
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Link adicionado à fila mockada'),
-        duration: Duration(seconds: 2),
+        content: Text('Análise mockada iniciada'),
+        duration: Duration(milliseconds: 1200),
       ),
     );
+
+    _mockAnalysisTimer?.cancel();
+    _mockAnalysisTimer = Timer(const Duration(milliseconds: 900), () {
+      final updated = _queueController.markItemReadyAfterMockAnalysis(
+        addedItem.id,
+      );
+      if (!mounted || updated == null) return;
+
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Análise mockada concluída'),
+          duration: Duration(milliseconds: 1200),
+        ),
+      );
+    });
   }
 
   void _startItem(DownloadItem item) {
@@ -182,21 +204,27 @@ class _HomeScreenState extends State<HomeScreen> {
             selectedTransferLabel: _downloadOptions.toolbarTransferLabel,
             selectedQualityLabel: _downloadOptions.toolbarQualityLabel,
             selectedFormatLabel: _downloadOptions.toolbarFormatLabel,
-            selectedOutputFolderLabel: _downloadOptions.toolbarOutputFolderLabel,
+            selectedOutputFolderLabel:
+                _downloadOptions.toolbarOutputFolderLabel,
             onTransferChanged: (type) => setState(
-              () => _downloadOptions =
-                  _downloadOptions.copyWith(transferType: type),
+              () => _downloadOptions = _downloadOptions.copyWith(
+                transferType: type,
+              ),
             ),
             onQualityChanged: (value) => setState(
-              () => _downloadOptions =
-                  _downloadOptions.copyWith(qualityLabel: value),
+              () => _downloadOptions = _downloadOptions.copyWith(
+                qualityLabel: value,
+              ),
             ),
             onFormatChanged: (value) => setState(
-              () => _downloadOptions = _downloadOptions.copyWith(formatLabel: value),
+              () => _downloadOptions = _downloadOptions.copyWith(
+                formatLabel: value,
+              ),
             ),
             onOutputFolderChanged: (value) => setState(
-              () => _downloadOptions =
-                  _downloadOptions.copyWith(outputFolderLabel: value),
+              () => _downloadOptions = _downloadOptions.copyWith(
+                outputFolderLabel: value,
+              ),
             ),
             onPaste: _handlePaste,
           ),
@@ -432,10 +460,10 @@ class _SelectorButton<T> extends StatelessWidget {
     return PopupMenuButton<T>(
       onSelected: onChanged,
       itemBuilder: (_) => options.entries
-          .map((entry) => PopupMenuItem<T>(
-                value: entry.key,
-                child: Text(entry.value),
-              ))
+          .map(
+            (entry) =>
+                PopupMenuItem<T>(value: entry.key, child: Text(entry.value)),
+          )
           .toList(),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -456,11 +484,7 @@ class _SelectorButton<T> extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 2),
-            const Icon(
-              Icons.arrow_drop_down,
-              size: 16,
-              color: Colors.black45,
-            ),
+            const Icon(Icons.arrow_drop_down, size: 16, color: Colors.black45),
           ],
         ),
       ),
@@ -540,7 +564,10 @@ class _FilterTabs extends StatelessWidget {
                 isDense: true,
                 hintText: 'Buscar',
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 8,
+                ),
               ),
             ),
           ),
@@ -646,11 +673,7 @@ class _DownloadListItem extends StatelessWidget {
             ],
           ),
         ),
-        Divider(
-          height: 1,
-          thickness: 1,
-          color: Colors.grey.shade100,
-        ),
+        Divider(height: 1, thickness: 1, color: Colors.grey.shade100),
       ],
     );
   }
@@ -730,14 +753,14 @@ class _StatusBadge extends StatelessWidget {
   const _StatusBadge({required this.item});
 
   static Color _colorFor(DownloadStatus s) => switch (s) {
-        DownloadStatus.completed => const Color(0xFF2E7D32),
-        DownloadStatus.failed => Colors.red,
-        DownloadStatus.canceled => Colors.grey,
-        DownloadStatus.downloading => Colors.blue,
-        DownloadStatus.ready => Colors.teal,
-        DownloadStatus.paused => Colors.orange,
-        _ => Colors.grey,
-      };
+    DownloadStatus.completed => const Color(0xFF2E7D32),
+    DownloadStatus.failed => Colors.red,
+    DownloadStatus.canceled => Colors.grey,
+    DownloadStatus.downloading => Colors.blue,
+    DownloadStatus.ready => Colors.teal,
+    DownloadStatus.paused => Colors.orange,
+    _ => Colors.grey,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -788,10 +811,10 @@ class _StatusBar extends StatelessWidget {
   });
 
   String get _engineStatusLabel => switch (engineStatus) {
-        EngineSetupStatus.notConfigured => 'Motor externo não configurado',
-        EngineSetupStatus.configuredMock =>
-          'Motor externo configurado em modo mock',
-      };
+    EngineSetupStatus.notConfigured => 'Motor externo não configurado',
+    EngineSetupStatus.configuredMock =>
+      'Motor externo configurado em modo mock',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -818,10 +841,7 @@ class _StatusBar extends StatelessWidget {
                   _engineStatusLabel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                  ),
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
                 ),
               ],
             ),

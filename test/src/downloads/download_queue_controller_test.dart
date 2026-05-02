@@ -61,24 +61,44 @@ void main() {
     test('filteredItems all returns every item', () {
       final controller = DownloadQueueController(
         initialItems: [
-          _item(id: '1', title: 'Video', transferType: DownloadTransferType.video),
-          _item(id: '2', title: 'Audio', transferType: DownloadTransferType.audio),
+          _item(
+            id: '1',
+            title: 'Video',
+            transferType: DownloadTransferType.video,
+          ),
+          _item(
+            id: '2',
+            title: 'Audio',
+            transferType: DownloadTransferType.audio,
+          ),
         ],
       );
 
-      final filtered = controller.filteredItems(filter: DownloadQueueFilter.all);
+      final filtered = controller.filteredItems(
+        filter: DownloadQueueFilter.all,
+      );
       expect(filtered.length, 2);
     });
 
     test('filteredItems video returns only video items', () {
       final controller = DownloadQueueController(
         initialItems: [
-          _item(id: '1', title: 'Video', transferType: DownloadTransferType.video),
-          _item(id: '2', title: 'Audio', transferType: DownloadTransferType.audio),
+          _item(
+            id: '1',
+            title: 'Video',
+            transferType: DownloadTransferType.video,
+          ),
+          _item(
+            id: '2',
+            title: 'Audio',
+            transferType: DownloadTransferType.audio,
+          ),
         ],
       );
 
-      final filtered = controller.filteredItems(filter: DownloadQueueFilter.video);
+      final filtered = controller.filteredItems(
+        filter: DownloadQueueFilter.video,
+      );
       expect(filtered.length, 1);
       expect(filtered.first.transferType, DownloadTransferType.video);
     });
@@ -86,12 +106,22 @@ void main() {
     test('filteredItems audio returns only audio items', () {
       final controller = DownloadQueueController(
         initialItems: [
-          _item(id: '1', title: 'Video', transferType: DownloadTransferType.video),
-          _item(id: '2', title: 'Audio', transferType: DownloadTransferType.audio),
+          _item(
+            id: '1',
+            title: 'Video',
+            transferType: DownloadTransferType.video,
+          ),
+          _item(
+            id: '2',
+            title: 'Audio',
+            transferType: DownloadTransferType.audio,
+          ),
         ],
       );
 
-      final filtered = controller.filteredItems(filter: DownloadQueueFilter.audio);
+      final filtered = controller.filteredItems(
+        filter: DownloadQueueFilter.audio,
+      );
       expect(filtered.length, 1);
       expect(filtered.first.transferType, DownloadTransferType.audio);
     });
@@ -99,8 +129,16 @@ void main() {
     test('filteredItems searchQuery filters by title', () {
       final controller = DownloadQueueController(
         initialItems: [
-          _item(id: '1', title: 'Podcast de treino', transferType: DownloadTransferType.audio),
-          _item(id: '2', title: 'Aula de vídeo', transferType: DownloadTransferType.video),
+          _item(
+            id: '1',
+            title: 'Podcast de treino',
+            transferType: DownloadTransferType.audio,
+          ),
+          _item(
+            id: '2',
+            title: 'Aula de vídeo',
+            transferType: DownloadTransferType.video,
+          ),
         ],
       );
 
@@ -131,8 +169,16 @@ void main() {
     test('filteredItemCountLabel returns correct label for filters', () {
       final controller = DownloadQueueController(
         initialItems: [
-          _item(id: '1', title: 'Video', transferType: DownloadTransferType.video),
-          _item(id: '2', title: 'Audio', transferType: DownloadTransferType.audio),
+          _item(
+            id: '1',
+            title: 'Video',
+            transferType: DownloadTransferType.video,
+          ),
+          _item(
+            id: '2',
+            title: 'Audio',
+            transferType: DownloadTransferType.audio,
+          ),
         ],
       );
 
@@ -141,14 +187,18 @@ void main() {
         '1 item',
       );
       expect(
-        controller.filteredItemCountLabel(filter: DownloadQueueFilter.playlists),
+        controller.filteredItemCountLabel(
+          filter: DownloadQueueFilter.playlists,
+        ),
         '0 itens',
       );
     });
 
     test('startItem changes queued to downloading', () {
       final controller = DownloadQueueController(
-        initialItems: [_item(id: '1', title: 'Item', status: DownloadStatus.queued)],
+        initialItems: [
+          _item(id: '1', title: 'Item', status: DownloadStatus.queued),
+        ],
       );
 
       final updated = controller.startItem('1');
@@ -158,7 +208,9 @@ void main() {
 
     test('pauseItem changes downloading to paused', () {
       final controller = DownloadQueueController(
-        initialItems: [_item(id: '1', title: 'Item', status: DownloadStatus.downloading)],
+        initialItems: [
+          _item(id: '1', title: 'Item', status: DownloadStatus.downloading),
+        ],
       );
 
       final updated = controller.pauseItem('1');
@@ -168,7 +220,9 @@ void main() {
 
     test('cancelItem changes downloading to canceled', () {
       final controller = DownloadQueueController(
-        initialItems: [_item(id: '1', title: 'Item', status: DownloadStatus.downloading)],
+        initialItems: [
+          _item(id: '1', title: 'Item', status: DownloadStatus.downloading),
+        ],
       );
 
       final updated = controller.cancelItem('1');
@@ -272,6 +326,68 @@ void main() {
       expect(created.qualityLabel, '1080p');
       expect(created.sourceLabel, contains('Downloads'));
       expect(created.title, startsWith('Novo link autorizado #'));
+    });
+
+    test('addMockAuthorizedLink can create item with analyzing status', () {
+      final controller = DownloadQueueController();
+
+      final created = controller.addMockAuthorizedLink(
+        status: DownloadStatus.analyzing,
+      );
+
+      expect(created.status, DownloadStatus.analyzing);
+      expect(controller.items.first.status, DownloadStatus.analyzing);
+    });
+
+    test('markItemReadyAfterMockAnalysis changes analyzing to ready', () {
+      final controller = DownloadQueueController();
+      final created = controller.addMockAuthorizedLink(
+        status: DownloadStatus.analyzing,
+        outputFolderLabel: 'Downloads',
+      );
+
+      final updated = controller.markItemReadyAfterMockAnalysis(created.id);
+
+      expect(updated, isNotNull);
+      expect(updated!.status, DownloadStatus.ready);
+      expect(updated.progress, 0);
+      expect(updated.sourceLabel, contains('Análise mockada concluída'));
+      expect(updated.sourceLabel, contains('Downloads'));
+    });
+
+    test(
+      'markItemReadyAfterMockAnalysis returns null if item is not analyzing',
+      () {
+        final controller = DownloadQueueController();
+        final created = controller.addMockAuthorizedLink(
+          status: DownloadStatus.queued,
+        );
+
+        final updated = controller.markItemReadyAfterMockAnalysis(created.id);
+
+        expect(updated, isNull);
+      },
+    );
+
+    test('markItemReadyAfterMockAnalysis returns null for unknown id', () {
+      final controller = DownloadQueueController();
+
+      final updated = controller.markItemReadyAfterMockAnalysis('missing-id');
+
+      expect(updated, isNull);
+    });
+
+    test('item can start downloading after mock analysis is completed', () {
+      final controller = DownloadQueueController();
+      final created = controller.addMockAuthorizedLink(
+        status: DownloadStatus.analyzing,
+      );
+
+      controller.markItemReadyAfterMockAnalysis(created.id);
+      final started = controller.startItem(created.id);
+
+      expect(started, isNotNull);
+      expect(started!.status, DownloadStatus.downloading);
     });
 
     test('resetForTesting replaces list and keeps immutability', () {
