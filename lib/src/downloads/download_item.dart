@@ -1,4 +1,5 @@
 import 'download_options.dart';
+import 'download_format_option.dart';
 
 enum DownloadStatus {
   queued,
@@ -24,6 +25,8 @@ class DownloadItem {
   final DownloadTransferType transferType;
   final DownloadStatus status;
   final double progress;
+  final List<DownloadFormatOption> availableFormats;
+  final String? selectedFormatId;
 
   DownloadItem({
     required this.id,
@@ -37,22 +40,25 @@ class DownloadItem {
     required this.sourceLabel,
     this.transferType = DownloadTransferType.video,
     this.status = DownloadStatus.queued,
+    List<DownloadFormatOption> availableFormats = const [],
+    this.selectedFormatId,
     double progress = 0.0,
-  }) : progress = progress.clamp(0.0, 1.0);
+  }) : progress = progress.clamp(0.0, 1.0),
+       availableFormats = List.unmodifiable(availableFormats);
 
   String get metadataLabel =>
       '$durationLabel \u00b7 $sizeLabel \u00b7 $formatLabel \u00b7 $qualityLabel \u00b7 $fpsLabel \u00b7 $sourceLabel';
 
   String get statusLabel => switch (status) {
-        DownloadStatus.queued => 'Na fila',
-        DownloadStatus.analyzing => 'Analisando',
-        DownloadStatus.ready => 'Pronto',
-        DownloadStatus.downloading => 'Baixando',
-        DownloadStatus.paused => 'Pausado',
-        DownloadStatus.completed => 'Conclu\u00eddo',
-        DownloadStatus.failed => 'Falhou',
-        DownloadStatus.canceled => 'Cancelado',
-      };
+    DownloadStatus.queued => 'Na fila',
+    DownloadStatus.analyzing => 'Analisando',
+    DownloadStatus.ready => 'Pronto',
+    DownloadStatus.downloading => 'Baixando',
+    DownloadStatus.paused => 'Pausado',
+    DownloadStatus.completed => 'Conclu\u00eddo',
+    DownloadStatus.failed => 'Falhou',
+    DownloadStatus.canceled => 'Cancelado',
+  };
 
   DownloadItem copyWith({
     String? id,
@@ -67,6 +73,8 @@ class DownloadItem {
     DownloadTransferType? transferType,
     DownloadStatus? status,
     double? progress,
+    List<DownloadFormatOption>? availableFormats,
+    String? selectedFormatId,
   }) {
     return DownloadItem(
       id: id ?? this.id,
@@ -81,6 +89,8 @@ class DownloadItem {
       transferType: transferType ?? this.transferType,
       status: status ?? this.status,
       progress: progress ?? this.progress,
+      availableFormats: availableFormats ?? this.availableFormats,
+      selectedFormatId: selectedFormatId ?? this.selectedFormatId,
     );
   }
 }

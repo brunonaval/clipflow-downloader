@@ -339,7 +339,7 @@ void main() {
       expect(controller.items.first.status, DownloadStatus.analyzing);
     });
 
-    test('markItemReadyAfterMockAnalysis changes analyzing to ready', () {
+    test('markItemReadyAfterMockAnalysis preenche availableFormats', () {
       final controller = DownloadQueueController();
       final created = controller.addMockAuthorizedLink(
         status: DownloadStatus.analyzing,
@@ -353,7 +353,29 @@ void main() {
       expect(updated.progress, 0);
       expect(updated.sourceLabel, contains('Análise mockada concluída'));
       expect(updated.sourceLabel, contains('Downloads'));
+      expect(updated.availableFormats, hasLength(4));
     });
+
+    test(
+      'markItemReadyAfterMockAnalysis define selectedFormatId recomendado',
+      () {
+        final controller = DownloadQueueController();
+        final created = controller.addMockAuthorizedLink(
+          status: DownloadStatus.analyzing,
+        );
+
+        final updated = controller.markItemReadyAfterMockAnalysis(created.id);
+
+        expect(updated, isNotNull);
+        expect(updated!.selectedFormatId, 'video-mp4-1080p');
+        expect(
+          updated.availableFormats
+              .firstWhere((f) => f.id == 'video-mp4-1080p')
+              .isRecommended,
+          isTrue,
+        );
+      },
+    );
 
     test(
       'markItemReadyAfterMockAnalysis returns null if item is not analyzing',
@@ -375,6 +397,59 @@ void main() {
       final updated = controller.markItemReadyAfterMockAnalysis('missing-id');
 
       expect(updated, isNull);
+    });
+
+    test(
+      'selectFormatForItem altera selectedFormatId quando formato existe',
+      () {
+        final controller = DownloadQueueController();
+        final created = controller.addMockAuthorizedLink(
+          status: DownloadStatus.analyzing,
+        );
+        controller.markItemReadyAfterMockAnalysis(created.id);
+
+        final updated = controller.selectFormatForItem(created.id, 'audio-m4a');
+
+        expect(updated, isNotNull);
+        expect(updated!.selectedFormatId, 'audio-m4a');
+      },
+    );
+
+    test('selectFormatForItem retorna null quando item não existe', () {
+      final controller = DownloadQueueController();
+
+      final updated = controller.selectFormatForItem('missing-id', 'audio-m4a');
+
+      expect(updated, isNull);
+    });
+
+    test('selectFormatForItem retorna null quando formato não existe', () {
+      final controller = DownloadQueueController();
+      final created = controller.addMockAuthorizedLink(
+        status: DownloadStatus.analyzing,
+      );
+      controller.markItemReadyAfterMockAnalysis(created.id);
+
+      final updated = controller.selectFormatForItem(
+        created.id,
+        'missing-format',
+      );
+
+      expect(updated, isNull);
+    });
+
+    test('startItem ainda funciona depois de selecionar formato', () {
+      final controller = DownloadQueueController();
+      final created = controller.addMockAuthorizedLink(
+        status: DownloadStatus.analyzing,
+      );
+      controller.markItemReadyAfterMockAnalysis(created.id);
+      controller.selectFormatForItem(created.id, 'audio-m4a');
+
+      final started = controller.startItem(created.id);
+
+      expect(started, isNotNull);
+      expect(started!.status, DownloadStatus.downloading);
     });
 
     test('item can start downloading after mock analysis is completed', () {

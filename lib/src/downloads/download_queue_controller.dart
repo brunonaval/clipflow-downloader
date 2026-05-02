@@ -1,3 +1,4 @@
+import 'download_format_option.dart';
 import 'download_item.dart';
 import 'download_options.dart';
 import 'download_queue_filter.dart';
@@ -129,11 +130,26 @@ class DownloadQueueController {
     if (item.status != DownloadStatus.analyzing) return null;
 
     final outputFolder = _extractOutputFolderFromSource(item.sourceLabel);
+    final formats = _mockFormatsFor(item);
     final updated = item.copyWith(
       status: DownloadStatus.ready,
       progress: 0,
       sourceLabel: 'Análise mockada concluída · $outputFolder',
+      availableFormats: formats,
+      selectedFormatId: 'video-mp4-1080p',
     );
+    return _replaceAt(index, updated);
+  }
+
+  DownloadItem? selectFormatForItem(String itemId, String formatId) {
+    final index = _indexOf(itemId);
+    if (index < 0) return null;
+
+    final item = _items[index];
+    final exists = item.availableFormats.any((f) => f.id == formatId);
+    if (!exists) return null;
+
+    final updated = item.copyWith(selectedFormatId: formatId);
     return _replaceAt(index, updated);
   }
 
@@ -213,6 +229,48 @@ class DownloadQueueController {
     final index = sourceLabel.lastIndexOf(separator);
     if (index < 0 || index == sourceLabel.length - 1) return 'Vídeos';
     return sourceLabel.substring(index + 1).trim();
+  }
+
+  List<DownloadFormatOption> _mockFormatsFor(DownloadItem item) {
+    return const [
+      DownloadFormatOption(
+        id: 'video-mp4-1080p',
+        kind: DownloadFormatKind.video,
+        label: 'Vídeo MP4 1080p',
+        formatLabel: 'MP4',
+        qualityLabel: '1080p',
+        sizeLabel: '24 MB',
+        detailsLabel: 'Vídeo com áudio em MP4',
+        isRecommended: true,
+      ),
+      DownloadFormatOption(
+        id: 'video-mp4-720p',
+        kind: DownloadFormatKind.video,
+        label: 'Vídeo MP4 720p',
+        formatLabel: 'MP4',
+        qualityLabel: '720p',
+        sizeLabel: '16 MB',
+        detailsLabel: 'Arquivo menor em MP4',
+      ),
+      DownloadFormatOption(
+        id: 'audio-m4a',
+        kind: DownloadFormatKind.audio,
+        label: 'Áudio M4A',
+        formatLabel: 'M4A',
+        qualityLabel: 'Áudio',
+        sizeLabel: '5 MB',
+        detailsLabel: 'Somente áudio',
+      ),
+      DownloadFormatOption(
+        id: 'subtitles-srt',
+        kind: DownloadFormatKind.subtitles,
+        label: 'Legendas SRT',
+        formatLabel: 'SRT',
+        qualityLabel: 'Texto',
+        sizeLabel: '120 KB',
+        detailsLabel: 'Legendas mockadas',
+      ),
+    ];
   }
 
   DownloadItem _replaceAt(int index, DownloadItem updated) {

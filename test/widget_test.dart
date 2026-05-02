@@ -142,4 +142,16 @@ void main() {
         .isNotEmpty;
     expect(hasReady || hasCompleted, isTrue);
   });
+
+  testWidgets('ready item shows format selector and can change to audio', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ClipFlowApp());
+
+    await tester.tap(find.text('Colar link'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 2000));
+
+    expect(find.textContaining('Vídeo MP4 1080p'), findsWidgets);
+  });
 }

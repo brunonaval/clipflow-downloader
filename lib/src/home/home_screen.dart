@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../downloads/download_item.dart';
+import '../downloads/download_format_option.dart';
 import '../downloads/download_options.dart';
 import '../downloads/download_queue_controller.dart';
 import '../downloads/download_queue_filter.dart';
@@ -154,6 +155,12 @@ class _HomeScreenState extends State<HomeScreen> {
     _stopFakeProgressTimerIfIdle();
   }
 
+  void _selectFormatForItem(DownloadItem item, String formatId) {
+    final updated = _queueController.selectFormatForItem(item.id, formatId);
+    if (updated == null) return;
+    setState(() {});
+  }
+
   void _clearFinishedItems() {
     final removed = _queueController.clearFinishedItems();
     setState(() {});
@@ -252,6 +259,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         onPause: () => _pauseItem(visibleItems[i]),
                         onCancel: () => _cancelItem(visibleItems[i]),
                         onRemove: () => _removeItem(visibleItems[i]),
+                        onFormatSelected: (formatId) =>
+                            _selectFormatForItem(visibleItems[i], formatId),
                       ),
                     ),
             ),
@@ -590,6 +599,7 @@ class _DownloadListItem extends StatelessWidget {
   final VoidCallback onPause;
   final VoidCallback onCancel;
   final VoidCallback onRemove;
+  final ValueChanged<String> onFormatSelected;
 
   const _DownloadListItem({
     required this.item,
@@ -597,6 +607,7 @@ class _DownloadListItem extends StatelessWidget {
     required this.onPause,
     required this.onCancel,
     required this.onRemove,
+    required this.onFormatSelected,
   });
 
   @override
@@ -647,6 +658,9 @@ class _DownloadListItem extends StatelessWidget {
                         color: Colors.grey.shade500,
                       ),
                     ),
+                    if (item.status == DownloadStatus.ready &&
+                        item.availableFormats.isNotEmpty)
+                      _FormatSelector(item: item, onSelected: onFormatSelected),
                     if (isDownloading)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
@@ -675,6 +689,71 @@ class _DownloadListItem extends StatelessWidget {
         ),
         Divider(height: 1, thickness: 1, color: Colors.grey.shade100),
       ],
+    );
+  }
+}
+
+class _FormatSelector extends StatelessWidget {
+  final DownloadItem item;
+  final ValueChanged<String> onSelected;
+
+  const _FormatSelector({required this.item, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    DownloadFormatOption selected = item.availableFormats.first;
+    for (final format in item.availableFormats) {
+      if (format.id == item.selectedFormatId) {
+        selected = format;
+        break;
+      }
+    }
+
+    final selectedLabel = selected.isRecommended
+        ? '${selected.label} (recomendado)'
+        : selected.label;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 6,
+        children: [
+          const Text(
+            'Formato:',
+            style: TextStyle(fontSize: 12, color: Colors.black87),
+          ),
+          PopupMenuButton<String>(
+            key: Key('formatSelector-${item.id}'),
+            onSelected: onSelected,
+            itemBuilder: (_) => item.availableFormats
+                .map(
+                  (format) => PopupMenuItem<String>(
+                    key: Key('formatOption-${format.id}'),
+                    value: format.id,
+                    child: Text(format.displayLabel),
+                  ),
+                )
+                .toList(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(4),
+                color: const Color(0xFFF8F8F8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(selectedLabel, style: const TextStyle(fontSize: 11)),
+                  const SizedBox(width: 2),
+                  const Icon(Icons.arrow_drop_down, size: 14),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
