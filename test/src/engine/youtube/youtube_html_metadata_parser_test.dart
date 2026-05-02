@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:clipflow_downloader/src/engine/youtube/youtube_format_descriptor.dart';
 import 'package:clipflow_downloader/src/engine/youtube/youtube_html_metadata_parser.dart';
 
 void main() {
@@ -8,7 +9,7 @@ void main() {
 
     test('parse extrai title de ytInitialPlayerResponse', () {
       const html =
-          '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Meu Video","lengthSeconds":"201","author":"Canal","thumbnail":{"thumbnails":[{"url":"https://img/1.jpg"}]}},"playabilityStatus":{"status":"OK"}};</script>';
+          '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Meu Video","lengthSeconds":"201","author":"Canal","thumbnail":{"thumbnails":[{"url":"https://img/1.jpg"}]},"isLiveContent":false},"playabilityStatus":{"status":"OK"}};</script>';
       final result = parser.parse(html: html, videoId: 'abc123');
       expect(result, isNotNull);
       expect(result!.title, 'Meu Video');
@@ -80,6 +81,91 @@ void main() {
       const html = '<html><head></head><body>sem metadados</body></html>';
       final result = parser.parse(html: html, videoId: 'abc123');
       expect(result, isNull);
+    });
+
+    test('parse extrai formatos de streamingData.formats', () {
+      const html =
+          '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Video"},"streamingData":{"formats":[{"itag":18,"mimeType":"video/mp4","qualityLabel":"360p","bitrate":500000,"contentLength":"10485760","audioQuality":"AUDIO_QUALITY_MEDIUM"}]}};</script>';
+      final result = parser.parse(html: html, videoId: 'abc123');
+      expect(result, isNotNull);
+      expect(result!.formatDescriptors, isNotEmpty);
+      expect(result.formatDescriptors.first.id, '18');
+    });
+
+    test('parse extrai formatos de adaptiveFormats', () {
+      const html =
+          '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Video"},"streamingData":{"adaptiveFormats":[{"itag":251,"mimeType":"audio/webm","bitrate":160000,"contentLength":"2097152","audioQuality":"AUDIO_QUALITY_MEDIUM"}]}};</script>';
+      final result = parser.parse(html: html, videoId: 'abc123');
+      expect(result, isNotNull);
+      expect(result!.formatDescriptors, isNotEmpty);
+      expect(result.formatDescriptors.first.id, '251');
+    });
+
+    test('formato muxed MP4 vira descriptor muxed', () {
+      const html =
+          '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Video"},"streamingData":{"formats":[{"itag":22,"mimeType":"video/mp4","qualityLabel":"720p","audioQuality":"AUDIO_QUALITY_MEDIUM"}]}};</script>';
+      final result = parser.parse(html: html, videoId: 'abc123');
+      expect(result, isNotNull);
+      expect(result!.formatDescriptors.first.kind, YouTubeFormatKind.muxed);
+    });
+
+    test('formato audio/webm vira descriptor audio', () {
+      const html =
+          '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Video"},"streamingData":{"adaptiveFormats":[{"itag":251,"mimeType":"audio/webm","audioQuality":"AUDIO_QUALITY_MEDIUM"}]}};</script>';
+      final result = parser.parse(html: html, videoId: 'abc123');
+      expect(result, isNotNull);
+      expect(result!.formatDescriptors.first.kind, YouTubeFormatKind.audio);
+    });
+
+    test('formato video/mp4 sem audio vira descriptor video', () {
+      const html =
+          '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Video"},"streamingData":{"adaptiveFormats":[{"itag":137,"mimeType":"video/mp4","qualityLabel":"1080p"}]}};</script>';
+      final result = parser.parse(html: html, videoId: 'abc123');
+      expect(result, isNotNull);
+      expect(result!.formatDescriptors.first.kind, YouTubeFormatKind.video);
+    });
+
+    test('descriptor nao guarda URL real mesmo com campo url', () {
+      const html =
+          '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Video"},"streamingData":{"formats":[{"itag":18,"mimeType":"video/mp4","url":"https://stream.example/video","audioQuality":"AUDIO_QUALITY_MEDIUM"}]}};</script>';
+      final result = parser.parse(html: html, videoId: 'abc123');
+      expect(result, isNotNull);
+      final descriptor = result!.formatDescriptors.first;
+      expect(descriptor.detailsLabel.contains('http'), isFalse);
+    });
+
+    test('descriptor nao guarda signatureCipher', () {
+      const html =
+          '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Video"},"streamingData":{"adaptiveFormats":[{"itag":140,"mimeType":"audio/mp4","signatureCipher":"url=https%3A%2F%2Fx&sp=s&sig=abc","audioQuality":"AUDIO_QUALITY_MEDIUM"}]}};</script>';
+      final result = parser.parse(html: html, videoId: 'abc123');
+      expect(result, isNotNull);
+      final descriptor = result!.formatDescriptors.first;
+      expect(descriptor.detailsLabel.contains('signatureCipher'), isFalse);
+      expect(descriptor.mimeType.contains('signatureCipher'), isFalse);
+    });
+
+    test('contentLength vira sizeLabel em MB/KB', () {
+      const html =
+          '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Video"},"streamingData":{"formats":[{"itag":18,"mimeType":"video/mp4","contentLength":"10485760","audioQuality":"AUDIO_QUALITY_MEDIUM"}]}};</script>';
+      final result = parser.parse(html: html, videoId: 'abc123');
+      expect(result, isNotNull);
+      expect(result!.formatDescriptors.first.sizeLabel, contains('MB'));
+    });
+
+    test('bitrate vira bitrateLabel em kbps', () {
+      const html =
+          '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Video"},"streamingData":{"formats":[{"itag":18,"mimeType":"video/mp4","bitrate":500000,"audioQuality":"AUDIO_QUALITY_MEDIUM"}]}};</script>';
+      final result = parser.parse(html: html, videoId: 'abc123');
+      expect(result, isNotNull);
+      expect(result!.formatDescriptors.first.bitrateLabel, contains('kbps'));
+    });
+
+    test('sem streamingData retorna lista vazia', () {
+      const html =
+          '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Video"}};</script>';
+      final result = parser.parse(html: html, videoId: 'abc123');
+      expect(result, isNotNull);
+      expect(result!.formatDescriptors, isEmpty);
     });
   });
 }

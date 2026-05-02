@@ -1,4 +1,4 @@
-﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 import 'package:clipflow_downloader/src/downloads/download_item.dart';
 import 'package:clipflow_downloader/src/downloads/download_options.dart';

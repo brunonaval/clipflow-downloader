@@ -1,4 +1,4 @@
-﻿import '../downloads/download_format_option.dart';
+import '../downloads/download_format_option.dart';
 import 'engine_analysis_result.dart';
 import 'engine_command_plan.dart';
 

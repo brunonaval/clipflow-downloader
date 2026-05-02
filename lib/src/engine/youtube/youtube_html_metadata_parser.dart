@@ -1,14 +1,12 @@
 import 'dart:convert';
 
+import 'youtube_format_descriptor.dart';
 import 'youtube_video_metadata.dart';
 
 class YouTubeHtmlMetadataParser {
   const YouTubeHtmlMetadataParser();
 
-  YouTubeVideoMetadata? parse({
-    required String html,
-    required String videoId,
-  }) {
+  YouTubeVideoMetadata? parse({required String html, required String videoId}) {
     final playerJson =
         _extractInitialPlayerResponseJson(html) ??
         _extractInitialPlayerResponsePropertyJson(html);
@@ -19,6 +17,7 @@ class YouTubeHtmlMetadataParser {
     String? thumbnailUrl;
     bool isLive = false;
     bool isPlayable = true;
+    List<YouTubeFormatDescriptor> formatDescriptors = const [];
 
     if (playerJson != null) {
       try {
@@ -50,6 +49,8 @@ class YouTubeHtmlMetadataParser {
               status == 'AGE_CHECK_REQUIRED') {
             isPlayable = false;
           }
+
+          formatDescriptors = _extractFormatDescriptors(decoded);
         }
       } catch (_) {
         // Fallbacks below handle malformed JSON.
@@ -73,7 +74,170 @@ class YouTubeHtmlMetadataParser {
       thumbnailUrl: thumbnailUrl,
       isLive: isLive,
       isPlayable: isPlayable,
+      formatDescriptors: List.unmodifiable(formatDescriptors),
     );
+  }
+
+  List<YouTubeFormatDescriptor> _extractFormatDescriptors(
+    Map<String, dynamic> playerResponse,
+  ) {
+    final streamingData = _asMap(playerResponse['streamingData']);
+    if (streamingData == null) return const [];
+
+    final descriptors = <YouTubeFormatDescriptor>[];
+
+    void addFromList(Object? value) {
+      if (value is! List) return;
+      for (final item in value) {
+        final map = _asMap(item);
+        if (map == null) continue;
+
+        final itag = map['itag']?.toString();
+        if (itag == null || itag.trim().isEmpty) continue;
+
+        final mimeType = map['mimeType']?.toString() ?? '';
+        final extension = _extensionFromMimeType(mimeType);
+
+        final codecs = _extractCodecs(mimeType);
+        final hasVideo = _hasVideoTrack(mimeType, codecs);
+        final hasAudio = _hasAudioTrack(mimeType, codecs, map['audioQuality']);
+
+        final kind = _kindFrom(hasVideo: hasVideo, hasAudio: hasAudio);
+
+        final qualityLabel = _qualityLabelFor(
+          map['qualityLabel']?.toString(),
+          kind,
+        );
+
+        final bitrateLabel = _bitrateLabel(map['bitrate']);
+        final sizeLabel = _sizeLabel(map['contentLength']);
+        final detailsLabel = _detailsLabelFor(kind: kind, itag: itag);
+
+        descriptors.add(
+          YouTubeFormatDescriptor(
+            id: itag,
+            kind: kind,
+            mimeType: mimeType,
+            extension: extension,
+            qualityLabel: qualityLabel,
+            bitrateLabel: bitrateLabel,
+            sizeLabel: sizeLabel,
+            detailsLabel: detailsLabel,
+            hasAudio: hasAudio,
+            hasVideo: hasVideo,
+            isPlayableDescriptor: true,
+          ),
+        );
+      }
+    }
+
+    addFromList(streamingData['formats']);
+    addFromList(streamingData['adaptiveFormats']);
+
+    return descriptors;
+  }
+
+  String _extractCodecs(String mimeType) {
+    final regex = RegExp(r'codecs="([^"]+)"', caseSensitive: false);
+    final match = regex.firstMatch(mimeType);
+    return match?.group(1)?.toLowerCase() ?? '';
+  }
+
+  bool _hasVideoTrack(String mimeType, String codecs) {
+    final lowerMime = mimeType.toLowerCase();
+    return lowerMime.startsWith('video/') ||
+        codecs.contains('avc') ||
+        codecs.contains('vp9') ||
+        codecs.contains('vp8') ||
+        codecs.contains('hev') ||
+        codecs.contains('h264') ||
+        codecs.contains('av01');
+  }
+
+  bool _hasAudioTrack(String mimeType, String codecs, Object? audioQuality) {
+    final lowerMime = mimeType.toLowerCase();
+    if (audioQuality != null) return true;
+
+    return lowerMime.startsWith('audio/') ||
+        codecs.contains('mp4a') ||
+        codecs.contains('opus') ||
+        codecs.contains('vorbis') ||
+        codecs.contains('aac');
+  }
+
+  YouTubeFormatKind _kindFrom({
+    required bool hasVideo,
+    required bool hasAudio,
+  }) {
+    if (hasVideo && hasAudio) return YouTubeFormatKind.muxed;
+    if (hasVideo) return YouTubeFormatKind.video;
+    if (hasAudio) return YouTubeFormatKind.audio;
+    return YouTubeFormatKind.unknown;
+  }
+
+  String _qualityLabelFor(String? qualityLabel, YouTubeFormatKind kind) {
+    final trimmed = qualityLabel?.trim() ?? '';
+    if (trimmed.isNotEmpty) return trimmed;
+    if (kind == YouTubeFormatKind.audio) return 'Áudio';
+    return 'Auto';
+  }
+
+  String _bitrateLabel(Object? bitrateValue) {
+    final bitrate = _asInt(bitrateValue);
+    if (bitrate == null || bitrate <= 0) return '--';
+    return '${(bitrate / 1000).round()} kbps';
+  }
+
+  String _sizeLabel(Object? contentLengthValue) {
+    final bytes = _asInt(contentLengthValue);
+    if (bytes == null || bytes <= 0) return '--';
+
+    const kb = 1024;
+    const mb = 1024 * 1024;
+
+    if (bytes >= mb) {
+      return '${(bytes / mb).toStringAsFixed(1)} MB';
+    }
+    if (bytes >= kb) {
+      return '${(bytes / kb).toStringAsFixed(1)} KB';
+    }
+    return '$bytes B';
+  }
+
+  String _detailsLabelFor({
+    required YouTubeFormatKind kind,
+    required String itag,
+  }) {
+    final suffix = switch (kind) {
+      YouTubeFormatKind.muxed => 'vídeo+áudio',
+      YouTubeFormatKind.audio => 'áudio',
+      YouTubeFormatKind.video => 'vídeo sem áudio',
+      YouTubeFormatKind.subtitles => 'legendas',
+      YouTubeFormatKind.unknown => 'desconhecido',
+    };
+    return 'YouTube · itag $itag · $suffix';
+  }
+
+  String _extensionFromMimeType(String mimeType) {
+    final lower = mimeType.toLowerCase();
+    final slash = lower.indexOf('/');
+    if (slash < 0) return 'AUTO';
+
+    final end = lower.indexOf(';');
+    final type = lower.substring(slash + 1, end >= 0 ? end : lower.length);
+
+    return switch (type) {
+      'mp4' => 'MP4',
+      'webm' => 'WEBM',
+      _ => lower.startsWith('audio/mp4') ? 'M4A' : type.toUpperCase(),
+    };
+  }
+
+  int? _asInt(Object? value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 
   String? _extractInitialPlayerResponseJson(String html) {
@@ -97,7 +261,9 @@ class YouTubeHtmlMetadataParser {
   }
 
   String? _extractBalancedJsonObject(String text, int startIndex) {
-    if (startIndex < 0 || startIndex >= text.length || text[startIndex] != '{') {
+    if (startIndex < 0 ||
+        startIndex >= text.length ||
+        text[startIndex] != '{') {
       return null;
     }
 

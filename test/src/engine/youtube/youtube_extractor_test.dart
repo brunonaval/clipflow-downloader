@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:clipflow_downloader/src/engine/youtube/youtube_extractor.dart';
+import 'package:clipflow_downloader/src/engine/youtube/youtube_format_descriptor.dart';
 import 'package:clipflow_downloader/src/engine/youtube/youtube_html_metadata_parser.dart';
 import 'package:clipflow_downloader/src/engine/youtube/youtube_page_fetcher.dart';
 import 'package:clipflow_downloader/src/engine/youtube/youtube_video_metadata.dart';
@@ -79,33 +80,88 @@ void main() {
       expect(result!.sourceLabel, contains('YouTube'));
     });
 
-    test('analyzeUrlMetadata usa metadados quando playable', () async {
-      final metadata = YouTubeVideoMetadata(
+    test(
+      'analyzeUrlMetadata usa descriptors para criar DownloadFormatOption',
+      () async {
+        const metadata = YouTubeVideoMetadata(
+          videoId: 'abc123',
+          title: 'Titulo real',
+          durationLabel: '04:20',
+          formatDescriptors: [
+            YouTubeFormatDescriptor(
+              id: '18',
+              kind: YouTubeFormatKind.muxed,
+              mimeType: 'video/mp4',
+              extension: 'MP4',
+              qualityLabel: '360p',
+              bitrateLabel: '500 kbps',
+              sizeLabel: '10 MB',
+              detailsLabel: 'YouTube · itag 18 · vídeo+áudio',
+              hasAudio: true,
+              hasVideo: true,
+            ),
+            YouTubeFormatDescriptor(
+              id: '251',
+              kind: YouTubeFormatKind.audio,
+              mimeType: 'audio/webm',
+              extension: 'WEBM',
+              qualityLabel: 'Áudio',
+              bitrateLabel: '160 kbps',
+              sizeLabel: '2 MB',
+              detailsLabel: 'YouTube · itag 251 · áudio',
+              hasAudio: true,
+              hasVideo: false,
+            ),
+          ],
+        );
+        final metadataExtractor = YouTubeExtractor(
+          fetcher: const _FakeFetcher('<html>ok</html>'),
+          metadataParser: const _FakeParser(metadata),
+        );
+
+        final result = await metadataExtractor.analyzeUrlMetadata(
+          rawUrl: 'https://www.youtube.com/watch?v=abc123',
+        );
+
+        expect(result, isNotNull);
+        expect(result!.formats, hasLength(2));
+        expect(result.formats.first.id, '18');
+        expect(result.formats.first.formatLabel, 'MP4');
+        expect(result.formats.last.kind.name, 'audio');
+      },
+    );
+
+    test('primeiro formato e recomendado', () async {
+      const metadata = YouTubeVideoMetadata(
         videoId: 'abc123',
         title: 'Titulo real',
         durationLabel: '04:20',
-      );
-      final metadataExtractor = YouTubeExtractor(
-        fetcher: const _FakeFetcher('<html>ok</html>'),
-        metadataParser: _FakeParser(metadata),
-      );
-
-      final result = await metadataExtractor.analyzeUrlMetadata(
-        rawUrl: 'https://www.youtube.com/watch?v=abc123',
-      );
-
-      expect(result, isNotNull);
-      expect(result!.title, 'Titulo real');
-      expect(result.durationLabel, '04:20');
-      expect(result.formats, isNotEmpty);
-    });
-
-    test('analyzeUrlMetadata retorna formatos vazios para nao reproduzivel', () async {
-      const metadata = YouTubeVideoMetadata(
-        videoId: 'abc123',
-        title: 'Bloqueado',
-        durationLabel: '--:--',
-        isPlayable: false,
+        formatDescriptors: [
+          YouTubeFormatDescriptor(
+            id: '22',
+            kind: YouTubeFormatKind.muxed,
+            mimeType: 'video/mp4',
+            extension: 'MP4',
+            qualityLabel: '720p',
+            bitrateLabel: '--',
+            sizeLabel: '--',
+            detailsLabel: '',
+            hasAudio: true,
+            hasVideo: true,
+          ),
+          YouTubeFormatDescriptor(
+            id: '137',
+            kind: YouTubeFormatKind.video,
+            mimeType: 'video/mp4',
+            extension: 'MP4',
+            qualityLabel: '1080p',
+            bitrateLabel: '--',
+            sizeLabel: '--',
+            detailsLabel: '',
+            hasAudio: false,
+            hasVideo: true,
+          ),
+        ],
       );
       final metadataExtractor = YouTubeExtractor(
         fetcher: const _FakeFetcher('<html>ok</html>'),
@@ -117,8 +173,89 @@ void main() {
       );
 
       expect(result, isNotNull);
-      expect(result!.formats, isEmpty);
-      expect(result.sourceLabel, contains('não reproduzível'));
+      expect(result!.formats.first.isRecommended, isTrue);
+      expect(
+        result.formats.skip(1).every((f) => f.isRecommended == false),
+        isTrue,
+      );
     });
+
+    test('opcoes geradas preservam qualidade e formato', () async {
+      const metadata = YouTubeVideoMetadata(
+        videoId: 'abc123',
+        title: 'Titulo real',
+        durationLabel: '04:20',
+        formatDescriptors: [
+          YouTubeFormatDescriptor(
+            id: '137',
+            kind: YouTubeFormatKind.video,
+            mimeType: 'video/mp4',
+            extension: 'MP4',
+            qualityLabel: '1080p',
+            bitrateLabel: '--',
+            sizeLabel: '--',
+            detailsLabel: '',
+            hasAudio: false,
+            hasVideo: true,
+          ),
+        ],
+      );
+      final metadataExtractor = YouTubeExtractor(
+        fetcher: const _FakeFetcher('<html>ok</html>'),
+        metadataParser: const _FakeParser(metadata),
+      );
+
+      final result = await metadataExtractor.analyzeUrlMetadata(
+        rawUrl: 'https://www.youtube.com/watch?v=abc123',
+      );
+
+      expect(result, isNotNull);
+      expect(result!.formats.first.formatLabel, 'MP4');
+      expect(result.formats.first.qualityLabel, '1080p');
+    });
+
+    test('quando metadata nao tem descriptors usa mock fallback', () async {
+      const metadata = YouTubeVideoMetadata(
+        videoId: 'abc123',
+        title: 'Titulo real',
+        durationLabel: '04:20',
+      );
+      final metadataExtractor = YouTubeExtractor(
+        fetcher: const _FakeFetcher('<html>ok</html>'),
+        metadataParser: const _FakeParser(metadata),
+      );
+
+      final result = await metadataExtractor.analyzeUrlMetadata(
+        rawUrl: 'https://www.youtube.com/watch?v=abc123',
+      );
+
+      expect(result, isNotNull);
+      expect(result!.formats, hasLength(4));
+      expect(result.formats.first.id, 'yt-video-mp4-1080p');
+    });
+
+    test(
+      'analyzeUrlMetadata retorna formatos vazios para nao reproduzivel',
+      () async {
+        const metadata = YouTubeVideoMetadata(
+          videoId: 'abc123',
+          title: 'Bloqueado',
+          durationLabel: '--:--',
+          isPlayable: false,
+        );
+        final metadataExtractor = YouTubeExtractor(
+          fetcher: const _FakeFetcher('<html>ok</html>'),
+          metadataParser: const _FakeParser(metadata),
+        );
+
+        final result = await metadataExtractor.analyzeUrlMetadata(
+          rawUrl: 'https://www.youtube.com/watch?v=abc123',
+        );
+
+        expect(result, isNotNull);
+        expect(result!.formats, isEmpty);
+        expect(result.sourceLabel, contains('não reproduzível'));
+      },
+    );
   });
 }

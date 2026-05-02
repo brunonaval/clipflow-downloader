@@ -1,5 +1,6 @@
 import '../../downloads/download_format_option.dart';
 import '../internal_engine_analysis_result.dart';
+import 'youtube_format_descriptor.dart';
 import 'youtube_html_metadata_parser.dart';
 import 'youtube_page_fetcher.dart';
 import 'youtube_url_parser.dart';
@@ -13,7 +14,8 @@ class YouTubeExtractor {
   const YouTubeExtractor({
     YouTubeUrlParser parser = const YouTubeUrlParser(),
     YouTubePageFetcher fetcher = const YouTubePageFetcher(),
-    YouTubeHtmlMetadataParser metadataParser = const YouTubeHtmlMetadataParser(),
+    YouTubeHtmlMetadataParser metadataParser =
+        const YouTubeHtmlMetadataParser(),
   }) : _parser = parser,
        _fetcher = fetcher,
        _metadataParser = metadataParser;
@@ -64,7 +66,10 @@ class YouTubeExtractor {
       );
     }
 
-    final formats = _buildMockFormats();
+    final formats = metadata.formatDescriptors.isNotEmpty
+        ? _formatOptionsFromDescriptors(metadata.formatDescriptors)
+        : _buildMockFormats();
+
     return InternalEngineAnalysisResult(
       title: metadata.title,
       durationLabel: metadata.durationLabel,
@@ -102,6 +107,86 @@ class YouTubeExtractor {
       reference: reference,
       outputFolderLabel: outputFolderLabel,
     );
+  }
+
+  List<DownloadFormatOption> _formatOptionsFromDescriptors(
+    List<YouTubeFormatDescriptor> descriptors,
+  ) {
+    final valid = descriptors.where((d) => d.isPlayableDescriptor).toList();
+    if (valid.isEmpty) return _buildMockFormats();
+
+    final withRank = valid.map((descriptor) {
+      final rank = _priorityRank(descriptor);
+      return (descriptor, rank);
+    }).toList()..sort((a, b) => a.$2.compareTo(b.$2));
+
+    final filtered = withRank
+        .where((pair) => pair.$1.kind != YouTubeFormatKind.unknown)
+        .map((pair) => pair.$1)
+        .toList();
+
+    final base = filtered.isNotEmpty
+        ? filtered
+        : withRank.map((pair) => pair.$1).toList();
+
+    final selected = base.take(8).toList();
+    final options = <DownloadFormatOption>[];
+
+    for (var i = 0; i < selected.length; i++) {
+      final descriptor = selected[i];
+      final kind = switch (descriptor.kind) {
+        YouTubeFormatKind.audio => DownloadFormatKind.audio,
+        YouTubeFormatKind.subtitles => DownloadFormatKind.subtitles,
+        _ => DownloadFormatKind.video,
+      };
+
+      final label = _optionLabel(descriptor);
+
+      options.add(
+        DownloadFormatOption(
+          id: descriptor.id,
+          kind: kind,
+          label: label,
+          formatLabel: descriptor.extension,
+          qualityLabel: descriptor.qualityLabel,
+          sizeLabel: descriptor.sizeLabel,
+          detailsLabel: descriptor.detailsLabel,
+          isRecommended: i == 0,
+        ),
+      );
+    }
+
+    return options.isEmpty ? _buildMockFormats() : options;
+  }
+
+  int _priorityRank(YouTubeFormatDescriptor descriptor) {
+    final ext = descriptor.extension.toUpperCase();
+    return switch (descriptor.kind) {
+      YouTubeFormatKind.muxed when ext == 'MP4' => 0,
+      YouTubeFormatKind.muxed => 1,
+      YouTubeFormatKind.video when ext == 'MP4' => 2,
+      YouTubeFormatKind.video when ext == 'WEBM' => 3,
+      YouTubeFormatKind.video => 4,
+      YouTubeFormatKind.audio when ext == 'M4A' => 5,
+      YouTubeFormatKind.audio when ext == 'WEBM' => 6,
+      YouTubeFormatKind.audio => 7,
+      YouTubeFormatKind.subtitles => 8,
+      YouTubeFormatKind.unknown => 9,
+    };
+  }
+
+  String _optionLabel(YouTubeFormatDescriptor descriptor) {
+    final ext = descriptor.extension.toUpperCase();
+    return switch (descriptor.kind) {
+      YouTubeFormatKind.audio => 'Áudio $ext',
+      YouTubeFormatKind.video when descriptor.hasAudio =>
+        'Vídeo $ext ${descriptor.qualityLabel}',
+      YouTubeFormatKind.video =>
+        'Vídeo $ext ${descriptor.qualityLabel} sem áudio',
+      YouTubeFormatKind.muxed => 'Vídeo $ext ${descriptor.qualityLabel}',
+      YouTubeFormatKind.subtitles => 'Legendas $ext',
+      YouTubeFormatKind.unknown => 'Formato $ext ${descriptor.qualityLabel}',
+    };
   }
 
   List<DownloadFormatOption> _buildMockFormats() {

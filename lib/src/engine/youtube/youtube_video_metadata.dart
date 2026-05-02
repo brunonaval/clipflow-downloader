@@ -1,3 +1,5 @@
+import 'youtube_format_descriptor.dart';
+
 class YouTubeVideoMetadata {
   final String videoId;
   final String title;
@@ -6,6 +8,7 @@ class YouTubeVideoMetadata {
   final String? thumbnailUrl;
   final bool isLive;
   final bool isPlayable;
+  final List<YouTubeFormatDescriptor> formatDescriptors;
 
   const YouTubeVideoMetadata({
     required this.videoId,
@@ -15,5 +18,6 @@ class YouTubeVideoMetadata {
     this.thumbnailUrl,
     this.isLive = false,
     this.isPlayable = true,
+    this.formatDescriptors = const [],
   });
 }
