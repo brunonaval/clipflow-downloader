@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:clipflow_downloader/src/app.dart';
+import 'package:clipflow_downloader/src/downloads/download_format_option.dart';
+import 'package:clipflow_downloader/src/downloads/download_item.dart';
+import 'package:clipflow_downloader/src/downloads/download_options.dart';
+import 'package:clipflow_downloader/src/downloads/download_options_dialog.dart';
 
 void main() {
   testWidgets('Home screen renders core actions', (WidgetTester tester) async {
@@ -122,5 +126,46 @@ void main() {
     await tester.pump();
 
     expect(tester.widget<Switch>(smartModeSwitch).value, isTrue);
+  });
+
+  testWidgets('dialogo Baixar vídeo renderiza sem quebrar', (
+    WidgetTester tester,
+  ) async {
+    final item = DownloadItem(
+      id: 'w-1',
+      title: 'Teste',
+      durationLabel: '01:00',
+      sizeLabel: '10 MB',
+      formatLabel: 'MP4',
+      qualityLabel: '720p',
+      fpsLabel: '30fps',
+      sourceLabel: 'Análise yt-dlp concluída',
+      status: DownloadStatus.ready,
+      selectedFormatId: '18',
+      availableFormats: const [
+        DownloadFormatOption(
+          id: '18',
+          kind: DownloadFormatKind.video,
+          label: 'Vídeo MP4 360p',
+          formatLabel: 'MP4',
+          qualityLabel: '360p',
+          sizeLabel: '8 MB',
+          detailsLabel: '[muxed] mp4',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+    final context = tester.element(find.byType(SizedBox));
+    showDialog<void>(
+      context: context,
+      builder: (_) => DownloadOptionsDialog(
+        item: item,
+        initialOptions: const DownloadOptions(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Baixar vídeo'), findsOneWidget);
   });
 }

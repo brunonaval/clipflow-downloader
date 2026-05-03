@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import '../downloads/download_item.dart';
 import '../downloads/download_format_option.dart';
 import '../downloads/download_options.dart';
+import '../downloads/download_options_dialog.dart';
+import '../downloads/download_options_dialog_result.dart';
 import '../downloads/download_preset.dart';
 import '../downloads/download_queue_controller.dart';
 import '../downloads/download_queue_filter.dart';
@@ -157,7 +159,12 @@ class _HomeScreenState extends State<HomeScreen> {
               outputFolderLabel: _downloadOptions.outputFolderLabel,
             );
             setState(() {});
-            _maybeAutoStartAfterAnalysis(updated);
+            if (_preferences.smartModeEnabled) {
+              _maybeAutoStartAfterAnalysis(updated);
+            } else {
+              await _handleManualDownloadChoice(updated);
+              if (!mounted) return;
+            }
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Análise yt-dlp concluída'),
@@ -291,6 +298,36 @@ class _HomeScreenState extends State<HomeScreen> {
         duration: Duration(milliseconds: 1200),
       ),
     );
+  }
+
+  Future<void> _handleManualDownloadChoice(DownloadItem item) async {
+    final result = await showDialog<DownloadOptionsDialogResult>(
+      context: context,
+      builder: (_) =>
+          DownloadOptionsDialog(item: item, initialOptions: _downloadOptions),
+    );
+    if (!mounted) return;
+    if (result == null || !result.startDownload) return;
+    if (result.selectedFormatId.trim().isEmpty) return;
+
+    final updatedOptions = _downloadOptions.copyWith(
+      transferType: result.transferType,
+      qualityLabel: result.qualityLabel,
+      formatLabel: result.formatLabel,
+    );
+    final selected = _queueController.selectFormatForItem(
+      item.id,
+      result.selectedFormatId,
+    );
+    if (selected == null) return;
+    _queueController.attachMockCommandPreview(
+      itemId: item.id,
+      outputFolderLabel: updatedOptions.outputFolderLabel,
+    );
+    setState(() {
+      _downloadOptions = updatedOptions;
+    });
+    _startItem(selected);
   }
 
   void _applyCurrentPresetToReadyItems() {

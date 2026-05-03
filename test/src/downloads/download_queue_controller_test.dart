@@ -1094,6 +1094,7 @@ void main() {
 
       expect(updated, isNotNull);
       expect(updated!.selectedFormatId, '140');
+      expect(updated.commandPreviewLabel, contains('yt-dlp -f 140'));
     });
   });
 }
