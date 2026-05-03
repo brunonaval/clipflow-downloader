@@ -8,6 +8,7 @@ import 'package:clipflow_downloader/src/downloads/download_queue_controller.dart
 import 'package:clipflow_downloader/src/downloads/download_queue_filter.dart';
 import 'package:clipflow_downloader/src/downloads/download_sort_option.dart';
 import 'package:clipflow_downloader/src/engine/yt_dlp/yt_dlp_analysis_result.dart';
+import 'package:clipflow_downloader/src/engine/yt_dlp/yt_dlp_playlist_result.dart';
 
 DownloadItem _item({
   required String id,
@@ -1184,6 +1185,56 @@ void main() {
         sortOption: DownloadSortOption.newestFirst,
       );
       expect(ordered.first.id, '2');
+    });
+
+    test('addPlaylistEntries adds queued YouTube items with metadata', () {
+      final controller = DownloadQueueController();
+      final added = controller.addPlaylistEntries(
+        entries: const [
+          YtDlpPlaylistEntry(
+            id: 'p1',
+            title: 'Playlist 1',
+            url: 'https://www.youtube.com/watch?v=p1',
+            durationLabel: '01:10',
+            thumbnailUrl: 'https://img.youtube.com/vi/p1/hqdefault.jpg',
+            authorLabel: 'Canal P',
+          ),
+          YtDlpPlaylistEntry(
+            id: 'p2',
+            title: 'Playlist 2',
+            url: 'https://www.youtube.com/watch?v=p2',
+          ),
+        ],
+        transferType: DownloadTransferType.video,
+        formatLabel: 'MP4',
+        qualityLabel: 'Ótima',
+        outputFolderLabel: 'Downloads',
+      );
+
+      expect(added, hasLength(2));
+      expect(controller.itemCount, 2);
+      expect(added.first.sourceUrl, 'https://www.youtube.com/watch?v=p1');
+      expect(added.first.thumbnailUrl, isNotNull);
+      expect(added.first.authorLabel, 'Canal P');
+      expect(added.first.status, DownloadStatus.queued);
+      expect(added.first.isYouTubeSource, isTrue);
+      expect(added.first.availableFormats, isEmpty);
+      expect(added.first.selectedFormatId, isNull);
+    });
+
+    test('markItemAnalyzing updates source label and status', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(id: '1', title: 'A', status: DownloadStatus.queued),
+        ],
+      );
+      final updated = controller.markItemAnalyzing(
+        '1',
+        'Playlist · analisando vídeo',
+      );
+      expect(updated, isNotNull);
+      expect(updated!.status, DownloadStatus.analyzing);
+      expect(updated.sourceLabel, 'Playlist · analisando vídeo');
     });
   });
 }

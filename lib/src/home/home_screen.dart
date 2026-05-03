@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -9,6 +9,7 @@ import '../downloads/download_format_option.dart';
 import '../downloads/download_options.dart';
 import '../downloads/download_options_dialog.dart';
 import '../downloads/download_options_dialog_result.dart';
+import '../downloads/playlist_options_dialog.dart';
 import '../downloads/download_preset.dart';
 import '../downloads/download_queue_controller.dart';
 import '../downloads/download_queue_filter.dart';
@@ -27,7 +28,9 @@ import '../settings/output_folder_choice.dart';
 import '../settings/preferences_dialog.dart';
 import '../system/system_file_opener.dart';
 import '../engine/youtube/youtube_url_parser.dart';
+import '../engine/youtube/youtube_playlist_url_parser.dart';
 import '../engine/yt_dlp/yt_dlp_engine_service.dart';
+import '../engine/yt_dlp/yt_dlp_playlist_result.dart';
 import 'mock_download_item.dart';
 
 const _kGreen = Color(0xFF2E7D32);
@@ -42,6 +45,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   static const _youtubeUrlParser = YouTubeUrlParser();
+  static const _playlistUrlParser = YouTubePlaylistUrlParser();
   DownloadQueueFilter _activeFilter = DownloadQueueFilter.all;
   DownloadSortOption _sortOption = DownloadSortOption.newestFirst;
   AppPreferences _preferences = AppPreferences.defaults;
@@ -139,6 +143,54 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final safeUrl = (url ?? '').trim();
     if (_isHttpUrl(safeUrl)) {
+      if (_playlistUrlParser.isPlaylistUrl(safeUrl)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Analisando playlist'),
+            duration: Duration(milliseconds: 1200),
+          ),
+        );
+        try {
+          final playlist = await _ytDlpEngine.analyzePlaylistUrl(safeUrl);
+          if (!mounted) return;
+          final selectedEntries = await showDialog<List<YtDlpPlaylistEntry>>(
+            context: context,
+            builder: (_) => PlaylistOptionsDialog(playlist: playlist),
+          );
+          if (!mounted) return;
+          if (selectedEntries == null || selectedEntries.isEmpty) {
+            _queueController.removeItem(addedItem.id);
+            setState(() {});
+            return;
+          }
+          _queueController.removeItem(addedItem.id);
+          final added = _queueController.addPlaylistEntries(
+            entries: selectedEntries,
+            transferType: _downloadOptions.transferType,
+            formatLabel: _downloadOptions.formatLabel,
+            qualityLabel: _downloadOptions.qualityLabel,
+            outputFolderLabel: _downloadOptions.outputFolderLabel,
+          );
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Vídeos adicionados à fila: ${added.length}'),
+              duration: const Duration(milliseconds: 1400),
+            ),
+          );
+        } catch (error) {
+          if (!mounted) return;
+          _queueController.markItemFailed(
+            addedItem.id,
+            error is YtDlpEngineException
+                ? error.message
+                : 'Falha ao analisar playlist.',
+          );
+          setState(() {});
+        }
+        return;
+      }
+
       if (_youtubeUrlParser.isYouTubeUrl(safeUrl)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -344,6 +396,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _startItem(DownloadItem item) {
+    if (item.isYouTubeSource &&
+        item.availableFormats.isEmpty &&
+        (item.sourceUrl?.trim().isNotEmpty ?? false)) {
+      _analyzeAndStartYouTubeItem(item);
+      return;
+    }
+
     final started = _queueController.markItemDownloading(item.id);
     if (started == null) return;
 
@@ -358,6 +417,59 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     _ensureFakeProgressTimer();
+  }
+
+  Future<void> _analyzeAndStartYouTubeItem(DownloadItem item) async {
+    final marked = _queueController.markItemAnalyzing(
+      item.id,
+      'Playlist · analisando vídeo',
+    );
+    if (marked == null) return;
+    if (mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Analisando vídeo da playlist'),
+          duration: Duration(milliseconds: 1200),
+        ),
+      );
+    }
+
+    final sourceUrl = (item.sourceUrl ?? '').trim();
+    if (sourceUrl.isEmpty) {
+      _queueController.markItemFailed(item.id, 'URL ausente para análise.');
+      if (mounted) setState(() {});
+      return;
+    }
+
+    try {
+      final analysis = await _ytDlpEngine.analyzeUrl(sourceUrl);
+      if (!mounted) return;
+      final ready = _queueController.applyYtDlpAnalysis(
+        id: item.id,
+        result: analysis,
+        preset: DownloadPreset.fromOptions(_downloadOptions),
+      );
+      if (ready == null || ready.status != DownloadStatus.ready) {
+        _queueController.markItemFailed(item.id, 'Falha ao preparar formatos.');
+        setState(() {});
+        return;
+      }
+      _queueController.attachMockCommandPreview(
+        itemId: item.id,
+        outputFolderLabel: _downloadOptions.outputFolderLabel,
+      );
+      setState(() {});
+      _startItem(ready);
+    } catch (error) {
+      _queueController.markItemFailed(
+        item.id,
+        error is YtDlpEngineException
+            ? error.message
+            : 'Falha ao analisar vídeo da playlist.',
+      );
+      if (mounted) setState(() {});
+    }
   }
 
   void _pauseItem(DownloadItem item) {

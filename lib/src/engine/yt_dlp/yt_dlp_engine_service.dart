@@ -9,6 +9,7 @@ import '../download/internal_download_result.dart';
 import 'ffmpeg_executable.dart';
 import 'yt_dlp_analysis_result.dart';
 import 'yt_dlp_executable.dart';
+import 'yt_dlp_playlist_result.dart';
 
 class YtDlpEngineException implements Exception {
   final String message;
@@ -106,6 +107,104 @@ class YtDlpEngineService {
       recommendedFormatId: recommendedId,
       thumbnailUrl: _httpUrlOrNull(decoded['thumbnail']),
       authorLabel: _authorLabel(decoded),
+    );
+  }
+
+  Future<YtDlpPlaylistResult> analyzePlaylistUrl(String url) async {
+    final executable = await _resolver.resolve();
+    if (executable == null) {
+      throw const YtDlpEngineException(
+        'yt-dlp não disponível no sistema ou em tools/yt-dlp.exe.',
+      );
+    }
+
+    final safeUrl = url.trim();
+    if (safeUrl.isEmpty) {
+      throw const YtDlpEngineException('URL vazia para análise.');
+    }
+
+    ProcessResult result;
+    try {
+      result = await _runner
+          .run(executable.path, [
+            '--dump-single-json',
+            '--flat-playlist',
+            '--no-download',
+            safeUrl,
+          ])
+          .timeout(const Duration(seconds: 45));
+    } on TimeoutException {
+      throw const YtDlpEngineException('Tempo limite na análise com yt-dlp.');
+    } catch (_) {
+      throw const YtDlpEngineException(
+        'Falha ao executar yt-dlp para análise.',
+      );
+    }
+
+    final rawJson = result.stdout.toString().trim();
+    if (rawJson.isEmpty) {
+      if (result.exitCode != 0) {
+        final errorText = _shortError(result.stderr, result.stdout);
+        throw YtDlpEngineException('Falha na análise do yt-dlp: $errorText');
+      }
+      throw const YtDlpEngineException('yt-dlp não retornou metadados.');
+    }
+
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(rawJson);
+    } catch (_) {
+      if (result.exitCode != 0) {
+        final errorText = _shortError(result.stderr, result.stdout);
+        throw YtDlpEngineException('Falha na análise do yt-dlp: $errorText');
+      }
+      throw const YtDlpEngineException(
+        'yt-dlp retornou metadados inválidos para análise.',
+      );
+    }
+
+    if (decoded is! Map<String, dynamic>) {
+      throw const YtDlpEngineException(
+        'yt-dlp retornou estrutura inesperada de metadados.',
+      );
+    }
+
+    final playlistAuthor = _authorLabel(decoded);
+    final rawEntries = decoded['entries'];
+    final entries = <YtDlpPlaylistEntry>[];
+    if (rawEntries is List) {
+      for (final rawEntry in rawEntries) {
+        if (rawEntry is! Map) continue;
+        final entry = <String, dynamic>{};
+        for (final mapEntry in rawEntry.entries) {
+          entry[mapEntry.key.toString()] = mapEntry.value;
+        }
+
+        final id = entry['id']?.toString().trim();
+        final entryUrl = _playlistEntryUrl(entry, id);
+        if (entryUrl == null) continue;
+        final resolvedId = id?.isNotEmpty == true ? id! : entryUrl;
+        entries.add(
+          YtDlpPlaylistEntry(
+            id: resolvedId,
+            title: entry['title']?.toString().trim().isNotEmpty == true
+                ? entry['title'].toString().trim()
+                : 'Vídeo da playlist',
+            url: entryUrl,
+            durationLabel: _durationLabel(entry['duration']),
+            thumbnailUrl: _httpUrlOrNull(entry['thumbnail']),
+            authorLabel: _authorLabel(entry) ?? playlistAuthor,
+          ),
+        );
+      }
+    }
+
+    return YtDlpPlaylistResult(
+      title: decoded['title']?.toString().trim().isNotEmpty == true
+          ? decoded['title'].toString().trim()
+          : 'Playlist',
+      authorLabel: playlistAuthor,
+      entries: entries,
     );
   }
 
@@ -604,6 +703,21 @@ class YtDlpEngineService {
     final scheme = uri.scheme.toLowerCase();
     if (scheme != 'http' && scheme != 'https') return null;
     return value;
+  }
+
+  String? _playlistEntryUrl(Map<String, dynamic> entry, String? entryId) {
+    final rawUrl = entry['url']?.toString().trim();
+    if (rawUrl != null && rawUrl.isNotEmpty) {
+      final http = _httpUrlOrNull(rawUrl);
+      if (http != null) return http;
+      if (rawUrl.startsWith('/watch')) {
+        return 'https://www.youtube.com$rawUrl';
+      }
+    }
+    if (entryId != null && entryId.isNotEmpty) {
+      return 'https://www.youtube.com/watch?v=$entryId';
+    }
+    return null;
   }
 }
 

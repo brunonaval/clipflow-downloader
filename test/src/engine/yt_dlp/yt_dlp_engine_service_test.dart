@@ -57,9 +57,11 @@ class _FakeRunner extends YtDlpProcessRunner {
   final List<String> startStderrLines;
   final int startExitCode;
   List<String>? lastStartArguments;
+  List<String>? lastRunArguments;
 
   @override
   Future<ProcessResult> run(String executable, List<String> arguments) async {
+    lastRunArguments = List<String>.from(arguments);
     return runResult;
   }
 
@@ -384,5 +386,86 @@ void main() {
 
       expect(YtDlpEngineService.isVideoOnlyOption(videoOnly), isTrue);
     });
+
+    test('analyzePlaylistUrl uses flat-playlist and parses entries', () async {
+      const jsonOutput = '''
+{
+  "title": "Playlist Teste",
+  "uploader": "Canal Playlist",
+  "entries": [
+    {
+      "id": "abc1",
+      "title": "Primeiro",
+      "duration": 65,
+      "thumbnail": "https://img.youtube.com/vi/abc1/hqdefault.jpg",
+      "uploader": "Canal A"
+    },
+    {
+      "id": "abc2",
+      "title": "Segundo",
+      "duration": 3605,
+      "thumbnail": "file:///tmp/nope.jpg"
+    }
+  ]
+}
+''';
+      final runner = _FakeRunner(
+        runResult: ProcessResult(1, 0, jsonOutput, ''),
+      );
+      final service = YtDlpEngineService(
+        resolver: const _FakeResolverAvailable(),
+        ffmpegResolver: const _FakeFfmpegResolverUnavailable(),
+        runner: runner,
+      );
+
+      final result = await service.analyzePlaylistUrl(
+        'https://www.youtube.com/playlist?list=PL123',
+      );
+
+      expect(
+        runner.lastRunArguments,
+        containsAllInOrder(['--flat-playlist', '--no-download']),
+      );
+      expect(result.title, 'Playlist Teste');
+      expect(result.authorLabel, 'Canal Playlist');
+      expect(result.itemCount, 2);
+      expect(result.entries.first.url, 'https://www.youtube.com/watch?v=abc1');
+      expect(result.entries.first.thumbnailUrl, isNotNull);
+      expect(result.entries.first.authorLabel, 'Canal A');
+      expect(result.entries.first.durationLabel, '01:05');
+      expect(result.entries[1].thumbnailUrl, isNull);
+      expect(result.entries[1].durationLabel, '1:00:05');
+    });
+
+    test(
+      'analyzePlaylistUrl returns friendly error for invalid json',
+      () async {
+        final runner = _FakeRunner(
+          runResult: ProcessResult(
+            1,
+            1,
+            'invalid-json',
+            'fatal playlist error',
+          ),
+        );
+        final service = YtDlpEngineService(
+          resolver: const _FakeResolverAvailable(),
+          runner: runner,
+        );
+
+        await expectLater(
+          () => service.analyzePlaylistUrl(
+            'https://www.youtube.com/playlist?list=PL123',
+          ),
+          throwsA(
+            isA<YtDlpEngineException>().having(
+              (e) => e.message,
+              'message',
+              contains('Falha na análise do yt-dlp'),
+            ),
+          ),
+        );
+      },
+    );
   });
 }

@@ -2,6 +2,7 @@ import '../engine/mock_engine_service.dart';
 import '../engine/internal_engine_service.dart';
 import '../engine/youtube/youtube_extractor.dart';
 import '../engine/yt_dlp/yt_dlp_analysis_result.dart';
+import '../engine/yt_dlp/yt_dlp_playlist_result.dart';
 import 'download_item.dart';
 import 'download_format_option.dart';
 import 'download_format_selector.dart';
@@ -147,6 +148,61 @@ class DownloadQueueController {
       progress: item.progress >= 1 ? 0 : item.progress,
     );
     return _replaceAt(index, updated);
+  }
+
+  DownloadItem? markItemAnalyzing(String id, String message) {
+    final index = _indexOf(id);
+    if (index < 0) return null;
+    final item = _items[index];
+    final canAnalyze =
+        item.status == DownloadStatus.queued ||
+        item.status == DownloadStatus.ready ||
+        item.status == DownloadStatus.failed ||
+        item.status == DownloadStatus.canceled;
+    if (!canAnalyze) return null;
+
+    final updated = item.copyWith(
+      status: DownloadStatus.analyzing,
+      sourceLabel: message,
+      progress: 0,
+    );
+    return _replaceAt(index, updated);
+  }
+
+  List<DownloadItem> addPlaylistEntries({
+    required List<YtDlpPlaylistEntry> entries,
+    required DownloadTransferType transferType,
+    required String formatLabel,
+    required String qualityLabel,
+    required String outputFolderLabel,
+  }) {
+    final created = <DownloadItem>[];
+    for (final entry in entries) {
+      final currentNumber = _nextMockItemNumber;
+      _nextMockItemNumber += 1;
+      final item = DownloadItem(
+        id: 'playlist-$currentNumber-${entry.id}',
+        title: entry.title,
+        sourceUrl: entry.url,
+        durationLabel: entry.durationLabel ?? '--:--',
+        sizeLabel: 'Aguardando',
+        formatLabel: formatLabel,
+        qualityLabel: qualityLabel,
+        fpsLabel: '--fps',
+        sourceLabel: 'Playlist · aguardando análise',
+        addedAt: DateTime.now(),
+        transferType: transferType,
+        status: DownloadStatus.queued,
+        availableFormats: const [],
+        selectedFormatId: null,
+        thumbnailUrl: entry.thumbnailUrl,
+        authorLabel: entry.authorLabel,
+        isYouTubeSource: true,
+      );
+      _items.insert(0, item);
+      created.add(item);
+    }
+    return created;
   }
 
   DownloadItem? markItemReadyAfterMockAnalysis(String id) {

@@ -7,6 +7,8 @@ import 'package:clipflow_downloader/src/downloads/download_item.dart';
 import 'package:clipflow_downloader/src/downloads/download_options.dart';
 import 'package:clipflow_downloader/src/downloads/download_options_dialog.dart';
 import 'package:clipflow_downloader/src/downloads/download_sort_option.dart';
+import 'package:clipflow_downloader/src/downloads/playlist_options_dialog.dart';
+import 'package:clipflow_downloader/src/engine/yt_dlp/yt_dlp_playlist_result.dart';
 
 void main() {
   testWidgets('Home screen renders core actions', (WidgetTester tester) async {
@@ -182,5 +184,30 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Baixar vídeo'), findsOneWidget);
+  });
+
+  testWidgets('dialogo Baixar playlist renderiza sem quebrar', (
+    WidgetTester tester,
+  ) async {
+    const playlist = YtDlpPlaylistResult(
+      title: 'Playlist de teste',
+      entries: [
+        YtDlpPlaylistEntry(
+          id: 'v1',
+          title: 'Video 1',
+          url: 'https://www.youtube.com/watch?v=v1',
+        ),
+      ],
+    );
+    await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+    final context = tester.element(find.byType(SizedBox));
+    showDialog<void>(
+      context: context,
+      builder: (_) => const PlaylistOptionsDialog(playlist: playlist),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Baixar playlist'), findsOneWidget);
+    expect(find.text('Selecionar todos'), findsOneWidget);
   });
 }
