@@ -4,7 +4,9 @@ import '../engine/youtube/youtube_extractor.dart';
 import '../engine/yt_dlp/yt_dlp_analysis_result.dart';
 import 'download_item.dart';
 import 'download_format_option.dart';
+import 'download_format_selector.dart';
 import 'download_options.dart';
+import 'download_preset.dart';
 import 'download_queue_filter.dart';
 
 class DownloadQueueController {
@@ -19,6 +21,7 @@ class DownloadQueueController {
   final InternalEngineService _internalEngineService =
       const InternalEngineService();
   final YouTubeExtractor _youtubeExtractor = const YouTubeExtractor();
+  final DownloadFormatSelector _formatSelector = const DownloadFormatSelector();
   List<DownloadItem> _items;
   int _nextMockItemNumber;
 
@@ -257,11 +260,19 @@ class DownloadQueueController {
   DownloadItem? applyYtDlpAnalysis({
     required String id,
     required YtDlpAnalysisResult result,
+    DownloadPreset? preset,
   }) {
     final index = _indexOf(id);
     if (index < 0) return null;
 
     final item = _items[index];
+    final selectedByPreset = preset == null
+        ? null
+        : _formatSelector.selectRecommendedFormatId(
+            formats: result.formats,
+            preset: preset,
+          );
+
     final updated = item.copyWith(
       status: DownloadStatus.ready,
       progress: 0,
@@ -269,7 +280,7 @@ class DownloadQueueController {
       durationLabel: result.durationLabel,
       sourceLabel: 'Análise yt-dlp concluída',
       availableFormats: result.formats,
-      selectedFormatId: result.recommendedFormatId,
+      selectedFormatId: selectedByPreset ?? result.recommendedFormatId,
       isYouTubeSource: true,
       directDownloadUrl: null,
       outputFileName: null,
@@ -285,6 +296,7 @@ class DownloadQueueController {
     final index = _indexOf(id);
     if (index < 0) return null;
     final item = _items[index];
+
     final updated = item.copyWith(progress: progress.clamp(0.0, 1.0));
     return _replaceAt(index, updated);
   }
@@ -293,6 +305,7 @@ class DownloadQueueController {
     final index = _indexOf(id);
     if (index < 0) return null;
     final item = _items[index];
+
     final updated = item.copyWith(
       status: DownloadStatus.completed,
       progress: 1,
@@ -304,6 +317,7 @@ class DownloadQueueController {
     final index = _indexOf(id);
     if (index < 0) return null;
     final item = _items[index];
+
     final updated = item.copyWith(
       status: DownloadStatus.completed,
       progress: 1,
@@ -321,6 +335,7 @@ class DownloadQueueController {
     final index = _indexOf(id);
     if (index < 0) return null;
     final item = _items[index];
+
     final updated = item.copyWith(
       status: DownloadStatus.completed,
       progress: 1,
@@ -339,6 +354,7 @@ class DownloadQueueController {
     final index = _indexOf(id);
     if (index < 0) return null;
     final item = _items[index];
+
     final updated = item.copyWith(
       status: DownloadStatus.completed,
       progress: 1,
@@ -362,6 +378,7 @@ class DownloadQueueController {
     final index = _indexOf(id);
     if (index < 0) return null;
     final item = _items[index];
+
     final updated = item.copyWith(
       status: DownloadStatus.failed,
       sourceLabel: message,
@@ -389,6 +406,36 @@ class DownloadQueueController {
       commandPreviewLabel: preview,
     );
     return _replaceAt(index, updated);
+  }
+
+  DownloadItem? applyPresetSelectionForItem(
+    String itemId,
+    DownloadPreset preset,
+  ) {
+    final index = _indexOf(itemId);
+    if (index < 0) return null;
+
+    final item = _items[index];
+    if (item.status != DownloadStatus.ready || item.availableFormats.isEmpty) {
+      return null;
+    }
+
+    final selectedId = _formatSelector.selectRecommendedFormatId(
+      formats: item.availableFormats,
+      preset: preset,
+    );
+    if (selectedId == null || selectedId == item.selectedFormatId) {
+      return item;
+    }
+
+    final updated = item.copyWith(selectedFormatId: selectedId);
+    final preview = item.isYouTubeSource
+        ? _buildYtDlpPreview(
+            selectedFormatId: updated.selectedFormatId,
+            formats: updated.availableFormats,
+          )
+        : updated.commandPreviewLabel;
+    return _replaceAt(index, updated.copyWith(commandPreviewLabel: preview));
   }
 
   DownloadFormatOption? selectedFormatForItem(String itemId) {

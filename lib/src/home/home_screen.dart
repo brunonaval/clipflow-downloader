@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../downloads/download_item.dart';
 import '../downloads/download_format_option.dart';
 import '../downloads/download_options.dart';
+import '../downloads/download_preset.dart';
 import '../downloads/download_queue_controller.dart';
 import '../downloads/download_queue_filter.dart';
 import '../engine/download/internal_download_cancellation.dart';
@@ -147,6 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
           final updated = _queueController.applyYtDlpAnalysis(
             id: addedItem.id,
             result: result,
+            preset: DownloadPreset.fromOptions(_downloadOptions),
           );
 
           if (updated != null) {
@@ -272,6 +274,15 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isHttpUrl(String value) {
     final lower = value.toLowerCase();
     return lower.startsWith('http://') || lower.startsWith('https://');
+  }
+
+  void _applyCurrentPresetToReadyItems() {
+    final preset = DownloadPreset.fromOptions(_downloadOptions);
+    for (final item in _queueController.items) {
+      if (item.status != DownloadStatus.ready) continue;
+      if (item.availableFormats.isEmpty) continue;
+      _queueController.applyPresetSelectionForItem(item.id, preset);
+    }
   }
 
   void _startItem(DownloadItem item) {
@@ -716,21 +727,18 @@ class _HomeScreenState extends State<HomeScreen> {
             selectedFormatLabel: _downloadOptions.toolbarFormatLabel,
             selectedOutputFolderLabel:
                 _downloadOptions.toolbarOutputFolderLabel,
-            onTransferChanged: (type) => setState(
-              () => _downloadOptions = _downloadOptions.copyWith(
-                transferType: type,
-              ),
-            ),
-            onQualityChanged: (value) => setState(
-              () => _downloadOptions = _downloadOptions.copyWith(
-                qualityLabel: value,
-              ),
-            ),
-            onFormatChanged: (value) => setState(
-              () => _downloadOptions = _downloadOptions.copyWith(
-                formatLabel: value,
-              ),
-            ),
+            onTransferChanged: (type) => setState(() {
+              _downloadOptions = _downloadOptions.copyWith(transferType: type);
+              _applyCurrentPresetToReadyItems();
+            }),
+            onQualityChanged: (value) => setState(() {
+              _downloadOptions = _downloadOptions.copyWith(qualityLabel: value);
+              _applyCurrentPresetToReadyItems();
+            }),
+            onFormatChanged: (value) => setState(() {
+              _downloadOptions = _downloadOptions.copyWith(formatLabel: value);
+              _applyCurrentPresetToReadyItems();
+            }),
             onOutputFolderChanged: (value) => setState(() {
               if (value == 'Navegar...') {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -970,7 +978,6 @@ class _Toolbar extends StatelessWidget {
                       DownloadTransferType.video: 'V\u00eddeo',
                       DownloadTransferType.audio: '\u00c1udio',
                       DownloadTransferType.subtitles: 'Legendas',
-                      DownloadTransferType.audioTracks: 'Faixas de \u00e1udio',
                     },
                     onChanged: onTransferChanged,
                   ),
@@ -979,8 +986,6 @@ class _Toolbar extends StatelessWidget {
                     valueLabel: selectedQualityLabel,
                     options: const {
                       '\u00d3tima': '\u00d3tima',
-                      '8K': '8K',
-                      '4K': '4K',
                       '1080p': '1080p',
                       '720p': '720p',
                       '480p': '480p',
@@ -996,8 +1001,8 @@ class _Toolbar extends StatelessWidget {
                       'Autom\u00e1tico': 'Autom\u00e1tico',
                       'MP4': 'MP4',
                       'MKV': 'MKV',
-                      'MP3': 'MP3',
                       'M4A': 'M4A',
+                      'WEBM': 'WEBM',
                     },
                     onChanged: onFormatChanged,
                   ),

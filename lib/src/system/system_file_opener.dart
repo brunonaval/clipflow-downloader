@@ -45,12 +45,7 @@ class SystemFileOpener {
       case SystemPlatform.windows:
         return _SystemLaunch(
           executable: 'cmd.exe',
-          arguments: [
-            '/c',
-            'start',
-            '',
-            path,
-          ],
+          arguments: ['/c', 'start', '', path],
         );
       case SystemPlatform.macos:
         return _SystemLaunch(executable: 'open', arguments: [path]);

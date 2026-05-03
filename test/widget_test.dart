@@ -14,6 +14,9 @@ void main() {
     expect(find.byTooltip('Remover'), findsWidgets);
     expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
     expect(find.text('Guardar em Downloads'), findsOneWidget);
+    expect(find.text('Transferir Vídeo'), findsOneWidget);
+    expect(find.text('Qualidade Ótima'), findsOneWidget);
+    expect(find.text('Para MP4'), findsOneWidget);
   });
 
   testWidgets('menu Arquivo exibe ação de abrir pasta de downloads', (

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:clipflow_downloader/src/downloads/download_item.dart';
 import 'package:clipflow_downloader/src/downloads/download_format_option.dart';
 import 'package:clipflow_downloader/src/downloads/download_options.dart';
+import 'package:clipflow_downloader/src/downloads/download_preset.dart';
 import 'package:clipflow_downloader/src/downloads/download_queue_controller.dart';
 import 'package:clipflow_downloader/src/downloads/download_queue_filter.dart';
 import 'package:clipflow_downloader/src/engine/yt_dlp/yt_dlp_analysis_result.dart';
@@ -886,6 +887,143 @@ void main() {
       expect(updated.commandPreviewLabel, contains('M4A/AAC'));
       expect(updated.commandPreviewLabel, contains('FFmpeg'));
       expect(updated.commandPreviewLabel!.contains('Motor interno'), isFalse);
+    });
+
+    test('applyYtDlpAnalysis com preset de áudio seleciona M4A', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(id: '1', title: 'Item', status: DownloadStatus.analyzing),
+        ],
+      );
+
+      const result = YtDlpAnalysisResult(
+        title: 'Título yt-dlp',
+        durationLabel: '02:00',
+        formats: [
+          DownloadFormatOption(
+            id: '251',
+            kind: DownloadFormatKind.audio,
+            label: 'Áudio WEBM',
+            formatLabel: 'WEBM',
+            qualityLabel: '160k',
+            sizeLabel: '5 MB',
+            detailsLabel: '[audio-only] webm',
+          ),
+          DownloadFormatOption(
+            id: '140',
+            kind: DownloadFormatKind.audio,
+            label: 'Áudio M4A',
+            formatLabel: 'M4A',
+            qualityLabel: '128k',
+            sizeLabel: '4 MB',
+            detailsLabel: '[audio-only] m4a',
+          ),
+        ],
+        recommendedFormatId: '251',
+      );
+
+      final updated = controller.applyYtDlpAnalysis(
+        id: '1',
+        result: result,
+        preset: const DownloadPreset(
+          transferType: DownloadTransferType.audio,
+          qualityLabel: 'Ótima',
+          formatLabel: 'Automático',
+        ),
+      );
+
+      expect(updated, isNotNull);
+      expect(updated!.selectedFormatId, '140');
+    });
+
+    test('preset vídeo MP4 720p seleciona 720p quando disponível', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(id: '1', title: 'Item', status: DownloadStatus.analyzing),
+        ],
+      );
+
+      const result = YtDlpAnalysisResult(
+        title: 'Título yt-dlp',
+        durationLabel: '02:00',
+        formats: [
+          DownloadFormatOption(
+            id: '22',
+            kind: DownloadFormatKind.video,
+            label: 'Vídeo MP4 1080p',
+            formatLabel: 'MP4',
+            qualityLabel: '1080p',
+            sizeLabel: '10 MB',
+            detailsLabel: '[muxed] mp4',
+          ),
+          DownloadFormatOption(
+            id: '18',
+            kind: DownloadFormatKind.video,
+            label: 'Vídeo MP4 720p',
+            formatLabel: 'MP4',
+            qualityLabel: '720p',
+            sizeLabel: '8 MB',
+            detailsLabel: '[muxed] mp4',
+          ),
+        ],
+        recommendedFormatId: '22',
+      );
+
+      final updated = controller.applyYtDlpAnalysis(
+        id: '1',
+        result: result,
+        preset: const DownloadPreset(
+          transferType: DownloadTransferType.video,
+          qualityLabel: '720p',
+          formatLabel: 'MP4',
+        ),
+      );
+
+      expect(updated, isNotNull);
+      expect(updated!.selectedFormatId, '18');
+    });
+
+    test('applyPresetSelectionForItem altera selectedFormatId', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(id: '1', title: 'Item', status: DownloadStatus.ready).copyWith(
+            availableFormats: const [
+              DownloadFormatOption(
+                id: '251',
+                kind: DownloadFormatKind.audio,
+                label: 'Áudio WEBM',
+                formatLabel: 'WEBM',
+                qualityLabel: '160k',
+                sizeLabel: '5 MB',
+                detailsLabel: '[audio-only] webm',
+              ),
+              DownloadFormatOption(
+                id: '140',
+                kind: DownloadFormatKind.audio,
+                label: 'Áudio M4A',
+                formatLabel: 'M4A',
+                qualityLabel: '128k',
+                sizeLabel: '4 MB',
+                detailsLabel: '[audio-only] m4a',
+              ),
+            ],
+            selectedFormatId: '251',
+            isYouTubeSource: true,
+          ),
+        ],
+      );
+
+      final updated = controller.applyPresetSelectionForItem(
+        '1',
+        const DownloadPreset(
+          transferType: DownloadTransferType.audio,
+          qualityLabel: 'Ótima',
+          formatLabel: 'M4A',
+        ),
+      );
+
+      expect(updated, isNotNull);
+      expect(updated!.selectedFormatId, '140');
     });
   });
 }
