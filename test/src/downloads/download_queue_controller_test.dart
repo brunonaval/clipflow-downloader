@@ -6,6 +6,7 @@ import 'package:clipflow_downloader/src/downloads/download_options.dart';
 import 'package:clipflow_downloader/src/downloads/download_preset.dart';
 import 'package:clipflow_downloader/src/downloads/download_queue_controller.dart';
 import 'package:clipflow_downloader/src/downloads/download_queue_filter.dart';
+import 'package:clipflow_downloader/src/downloads/download_sort_option.dart';
 import 'package:clipflow_downloader/src/engine/yt_dlp/yt_dlp_analysis_result.dart';
 
 DownloadItem _item({
@@ -15,6 +16,7 @@ DownloadItem _item({
   DownloadStatus status = DownloadStatus.queued,
   double progress = 0,
   String sourceLabel = 'Origem',
+  DateTime? addedAt,
 }) {
   return DownloadItem(
     id: id,
@@ -25,6 +27,7 @@ DownloadItem _item({
     qualityLabel: '1080p',
     fpsLabel: '30fps',
     sourceLabel: sourceLabel,
+    addedAt: addedAt,
     transferType: transferType,
     status: status,
     progress: progress,
@@ -166,6 +169,41 @@ void main() {
         searchQuery: 'downloads',
       );
       expect(filtered.length, 1);
+      expect(filtered.first.id, '1');
+    });
+
+    test('filteredItems searchQuery includes authorLabel', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(id: '1', title: 'A').copyWith(authorLabel: 'Canal Bruno'),
+          _item(id: '2', title: 'B').copyWith(authorLabel: 'Outro'),
+        ],
+      );
+
+      final filtered = controller.filteredItems(
+        filter: DownloadQueueFilter.all,
+        searchQuery: 'bruno',
+      );
+      expect(filtered, hasLength(1));
+      expect(filtered.first.id, '1');
+    });
+
+    test('filteredItems searchQuery includes selectedFormatSummary', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(
+            id: '1',
+            title: 'A',
+          ).copyWith(selectedFormatSummary: 'MP4 · 1080p · video-only'),
+          _item(id: '2', title: 'B').copyWith(selectedFormatSummary: 'M4A'),
+        ],
+      );
+
+      final filtered = controller.filteredItems(
+        filter: DownloadQueueFilter.all,
+        searchQuery: 'video-only',
+      );
+      expect(filtered, hasLength(1));
       expect(filtered.first.id, '1');
     });
 
@@ -1095,6 +1133,57 @@ void main() {
       expect(updated, isNotNull);
       expect(updated!.selectedFormatId, '140');
       expect(updated.commandPreviewLabel, contains('yt-dlp -f 140'));
+    });
+
+    test('ordena por title asc', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(id: '2', title: 'Zulu'),
+          _item(id: '1', title: 'Alpha'),
+        ],
+      );
+
+      final ordered = controller.filteredItems(
+        filter: DownloadQueueFilter.all,
+        sortOption: const DownloadSortOption(
+          field: DownloadSortField.title,
+          direction: DownloadSortDirection.ascending,
+        ),
+      );
+      expect(ordered.first.title, 'Alpha');
+    });
+
+    test('ordena por status asc', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(id: '1', title: 'A', status: DownloadStatus.failed),
+          _item(id: '2', title: 'B', status: DownloadStatus.ready),
+        ],
+      );
+      final ordered = controller.filteredItems(
+        filter: DownloadQueueFilter.all,
+        sortOption: const DownloadSortOption(
+          field: DownloadSortField.status,
+          direction: DownloadSortDirection.ascending,
+        ),
+      );
+      expect(ordered.first.status, DownloadStatus.ready);
+    });
+
+    test('ordena por added newest first', () {
+      final older = DateTime(2026, 1, 1);
+      final newer = DateTime(2026, 1, 2);
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(id: '1', title: 'Old', addedAt: older),
+          _item(id: '2', title: 'New', addedAt: newer),
+        ],
+      );
+      final ordered = controller.filteredItems(
+        filter: DownloadQueueFilter.all,
+        sortOption: DownloadSortOption.newestFirst,
+      );
+      expect(ordered.first.id, '2');
     });
   });
 }

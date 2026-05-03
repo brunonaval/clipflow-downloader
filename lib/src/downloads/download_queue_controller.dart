@@ -8,6 +8,7 @@ import 'download_format_selector.dart';
 import 'download_options.dart';
 import 'download_preset.dart';
 import 'download_queue_filter.dart';
+import 'download_sort_option.dart';
 
 class DownloadQueueController {
   DownloadQueueController({
@@ -41,6 +42,7 @@ class DownloadQueueController {
   List<DownloadItem> filteredItems({
     required DownloadQueueFilter filter,
     String searchQuery = '',
+    DownloadSortOption sortOption = DownloadSortOption.newestFirst,
   }) {
     final byFilter = switch (filter) {
       DownloadQueueFilter.all => _items,
@@ -59,26 +61,32 @@ class DownloadQueueController {
     };
 
     final query = searchQuery.trim().toLowerCase();
-    if (query.isEmpty) return List.unmodifiable(byFilter);
+    final filtered = query.isEmpty
+        ? List<DownloadItem>.of(byFilter)
+        : byFilter.where((item) {
+            final sourceUrl = item.sourceUrl ?? '';
+            final author = item.authorLabel ?? '';
+            final selectedSummary = item.selectedFormatSummary ?? '';
+            final outputSummary = item.outputSummaryLabel ?? '';
+            final haystack =
+                '${item.title}\n$author\n$selectedSummary\n$outputSummary\n${item.metadataLabel}\n${item.sourceLabel}\n$sourceUrl\n${item.formatLabel}\n${item.qualityLabel}'
+                    .toLowerCase();
+            return haystack.contains(query);
+          }).toList();
 
-    final filtered = byFilter.where((item) {
-      final sourceUrl = item.sourceUrl ?? '';
-      final haystack =
-          '${item.title}\n${item.metadataLabel}\n${item.sourceLabel}\n$sourceUrl'
-              .toLowerCase();
-      return haystack.contains(query);
-    }).toList();
-
+    _sortItems(filtered, sortOption);
     return List.unmodifiable(filtered);
   }
 
   String filteredItemCountLabel({
     required DownloadQueueFilter filter,
     String searchQuery = '',
+    DownloadSortOption sortOption = DownloadSortOption.newestFirst,
   }) {
     final count = filteredItems(
       filter: filter,
       searchQuery: searchQuery,
+      sortOption: sortOption,
     ).length;
     if (count == 0) return '0 itens';
     if (count == 1) return '1 item';
@@ -106,6 +114,7 @@ class DownloadQueueController {
       qualityLabel: qualityLabel,
       fpsLabel: '--fps',
       sourceLabel: 'Aguardando análise · $outputFolderLabel',
+      addedAt: DateTime.now(),
       transferType: transferType,
       status: status,
       progress: 0,
@@ -584,6 +593,42 @@ class DownloadQueueController {
   }
 
   int _indexOf(String id) => _items.indexWhere((item) => item.id == id);
+
+  void _sortItems(List<DownloadItem> items, DownloadSortOption sortOption) {
+    int compare(DownloadItem a, DownloadItem b) {
+      final result = switch (sortOption.field) {
+        DownloadSortField.added => _compareAddedAt(a, b),
+        DownloadSortField.title => a.title.toLowerCase().compareTo(
+          b.title.toLowerCase(),
+        ),
+        DownloadSortField.status => a.status.index.compareTo(b.status.index),
+        DownloadSortField.type => a.transferType.index.compareTo(
+          b.transferType.index,
+        ),
+        DownloadSortField.author =>
+          (a.authorLabel ?? '').toLowerCase().compareTo(
+            (b.authorLabel ?? '').toLowerCase(),
+          ),
+      };
+      if (result != 0) return result;
+      return a.id.compareTo(b.id);
+    }
+
+    items.sort((a, b) {
+      final base = compare(a, b);
+      if (sortOption.direction == DownloadSortDirection.ascending) return base;
+      return -base;
+    });
+  }
+
+  int _compareAddedAt(DownloadItem a, DownloadItem b) {
+    final aAt = a.addedAt;
+    final bAt = b.addedAt;
+    if (aAt == null && bAt == null) return 0;
+    if (aAt == null) return -1;
+    if (bAt == null) return 1;
+    return aAt.compareTo(bAt);
+  }
 
   String _extractOutputFolderFromSource(String sourceLabel) {
     const separator = '·';

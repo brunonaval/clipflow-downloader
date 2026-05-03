@@ -52,6 +52,7 @@ void main() {
       expect(item.availableFormats, isEmpty);
       expect(item.selectedFormatId, isNull);
       expect(item.commandPreviewLabel, isNull);
+      expect(item.addedAt, isNull);
       expect(item.thumbnailUrl, isNull);
       expect(item.authorLabel, isNull);
       expect(item.selectedFormatSummary, isNull);
@@ -99,6 +100,23 @@ void main() {
       );
       final copied = item.copyWith(transferType: DownloadTransferType.audio);
       expect(copied.transferType, DownloadTransferType.audio);
+    });
+
+    test('copyWith updates addedAt', () {
+      final now = DateTime.now();
+      final item = DownloadItem(
+        id: 'added',
+        title: 'Added',
+        durationLabel: '-',
+        sizeLabel: '-',
+        formatLabel: 'MP4',
+        qualityLabel: '720p',
+        fpsLabel: '-',
+        sourceLabel: '-',
+      );
+
+      final copied = item.copyWith(addedAt: now);
+      expect(copied.addedAt, now);
     });
 
     test('copyWith updates availableFormats', () {

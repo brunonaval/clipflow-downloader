@@ -82,5 +82,39 @@ void main() {
       expect(resolved, isNull);
       await dir.delete(recursive: true);
     });
+
+    test('prefere arquivo final ao temporário f137', () async {
+      final dir = await Directory.systemTemp.createTemp('clipflow-resolver-');
+      final temp = File('${dir.path}${Platform.pathSeparator}titulo.f137.mp4');
+      final finalFile = File('${dir.path}${Platform.pathSeparator}titulo.mp4');
+      await temp.writeAsString('temp');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await finalFile.writeAsString('final');
+
+      final resolved = await resolver.resolve(
+        reportedOutputPath: null,
+        outputDirectoryPath: dir.path,
+        baseName: 'titulo',
+      );
+
+      expect(resolved, finalFile.path);
+      await dir.delete(recursive: true);
+    });
+
+    test('funciona com template baseName.%(ext)s sem id', () async {
+      final dir = await Directory.systemTemp.createTemp('clipflow-resolver-');
+      final finalFile = File('${dir.path}${Platform.pathSeparator}Titulo.mp4');
+      await finalFile.writeAsString('ok');
+
+      final resolved = await resolver.resolve(
+        reportedOutputPath:
+            '${dir.path}${Platform.pathSeparator}Titulo.%(ext)s',
+        outputDirectoryPath: dir.path,
+        baseName: 'Titulo',
+      );
+
+      expect(resolved, finalFile.path);
+      await dir.delete(recursive: true);
+    });
   });
 }

@@ -6,6 +6,7 @@ import 'package:clipflow_downloader/src/downloads/download_format_option.dart';
 import 'package:clipflow_downloader/src/downloads/download_item.dart';
 import 'package:clipflow_downloader/src/downloads/download_options.dart';
 import 'package:clipflow_downloader/src/downloads/download_options_dialog.dart';
+import 'package:clipflow_downloader/src/downloads/download_sort_option.dart';
 
 void main() {
   testWidgets('Home screen renders core actions', (WidgetTester tester) async {
@@ -24,6 +25,7 @@ void main() {
     expect(find.text('Qualidade Ótima'), findsOneWidget);
     expect(find.text('Para MP4'), findsOneWidget);
     expect(find.text('Modo inteligente'), findsOneWidget);
+    expect(find.text('Ordenar por'), findsOneWidget);
   });
 
   testWidgets('menu Arquivo exibe ação de abrir pasta de downloads', (
@@ -126,6 +128,19 @@ void main() {
     await tester.pump();
 
     expect(tester.widget<Switch>(smartModeSwitch).value, isTrue);
+  });
+
+  testWidgets('controle de ordenação permite selecionar Nome', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ClipFlowApp());
+
+    await tester.tap(find.byType(DropdownButton<DownloadSortField>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Nome').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Buscar'), findsOneWidget);
   });
 
   testWidgets('dialogo Baixar vídeo renderiza sem quebrar', (

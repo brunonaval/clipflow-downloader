@@ -22,6 +22,7 @@ class DownloadItem {
   final String qualityLabel;
   final String fpsLabel;
   final String sourceLabel;
+  final DateTime? addedAt;
   final DownloadTransferType transferType;
   final DownloadStatus status;
   final double progress;
@@ -48,6 +49,7 @@ class DownloadItem {
     required this.qualityLabel,
     required this.fpsLabel,
     required this.sourceLabel,
+    this.addedAt,
     this.transferType = DownloadTransferType.video,
     this.status = DownloadStatus.queued,
     List<DownloadFormatOption> availableFormats = const [],
@@ -90,6 +92,7 @@ class DownloadItem {
     String? qualityLabel,
     String? fpsLabel,
     String? sourceLabel,
+    DateTime? addedAt,
     DownloadTransferType? transferType,
     DownloadStatus? status,
     double? progress,
@@ -116,6 +119,7 @@ class DownloadItem {
       qualityLabel: qualityLabel ?? this.qualityLabel,
       fpsLabel: fpsLabel ?? this.fpsLabel,
       sourceLabel: sourceLabel ?? this.sourceLabel,
+      addedAt: addedAt ?? this.addedAt,
       transferType: transferType ?? this.transferType,
       status: status ?? this.status,
       progress: progress ?? this.progress,

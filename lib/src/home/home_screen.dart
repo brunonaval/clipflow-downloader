@@ -12,6 +12,7 @@ import '../downloads/download_options_dialog_result.dart';
 import '../downloads/download_preset.dart';
 import '../downloads/download_queue_controller.dart';
 import '../downloads/download_queue_filter.dart';
+import '../downloads/download_sort_option.dart';
 import '../engine/download/internal_download_cancellation.dart';
 import '../engine/download/internal_download_progress.dart';
 import '../engine/download/internal_download_request.dart';
@@ -20,6 +21,7 @@ import '../engine/download/internal_http_downloader.dart';
 import '../engine/download/download_output_planner.dart';
 import '../engine/download/completed_output_resolver.dart';
 import '../engine/download/output_directory_resolver.dart';
+import '../engine/download/yt_dlp_output_name_planner.dart';
 import '../settings/app_preferences.dart';
 import '../settings/output_folder_choice.dart';
 import '../settings/preferences_dialog.dart';
@@ -41,6 +43,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   static const _youtubeUrlParser = YouTubeUrlParser();
   DownloadQueueFilter _activeFilter = DownloadQueueFilter.all;
+  DownloadSortOption _sortOption = DownloadSortOption.newestFirst;
   AppPreferences _preferences = AppPreferences.defaults;
   DownloadOptions _downloadOptions = const DownloadOptions();
   String _searchQuery = '';
@@ -51,6 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static const _outputPlanner = DownloadOutputPlanner();
   static const _outputDirectoryResolver = OutputDirectoryResolver();
   static const _completedOutputResolver = CompletedOutputResolver();
+  static const _ytDlpOutputNamePlanner = YtDlpOutputNamePlanner();
   static const _ytDlpEngine = YtDlpEngineService();
   static const _fileOpener = SystemFileOpener();
 
@@ -502,9 +506,13 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       await directory.create(recursive: true);
       final directoryPath = directory.path;
-      final baseName = _safeTitleAsFileBase(item.title);
+      final requestedBaseName = _safeTitleAsFileBase(item.title);
+      final baseName = await _ytDlpOutputNamePlanner.uniqueBaseName(
+        directory: directory,
+        requestedBaseName: requestedBaseName,
+      );
       final outputTemplate =
-          '${directory.path}${Platform.pathSeparator}$baseName-%(id)s.%(ext)s';
+          '${directory.path}${Platform.pathSeparator}$baseName.%(ext)s';
 
       final result = await _ytDlpEngine.download(
         url: sourceUrl,
@@ -764,6 +772,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final visibleItems = _queueController.filteredItems(
       filter: _activeFilter,
       searchQuery: _searchQuery,
+      sortOption: _sortOption,
     );
 
     return Scaffold(
@@ -835,9 +844,12 @@ class _HomeScreenState extends State<HomeScreen> {
             itemCountLabel: _queueController.filteredItemCountLabel(
               filter: _activeFilter,
               searchQuery: _searchQuery,
+              sortOption: _sortOption,
             ),
             onSearchChanged: (value) => setState(() => _searchQuery = value),
             onChanged: (filter) => setState(() => _activeFilter = filter),
+            sortOption: _sortOption,
+            onSortChanged: (option) => setState(() => _sortOption = option),
           ),
           const Divider(height: 1, thickness: 1, color: _kDivider),
           Expanded(
@@ -1174,15 +1186,19 @@ class _SelectorButton<T> extends StatelessWidget {
 
 class _FilterTabs extends StatelessWidget {
   final DownloadQueueFilter selectedFilter;
+  final DownloadSortOption sortOption;
   final String itemCountLabel;
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<DownloadQueueFilter> onChanged;
+  final ValueChanged<DownloadSortOption> onSortChanged;
 
   const _FilterTabs({
     required this.selectedFilter,
+    required this.sortOption,
     required this.itemCountLabel,
     required this.onSearchChanged,
     required this.onChanged,
+    required this.onSortChanged,
   });
 
   static const _tabs = DownloadQueueFilter.values;
@@ -1251,6 +1267,8 @@ class _FilterTabs extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(width: 8),
+          _SortControls(sortOption: sortOption, onSortChanged: onSortChanged),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Text(
@@ -1260,6 +1278,76 @@ class _FilterTabs extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _SortControls extends StatelessWidget {
+  final DownloadSortOption sortOption;
+  final ValueChanged<DownloadSortOption> onSortChanged;
+
+  const _SortControls({required this.sortOption, required this.onSortChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Text('Ordenar por', style: TextStyle(fontSize: 12)),
+        const SizedBox(width: 6),
+        DropdownButton<DownloadSortField>(
+          value: sortOption.field,
+          isDense: true,
+          onChanged: (value) {
+            if (value == null) return;
+            onSortChanged(
+              DownloadSortOption(field: value, direction: sortOption.direction),
+            );
+          },
+          items: const [
+            DropdownMenuItem(
+              value: DownloadSortField.added,
+              child: Text('Mais recentes', style: TextStyle(fontSize: 12)),
+            ),
+            DropdownMenuItem(
+              value: DownloadSortField.title,
+              child: Text('Nome', style: TextStyle(fontSize: 12)),
+            ),
+            DropdownMenuItem(
+              value: DownloadSortField.status,
+              child: Text('Status', style: TextStyle(fontSize: 12)),
+            ),
+            DropdownMenuItem(
+              value: DownloadSortField.type,
+              child: Text('Tipo', style: TextStyle(fontSize: 12)),
+            ),
+            DropdownMenuItem(
+              value: DownloadSortField.author,
+              child: Text('Autor', style: TextStyle(fontSize: 12)),
+            ),
+          ],
+        ),
+        const SizedBox(width: 6),
+        DropdownButton<DownloadSortDirection>(
+          value: sortOption.direction,
+          isDense: true,
+          onChanged: (value) {
+            if (value == null) return;
+            onSortChanged(
+              DownloadSortOption(field: sortOption.field, direction: value),
+            );
+          },
+          items: const [
+            DropdownMenuItem(
+              value: DownloadSortDirection.descending,
+              child: Text('Desc', style: TextStyle(fontSize: 12)),
+            ),
+            DropdownMenuItem(
+              value: DownloadSortDirection.ascending,
+              child: Text('Asc', style: TextStyle(fontSize: 12)),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
