@@ -1,9 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:clipflow_downloader/src/downloads/download_item.dart';
+import 'package:clipflow_downloader/src/downloads/download_format_option.dart';
 import 'package:clipflow_downloader/src/downloads/download_options.dart';
 import 'package:clipflow_downloader/src/downloads/download_queue_controller.dart';
 import 'package:clipflow_downloader/src/downloads/download_queue_filter.dart';
+import 'package:clipflow_downloader/src/engine/yt_dlp/yt_dlp_analysis_result.dart';
 
 DownloadItem _item({
   required String id,
@@ -154,7 +156,7 @@ void main() {
       final controller = DownloadQueueController(
         initialItems: [
           _item(id: '1', title: 'A', sourceLabel: 'Pasta Downloads'),
-          _item(id: '2', title: 'B', sourceLabel: 'Pasta Vídeos'),
+          _item(id: '2', title: 'B', sourceLabel: 'Pasta vídeos'),
         ],
       );
 
@@ -339,11 +341,12 @@ void main() {
       expect(controller.items.first.status, DownloadStatus.analyzing);
     });
 
-    test('markItemReadyAfterMockAnalysis changes analyzing to ready', () {
+    test('markItemReadyAfterMockAnalysis preenche availableFormats', () {
       final controller = DownloadQueueController();
       final created = controller.addMockAuthorizedLink(
         status: DownloadStatus.analyzing,
         outputFolderLabel: 'Downloads',
+        sourceUrl: 'https://example.com/video',
       );
 
       final updated = controller.markItemReadyAfterMockAnalysis(created.id);
@@ -351,9 +354,33 @@ void main() {
       expect(updated, isNotNull);
       expect(updated!.status, DownloadStatus.ready);
       expect(updated.progress, 0);
+      expect(updated.title, 'Link autorizado analisado');
+      expect(updated.durationLabel, '03:21');
       expect(updated.sourceLabel, contains('Análise mockada concluída'));
       expect(updated.sourceLabel, contains('Downloads'));
+      expect(updated.availableFormats, hasLength(4));
     });
+
+    test(
+      'markItemReadyAfterMockAnalysis define selectedFormatId recomendado',
+      () {
+        final controller = DownloadQueueController();
+        final created = controller.addMockAuthorizedLink(
+          status: DownloadStatus.analyzing,
+        );
+
+        final updated = controller.markItemReadyAfterMockAnalysis(created.id);
+
+        expect(updated, isNotNull);
+        expect(updated!.selectedFormatId, 'video-mp4-1080p');
+        expect(
+          updated.availableFormats
+              .firstWhere((f) => f.id == 'video-mp4-1080p')
+              .isRecommended,
+          isTrue,
+        );
+      },
+    );
 
     test(
       'markItemReadyAfterMockAnalysis returns null if item is not analyzing',
@@ -375,6 +402,313 @@ void main() {
       final updated = controller.markItemReadyAfterMockAnalysis('missing-id');
 
       expect(updated, isNull);
+    });
+
+    test(
+      'markItemReadyAfterInternalAnalysis marca URL inválida como failed',
+      () {
+        final controller = DownloadQueueController();
+        final created = controller.addMockAuthorizedLink(
+          status: DownloadStatus.analyzing,
+          sourceUrl: 'nota-interna',
+        );
+
+        final updated = controller.markItemReadyAfterInternalAnalysis(
+          id: created.id,
+        );
+
+        expect(updated, isNotNull);
+        expect(updated!.status, DownloadStatus.failed);
+        expect(updated.sourceLabel, 'URL não suportada pelo motor interno');
+      },
+    );
+    test('markItemReadyAfterInternalAnalysis marca mp4 direto como ready', () {
+      final controller = DownloadQueueController();
+      final created = controller.addMockAuthorizedLink(
+        status: DownloadStatus.analyzing,
+        sourceUrl: 'https://example.com/video.mp4',
+      );
+
+      final updated = controller.markItemReadyAfterInternalAnalysis(
+        id: created.id,
+      );
+
+      expect(updated, isNotNull);
+      expect(updated!.status, DownloadStatus.ready);
+      expect(updated.directDownloadUrl, 'https://example.com/video.mp4');
+      expect(updated.outputFileName, 'video.mp4');
+      expect(updated.isYouTubeSource, isFalse);
+    });
+
+    test('markItemReadyAfterInternalAnalysis preenche availableFormats', () {
+      final controller = DownloadQueueController();
+      final created = controller.addMockAuthorizedLink(
+        status: DownloadStatus.analyzing,
+        sourceUrl: 'https://example.com/video.mp4',
+      );
+
+      final updated = controller.markItemReadyAfterInternalAnalysis(
+        id: created.id,
+      );
+
+      expect(updated, isNotNull);
+      expect(updated!.availableFormats, isNotEmpty);
+      expect(updated.selectedFormatId, isNotNull);
+    });
+
+    test(
+      'markItemReadyAfterInternalAnalysis deixa URL do YouTube como ready',
+      () {
+        final controller = DownloadQueueController();
+        final created = controller.addMockAuthorizedLink(
+          status: DownloadStatus.analyzing,
+          sourceUrl: 'https://www.youtube.com/watch?v=abc123',
+        );
+
+        final updated = controller.markItemReadyAfterInternalAnalysis(
+          id: created.id,
+        );
+
+        expect(updated, isNotNull);
+        expect(updated!.status, DownloadStatus.ready);
+        expect(updated.availableFormats, isNotEmpty);
+        expect(updated.directDownloadUrl, isNull);
+        expect(updated.isYouTubeSource, isTrue);
+        expect(
+          updated.title.contains('YouTube') ||
+              updated.sourceLabel.contains('YouTube'),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'markItemReadyAfterInternalAnalysis marca URL inválida como failed',
+      () {
+        final controller = DownloadQueueController();
+        final created = controller.addMockAuthorizedLink(
+          status: DownloadStatus.analyzing,
+          sourceUrl: 'nota-interna',
+        );
+
+        final updated = controller.markItemReadyAfterInternalAnalysis(
+          id: created.id,
+        );
+
+        expect(updated, isNotNull);
+        expect(updated!.status, DownloadStatus.failed);
+      },
+    );
+    test(
+      'selectFormatForItem altera selectedFormatId quando formato existe',
+      () {
+        final controller = DownloadQueueController();
+        final created = controller.addMockAuthorizedLink(
+          status: DownloadStatus.analyzing,
+        );
+        controller.markItemReadyAfterMockAnalysis(created.id);
+
+        final updated = controller.selectFormatForItem(created.id, 'audio-m4a');
+
+        expect(updated, isNotNull);
+        expect(updated!.selectedFormatId, 'audio-m4a');
+      },
+    );
+
+    test('selectFormatForItem retorna null quando item não existe', () {
+      final controller = DownloadQueueController();
+
+      final updated = controller.selectFormatForItem('missing-id', 'audio-m4a');
+
+      expect(updated, isNull);
+    });
+
+    test('selectFormatForItem retorna null quando formato não existe', () {
+      final controller = DownloadQueueController();
+      final created = controller.addMockAuthorizedLink(
+        status: DownloadStatus.analyzing,
+      );
+      controller.markItemReadyAfterMockAnalysis(created.id);
+
+      final updated = controller.selectFormatForItem(
+        created.id,
+        'missing-format',
+      );
+
+      expect(updated, isNull);
+    });
+
+    test('startItem ainda funciona depois de selecionar formato', () {
+      final controller = DownloadQueueController();
+      final created = controller.addMockAuthorizedLink(
+        status: DownloadStatus.analyzing,
+      );
+      controller.markItemReadyAfterMockAnalysis(created.id);
+      controller.selectFormatForItem(created.id, 'audio-m4a');
+
+      final started = controller.startItem(created.id);
+
+      expect(started, isNotNull);
+      expect(started!.status, DownloadStatus.downloading);
+    });
+
+    test('markItemDownloading muda ready para downloading', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(id: '1', title: 'Ready', status: DownloadStatus.ready),
+        ],
+      );
+
+      final started = controller.markItemDownloading('1');
+
+      expect(started, isNotNull);
+      expect(started!.status, DownloadStatus.downloading);
+    });
+
+    test('updateItemProgress clampa progresso', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(id: '1', title: 'Run', status: DownloadStatus.downloading),
+        ],
+      );
+
+      final updated = controller.updateItemProgress('1', 2.0);
+
+      expect(updated, isNotNull);
+      expect(updated!.progress, 1.0);
+    });
+
+    test('markItemCompleted conclui item', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(
+            id: '1',
+            title: 'Run',
+            status: DownloadStatus.downloading,
+            progress: 0.5,
+          ),
+        ],
+      );
+
+      final completed = controller.markItemCompleted('1');
+
+      expect(completed, isNotNull);
+      expect(completed!.status, DownloadStatus.completed);
+      expect(completed.progress, 1.0);
+    });
+
+    test('markItemCompletedWithMessage conclui e atualiza sourceLabel', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(
+            id: '1',
+            title: 'Run',
+            status: DownloadStatus.downloading,
+            progress: 0.4,
+            sourceLabel: 'Origem antiga',
+          ),
+        ],
+      );
+
+      final completed = controller.markItemCompletedWithMessage(
+        '1',
+        'Salvo em Downloads/ClipFlow',
+      );
+
+      expect(completed, isNotNull);
+      expect(completed!.status, DownloadStatus.completed);
+      expect(completed.progress, 1.0);
+      expect(completed.sourceLabel, 'Salvo em Downloads/ClipFlow');
+    });
+
+    test('markItemFailed marca failed', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(id: '1', title: 'Run', status: DownloadStatus.downloading),
+        ],
+      );
+
+      final failed = controller.markItemFailed('1', 'Falha controlada');
+
+      expect(failed, isNotNull);
+      expect(failed!.status, DownloadStatus.failed);
+      expect(failed.sourceLabel, 'Falha controlada');
+    });
+
+    test('selectedFormatForItem retorna formato selecionado', () {
+      final controller = DownloadQueueController();
+      final created = controller.addMockAuthorizedLink(
+        status: DownloadStatus.analyzing,
+      );
+      controller.markItemReadyAfterMockAnalysis(created.id);
+      controller.selectFormatForItem(created.id, 'audio-m4a');
+
+      final selected = controller.selectedFormatForItem(created.id);
+
+      expect(selected, isNotNull);
+      expect(selected!.id, 'audio-m4a');
+    });
+
+    test('attachMockCommandPreview retorna null para item inexistente', () {
+      final controller = DownloadQueueController();
+      final updated = controller.attachMockCommandPreview(itemId: 'missing-id');
+      expect(updated, isNull);
+    });
+
+    test(
+      'attachMockCommandPreview retorna null se item não tiver formato selecionado',
+      () {
+        final controller = DownloadQueueController();
+        final created = controller.addMockAuthorizedLink(
+          status: DownloadStatus.ready,
+        );
+
+        final updated = controller.attachMockCommandPreview(itemId: created.id);
+
+        expect(updated, isNull);
+      },
+    );
+
+    test(
+      'attachMockCommandPreview salva commandPreviewLabel para item ready com formato selecionado',
+      () {
+        final controller = DownloadQueueController();
+        final created = controller.addMockAuthorizedLink(
+          status: DownloadStatus.analyzing,
+          sourceUrl: 'https://example.com/video',
+        );
+        controller.markItemReadyAfterMockAnalysis(created.id);
+
+        final updated = controller.attachMockCommandPreview(
+          itemId: created.id,
+          outputFolderLabel: 'vídeos',
+        );
+
+        expect(updated, isNotNull);
+        expect(updated!.commandPreviewLabel, isNotNull);
+        expect(updated.commandPreviewLabel, contains('Motor interno'));
+      },
+    );
+
+    test('trocar formato e anexar preview atualiza commandPreviewLabel', () {
+      final controller = DownloadQueueController();
+      final created = controller.addMockAuthorizedLink(
+        status: DownloadStatus.analyzing,
+        sourceUrl: 'https://example.com/video',
+      );
+      controller.markItemReadyAfterMockAnalysis(created.id);
+      controller.attachMockCommandPreview(itemId: created.id);
+      final before = controller.items
+          .firstWhere((item) => item.id == created.id)
+          .commandPreviewLabel;
+
+      controller.selectFormatForItem(created.id, 'audio-m4a');
+      final after = controller.attachMockCommandPreview(itemId: created.id);
+
+      expect(after, isNotNull);
+      expect(after!.commandPreviewLabel, isNotNull);
+      expect(after.commandPreviewLabel, contains('--extract-audio'));
+      expect(after.commandPreviewLabel, isNot(equals(before)));
     });
 
     test('item can start downloading after mock analysis is completed', () {
@@ -403,6 +737,81 @@ void main() {
         () => controller.items.removeAt(0),
         throwsA(isA<UnsupportedError>()),
       );
+    });
+
+    test('applyYtDlpAnalysis marca ready e isYouTubeSource', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(id: '1', title: 'Item', status: DownloadStatus.analyzing),
+        ],
+      );
+
+      const result = YtDlpAnalysisResult(
+        title: 'Título yt-dlp',
+        durationLabel: '02:00',
+        formats: [
+          DownloadFormatOption(
+            id: '22',
+            kind: DownloadFormatKind.video,
+            label: 'Vídeo MP4 720p',
+            formatLabel: 'MP4',
+            qualityLabel: '720p',
+            sizeLabel: '10 MB',
+            detailsLabel: 'yt-dlp format 22',
+          ),
+        ],
+        recommendedFormatId: '22',
+      );
+
+      final updated = controller.applyYtDlpAnalysis(id: '1', result: result);
+
+      expect(updated, isNotNull);
+      expect(updated!.status, DownloadStatus.ready);
+      expect(updated.isYouTubeSource, isTrue);
+      expect(updated.selectedFormatId, '22');
+      expect(updated.directDownloadUrl, isNull);
+      expect(updated.sourceLabel, 'Análise yt-dlp concluída');
+    });
+
+    test('applyYtDlpAnalysis preserva id real 299', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(id: '1', title: 'Item', status: DownloadStatus.analyzing),
+        ],
+      );
+
+      const result = YtDlpAnalysisResult(
+        title: 'Título yt-dlp',
+        durationLabel: '02:00',
+        formats: [
+          DownloadFormatOption(
+            id: '299',
+            kind: DownloadFormatKind.video,
+            label: 'Vídeo sem áudio — requer FFmpeg',
+            formatLabel: 'MP4',
+            qualityLabel: '1080p',
+            sizeLabel: '15 MB',
+            detailsLabel:
+                '[video-only] yt-dlp format 299 · vídeo sem áudio · requer FFmpeg · áudio M4A preferido para MP4',
+          ),
+        ],
+        recommendedFormatId: '299',
+      );
+
+      final updated = controller.applyYtDlpAnalysis(id: '1', result: result);
+
+      expect(updated, isNotNull);
+      expect(updated!.availableFormats.first.id, '299');
+      expect(
+        updated.availableFormats.first.id.contains('-video-only'),
+        isFalse,
+      );
+      expect(
+        updated.commandPreviewLabel,
+        contains('299+bestaudio[ext=m4a]/299+140/299+bestaudio/best'),
+      );
+      expect(updated.commandPreviewLabel, contains('FFmpeg'));
+      expect(updated.commandPreviewLabel!.contains('Motor interno'), isFalse);
     });
   });
 }

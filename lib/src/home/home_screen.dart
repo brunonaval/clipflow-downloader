@@ -1,14 +1,22 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../downloads/download_item.dart';
+import '../downloads/download_format_option.dart';
 import '../downloads/download_options.dart';
 import '../downloads/download_queue_controller.dart';
 import '../downloads/download_queue_filter.dart';
-import '../engine/engine_settings.dart';
-import '../engine/engine_settings_dialog.dart';
+import '../engine/download/internal_download_cancellation.dart';
+import '../engine/download/internal_download_progress.dart';
+import '../engine/download/internal_download_request.dart';
+import '../engine/download/internal_download_result.dart';
+import '../engine/download/internal_http_downloader.dart';
+import '../engine/download/download_output_planner.dart';
+import '../engine/youtube/youtube_url_parser.dart';
+import '../engine/yt_dlp/yt_dlp_engine_service.dart';
 import 'mock_download_item.dart';
 
 const _kGreen = Color(0xFF2E7D32);
@@ -22,12 +30,16 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const _youtubeUrlParser = YouTubeUrlParser();
   DownloadQueueFilter _activeFilter = DownloadQueueFilter.all;
   DownloadOptions _downloadOptions = const DownloadOptions();
-  EngineSettings _engineSettings = const EngineSettings();
   String _searchQuery = '';
   Timer? _fakeProgressTimer;
   Timer? _mockAnalysisTimer;
+  final Map<String, InternalDownloadCancellation> _downloadCancellations = {};
+  static const _httpDownloader = InternalHttpDownloader();
+  static const _outputPlanner = DownloadOutputPlanner();
+  static const _ytDlpEngine = YtDlpEngineService();
 
   late final DownloadQueueController _queueController;
 
@@ -41,6 +53,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    for (final cancellation in _downloadCancellations.values) {
+      cancellation.cancel();
+    }
+    _downloadCancellations.clear();
     _fakeProgressTimer?.cancel();
     _fakeProgressTimer = null;
     _mockAnalysisTimer?.cancel();
@@ -65,9 +81,12 @@ class _HomeScreenState extends State<HomeScreen> {
   void _tickFakeProgress() {
     if (!mounted) return;
     final changed = _queueController.advanceFakeProgress(step: 0.08);
-    if (changed > 0) {
-      setState(() {});
+    if (changed <= 0) {
+      _fakeProgressTimer?.cancel();
+      _fakeProgressTimer = null;
+      return;
     }
+    setState(() {});
     _stopFakeProgressTimerIfIdle();
   }
 
@@ -98,36 +117,165 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() {});
 
+    final safeUrl = (url ?? '').trim();
+    if (_isHttpUrl(safeUrl)) {
+      if (_youtubeUrlParser.isYouTubeUrl(safeUrl)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Análise do YouTube iniciada'),
+            duration: Duration(milliseconds: 1200),
+          ),
+        );
+
+        try {
+          final result = await _ytDlpEngine.analyzeUrl(safeUrl);
+          if (!mounted) return;
+
+          final updated = _queueController.applyYtDlpAnalysis(
+            id: addedItem.id,
+            result: result,
+          );
+
+          if (updated != null) {
+            _queueController.attachMockCommandPreview(
+              itemId: addedItem.id,
+              outputFolderLabel: _downloadOptions.outputFolderLabel,
+            );
+            setState(() {});
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Análise yt-dlp concluída'),
+                duration: Duration(milliseconds: 1200),
+              ),
+            );
+            return;
+          }
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'yt-dlp n\u00e3o dispon\u00edvel; usando an\u00e1lise interna limitada.',
+                ),
+                duration: Duration(milliseconds: 1500),
+              ),
+            );
+          }
+        }
+
+        final fallbackUpdated = _queueController
+            .markItemReadyAfterInternalAnalysis(
+              id: addedItem.id,
+              outputFolderLabel: _downloadOptions.outputFolderLabel,
+            );
+        if (fallbackUpdated != null &&
+            fallbackUpdated.status == DownloadStatus.ready) {
+          _queueController.attachMockCommandPreview(
+            itemId: addedItem.id,
+            outputFolderLabel: _downloadOptions.outputFolderLabel,
+          );
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Usando análise interna limitada para YouTube'),
+              duration: Duration(milliseconds: 1200),
+            ),
+          );
+          return;
+        }
+
+        _scheduleMockAnalysis(addedItem.id);
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('An\u00e1lise interna iniciada'),
+          duration: Duration(milliseconds: 1200),
+        ),
+      );
+
+      final updated = _queueController.markItemReadyAfterInternalAnalysis(
+        id: addedItem.id,
+        outputFolderLabel: _downloadOptions.outputFolderLabel,
+      );
+
+      if (updated != null && updated.status == DownloadStatus.ready) {
+        _queueController.attachMockCommandPreview(
+          itemId: addedItem.id,
+          outputFolderLabel: _downloadOptions.outputFolderLabel,
+        );
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('An\u00e1lise interna conclu\u00edda'),
+            duration: Duration(milliseconds: 1200),
+          ),
+        );
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'An\u00e1lise interna falhou; usando resultado mockado',
+          ),
+          duration: Duration(milliseconds: 1400),
+        ),
+      );
+    }
+
+    _scheduleMockAnalysis(addedItem.id);
+  }
+
+  void _scheduleMockAnalysis(String itemId) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Análise mockada iniciada'),
+        content: Text('An\u00e1lise mockada iniciada'),
         duration: Duration(milliseconds: 1200),
       ),
     );
 
     _mockAnalysisTimer?.cancel();
     _mockAnalysisTimer = Timer(const Duration(milliseconds: 900), () {
-      final updated = _queueController.markItemReadyAfterMockAnalysis(
-        addedItem.id,
-      );
+      final updated = _queueController.markItemReadyAfterMockAnalysis(itemId);
       if (!mounted || updated == null) return;
+
+      _queueController.attachMockCommandPreview(
+        itemId: itemId,
+        outputFolderLabel: _downloadOptions.outputFolderLabel,
+      );
 
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Análise mockada concluída'),
+          content: Text('An\u00e1lise mockada conclu\u00edda'),
           duration: Duration(milliseconds: 1200),
         ),
       );
     });
   }
 
+  bool _isHttpUrl(String value) {
+    final lower = value.toLowerCase();
+    return lower.startsWith('http://') || lower.startsWith('https://');
+  }
+
   void _startItem(DownloadItem item) {
-    final started = _queueController.startItem(item.id);
+    final started = _queueController.markItemDownloading(item.id);
     if (started == null) return;
 
-    _ensureFakeProgressTimer();
     setState(() {});
+    if (started.directDownloadUrl != null) {
+      _startInternalDirectDownload(started);
+      return;
+    }
+    if (started.isYouTubeSource) {
+      _startYouTubeWithYtDlpDownload(started);
+      return;
+    }
+
+    _ensureFakeProgressTimer();
   }
 
   void _pauseItem(DownloadItem item) {
@@ -139,11 +287,185 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _cancelItem(DownloadItem item) {
+    final cancellation = _downloadCancellations[item.id];
+    cancellation?.cancel();
+
     final canceled = _queueController.cancelItem(item.id);
     if (canceled == null) return;
 
     setState(() {});
     _stopFakeProgressTimerIfIdle();
+  }
+
+  Future<void> _startInternalDirectDownload(DownloadItem item) async {
+    final url = item.directDownloadUrl?.trim() ?? '';
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) {
+      _queueController.markItemFailed(
+        item.id,
+        'Falha ao iniciar download direto.',
+      );
+      if (mounted) setState(() {});
+      return;
+    }
+
+    final cancellation = InternalDownloadCancellation();
+    _downloadCancellations[item.id] = cancellation;
+
+    IOSink? sink;
+    String? savedFileName;
+    try {
+      final fileName = (item.outputFileName?.trim().isNotEmpty ?? false)
+          ? item.outputFileName!.trim()
+          : 'clipflow-download.bin';
+      final outputPlan = await _outputPlanner.plan(requestedFileName: fileName);
+      savedFileName = outputPlan.fileName;
+      sink = outputPlan.file.openWrite();
+
+      final result = await _httpDownloader.download(
+        request: InternalDownloadRequest(sourceUri: uri, fileName: fileName),
+        sink: sink,
+        cancellation: cancellation,
+        onProgress: (InternalDownloadProgress progress) {
+          final fraction = progress.fraction;
+          if (fraction == null) return;
+          _queueController.updateItemProgress(item.id, fraction);
+          if (mounted) {
+            setState(() {});
+          }
+        },
+      );
+
+      if (!mounted) return;
+      switch (result.status) {
+        case InternalDownloadStatus.completed:
+          _queueController.markItemCompletedWithMessage(
+            item.id,
+            'Salvo em Downloads/ClipFlow',
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Download concluído: $savedFileName'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          break;
+        case InternalDownloadStatus.canceled:
+          _queueController.cancelItem(item.id);
+          break;
+        case InternalDownloadStatus.failed:
+          _queueController.markItemFailed(item.id, result.message);
+          break;
+      }
+      setState(() {});
+    } catch (_) {
+      _queueController.markItemFailed(
+        item.id,
+        'Falha ao iniciar download direto.',
+      );
+      if (mounted) {
+        setState(() {});
+      }
+    } finally {
+      await sink?.close();
+      _downloadCancellations.remove(item.id);
+    }
+  }
+
+  Future<void> _startYouTubeWithYtDlpDownload(DownloadItem item) async {
+    final selectedFormat = _queueController.selectedFormatForItem(item.id);
+    if (selectedFormat == null) {
+      _queueController.markItemFailed(
+        item.id,
+        'Selecione um formato antes de iniciar.',
+      );
+      if (mounted) setState(() {});
+      return;
+    }
+    final isVideoOnly = YtDlpEngineService.isVideoOnlyOption(selectedFormat);
+    if (isVideoOnly) {
+      final ffmpeg = await _ytDlpEngine.resolveFfmpeg();
+      if (ffmpeg != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Baixando vídeo e áudio para merge com FFmpeg.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+    final sourceUrl = (item.sourceUrl ?? '').trim();
+    if (sourceUrl.isEmpty) {
+      _queueController.markItemFailed(item.id, 'URL ausente para download.');
+      if (mounted) setState(() {});
+      return;
+    }
+
+    final cancellation = InternalDownloadCancellation();
+    _downloadCancellations[item.id] = cancellation;
+
+    try {
+      final directory = _outputPlanner.defaultDownloadDirectory();
+      await directory.create(recursive: true);
+      final baseName = _safeTitleAsFileBase(item.title);
+      final outputTemplate =
+          '${directory.path}${Platform.pathSeparator}$baseName-%(id)s.%(ext)s';
+
+      final result = await _ytDlpEngine.download(
+        url: sourceUrl,
+        formatId: selectedFormat.id,
+        selectedFormatLabel: selectedFormat.formatLabel,
+        outputTemplate: outputTemplate,
+        cancellation: cancellation,
+        onProgress: (progress) {
+          final fraction = progress.fraction;
+          if (fraction == null) return;
+          _queueController.updateItemProgress(item.id, fraction);
+          if (mounted) setState(() {});
+        },
+      );
+
+      if (!mounted) return;
+      switch (result.status) {
+        case InternalDownloadStatus.completed:
+          _queueController.markItemCompletedWithMessage(
+            item.id,
+            'Salvo em Downloads/ClipFlow',
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Download concluído em Downloads/ClipFlow'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          break;
+        case InternalDownloadStatus.canceled:
+          _queueController.cancelItem(item.id);
+          break;
+        case InternalDownloadStatus.failed:
+          _queueController.markItemFailed(item.id, result.message);
+          break;
+      }
+      setState(() {});
+    } catch (_) {
+      _queueController.markItemFailed(
+        item.id,
+        'Falha ao iniciar download via yt-dlp.',
+      );
+      if (mounted) setState(() {});
+    } finally {
+      _downloadCancellations.remove(item.id);
+    }
+  }
+
+  String _safeTitleAsFileBase(String title) {
+    final cleaned = title
+        .trim()
+        .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
+        .replaceAll(RegExp(r'\s+'), ' ');
+    if (cleaned.isEmpty) return 'youtube-video';
+    if (cleaned.length <= 80) return cleaned;
+    return cleaned.substring(0, 80).trim();
   }
 
   void _removeItem(DownloadItem item) {
@@ -152,6 +474,37 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() {});
     _stopFakeProgressTimerIfIdle();
+  }
+
+  void _selectFormatForItem(DownloadItem item, String formatId) {
+    final updated = _queueController.selectFormatForItem(item.id, formatId);
+    if (updated == null) return;
+    _queueController.attachMockCommandPreview(
+      itemId: item.id,
+      outputFolderLabel: _downloadOptions.outputFolderLabel,
+    );
+    setState(() {});
+  }
+
+  Future<void> _showInternalEngineDialog() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Motor interno'),
+          content: const Text(
+            'ClipFlow usa um motor interno pr\u00f3prio para reconhecer links do YouTube e preparar downloads autorizados. Motor yt-dlp ativo para YouTube. FFmpeg ainda n\u00e3o configurado; qualidades altas podem exigir merge.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Entendi'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _clearFinishedItems() {
@@ -163,26 +516,6 @@ class _HomeScreenState extends State<HomeScreen> {
       SnackBar(
         content: Text('Itens finalizados removidos: $removed'),
         duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  Future<void> _openEngineSettingsDialog() async {
-    final updated = await showDialog<EngineSettings>(
-      context: context,
-      builder: (_) => EngineSettingsDialog(initialSettings: _engineSettings),
-    );
-
-    if (!mounted || updated == null) return;
-
-    setState(() {
-      _engineSettings = updated;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Configuração mockada do motor salva'),
-        duration: Duration(seconds: 2),
       ),
     );
   }
@@ -252,14 +585,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         onPause: () => _pauseItem(visibleItems[i]),
                         onCancel: () => _cancelItem(visibleItems[i]),
                         onRemove: () => _removeItem(visibleItems[i]),
+                        onFormatSelected: (formatId) =>
+                            _selectFormatForItem(visibleItems[i], formatId),
                       ),
                     ),
             ),
           ),
           _StatusBar(
             onClearFinished: _clearFinishedItems,
-            onConfigureEngine: _openEngineSettingsDialog,
-            engineStatus: _engineSettings.status,
+            onShowEngineInfo: _showInternalEngineDialog,
           ),
         ],
       ),
@@ -380,10 +714,10 @@ class _Toolbar extends StatelessWidget {
                   _SelectorButton<DownloadTransferType>(
                     valueLabel: selectedTransferLabel,
                     options: const {
-                      DownloadTransferType.video: 'Vídeo',
-                      DownloadTransferType.audio: 'Áudio',
+                      DownloadTransferType.video: 'V\u00eddeo',
+                      DownloadTransferType.audio: '\u00c1udio',
                       DownloadTransferType.subtitles: 'Legendas',
-                      DownloadTransferType.audioTracks: 'Faixas de áudio',
+                      DownloadTransferType.audioTracks: 'Faixas de \u00e1udio',
                     },
                     onChanged: onTransferChanged,
                   ),
@@ -391,7 +725,7 @@ class _Toolbar extends StatelessWidget {
                   _SelectorButton<String>(
                     valueLabel: selectedQualityLabel,
                     options: const {
-                      'Ótima': 'Ótima',
+                      '\u00d3tima': '\u00d3tima',
                       '8K': '8K',
                       '4K': '4K',
                       '1080p': '1080p',
@@ -406,7 +740,7 @@ class _Toolbar extends StatelessWidget {
                   _SelectorButton<String>(
                     valueLabel: selectedFormatLabel,
                     options: const {
-                      'Automático': 'Automático',
+                      'Autom\u00e1tico': 'Autom\u00e1tico',
                       'MP4': 'MP4',
                       'MKV': 'MKV',
                       'MP3': 'MP3',
@@ -418,7 +752,7 @@ class _Toolbar extends StatelessWidget {
                   _SelectorButton<String>(
                     valueLabel: selectedOutputFolderLabel,
                     options: const {
-                      'Vídeos': 'Vídeos',
+                      'V\u00eddeos': 'V\u00eddeos',
                       'Downloads': 'Downloads',
                       'Imagens': 'Imagens',
                       'Documentos': 'Documentos',
@@ -434,7 +768,7 @@ class _Toolbar extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.settings_outlined, size: 20),
             onPressed: () {},
-            tooltip: 'Configurações',
+            tooltip: 'Configura\u00e7\u00f5es',
             color: Colors.black54,
             visualDensity: VisualDensity.compact,
           ),
@@ -590,6 +924,7 @@ class _DownloadListItem extends StatelessWidget {
   final VoidCallback onPause;
   final VoidCallback onCancel;
   final VoidCallback onRemove;
+  final ValueChanged<String> onFormatSelected;
 
   const _DownloadListItem({
     required this.item,
@@ -597,6 +932,7 @@ class _DownloadListItem extends StatelessWidget {
     required this.onPause,
     required this.onCancel,
     required this.onRemove,
+    required this.onFormatSelected,
   });
 
   @override
@@ -647,6 +983,22 @@ class _DownloadListItem extends StatelessWidget {
                         color: Colors.grey.shade500,
                       ),
                     ),
+                    if (item.status == DownloadStatus.ready &&
+                        item.availableFormats.isNotEmpty)
+                      _FormatSelector(item: item, onSelected: onFormatSelected),
+                    if (item.commandPreviewLabel != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Plano: ${item.commandPreviewLabel}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
                     if (isDownloading)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
@@ -675,6 +1027,71 @@ class _DownloadListItem extends StatelessWidget {
         ),
         Divider(height: 1, thickness: 1, color: Colors.grey.shade100),
       ],
+    );
+  }
+}
+
+class _FormatSelector extends StatelessWidget {
+  final DownloadItem item;
+  final ValueChanged<String> onSelected;
+
+  const _FormatSelector({required this.item, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    DownloadFormatOption selected = item.availableFormats.first;
+    for (final format in item.availableFormats) {
+      if (format.id == item.selectedFormatId) {
+        selected = format;
+        break;
+      }
+    }
+
+    final selectedLabel = selected.isRecommended
+        ? '${selected.label} (recomendado)'
+        : selected.label;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 6,
+        children: [
+          const Text(
+            'Formato:',
+            style: TextStyle(fontSize: 12, color: Colors.black87),
+          ),
+          PopupMenuButton<String>(
+            key: Key('formatSelector-${item.id}'),
+            onSelected: onSelected,
+            itemBuilder: (_) => item.availableFormats
+                .map(
+                  (format) => PopupMenuItem<String>(
+                    key: Key('formatOption-${format.id}'),
+                    value: format.id,
+                    child: Text(format.displayLabel),
+                  ),
+                )
+                .toList(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(4),
+                color: const Color(0xFFF8F8F8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(selectedLabel, style: const TextStyle(fontSize: 11)),
+                  const SizedBox(width: 2),
+                  const Icon(Icons.arrow_drop_down, size: 14),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -801,25 +1218,17 @@ class _EmptyFilterState extends StatelessWidget {
 
 class _StatusBar extends StatelessWidget {
   final VoidCallback onClearFinished;
-  final VoidCallback onConfigureEngine;
-  final EngineSetupStatus engineStatus;
+  final VoidCallback onShowEngineInfo;
 
   const _StatusBar({
     required this.onClearFinished,
-    required this.onConfigureEngine,
-    required this.engineStatus,
+    required this.onShowEngineInfo,
   });
-
-  String get _engineStatusLabel => switch (engineStatus) {
-    EngineSetupStatus.notConfigured => 'Motor externo não configurado',
-    EngineSetupStatus.configuredMock =>
-      'Motor externo configurado em modo mock',
-  };
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 56,
+      height: 68,
       color: _kGreen,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -837,11 +1246,17 @@ class _StatusBar extends StatelessWidget {
                     fontSize: 13,
                   ),
                 ),
-                Text(
-                  _engineStatusLabel,
+                const Text(
+                  'Motor yt-dlp ativo para YouTube',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  style: TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+                const Text(
+                  'FFmpeg ainda n\u00e3o configurado; qualidades altas podem exigir merge.',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: Colors.white70, fontSize: 10),
                 ),
               ],
             ),
@@ -863,13 +1278,13 @@ class _StatusBar extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                     ),
                     child: const Text(
-                      'Limpar concluídos',
+                      'Limpar conclu\u00eddos',
                       style: TextStyle(fontSize: 13),
                     ),
                   ),
                   const SizedBox(width: 8),
                   OutlinedButton(
-                    onPressed: onConfigureEngine,
+                    onPressed: onShowEngineInfo,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white,
                       side: const BorderSide(color: Colors.white54),
@@ -880,7 +1295,7 @@ class _StatusBar extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                     ),
                     child: const Text(
-                      'Configurar motor',
+                      'Sobre o motor',
                       style: TextStyle(fontSize: 13),
                     ),
                   ),
