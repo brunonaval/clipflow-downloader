@@ -111,23 +111,28 @@ class DownloadFormatSelector {
 
     if (withKnownHeight.isEmpty) return formats;
 
-    final atOrBelow = withKnownHeight
-        .where((f) => _heightFrom(f)! <= maxHeight)
+    final exact = withKnownHeight
+        .where((f) => _heightFrom(f)! == maxHeight)
         .toList();
-    if (atOrBelow.isNotEmpty) {
-      final bestHeight = atOrBelow
-          .map((f) => _heightFrom(f)!)
-          .reduce((a, b) => a > b ? a : b);
-      return atOrBelow.where((f) => _heightFrom(f) == bestHeight).toList();
-    }
+    if (exact.isNotEmpty) return exact;
 
     final above = withKnownHeight
         .where((f) => _heightFrom(f)! > maxHeight)
         .toList();
-    final fallbackHeight = above
+    if (above.isNotEmpty) {
+      final nearestAbove = above
+          .map((f) => _heightFrom(f)!)
+          .reduce((a, b) => a < b ? a : b);
+      return above.where((f) => _heightFrom(f) == nearestAbove).toList();
+    }
+
+    final below = withKnownHeight
+        .where((f) => _heightFrom(f)! < maxHeight)
+        .toList();
+    final nearestBelow = below
         .map((f) => _heightFrom(f)!)
-        .reduce((a, b) => a < b ? a : b);
-    return above.where((f) => _heightFrom(f) == fallbackHeight).toList();
+        .reduce((a, b) => a > b ? a : b);
+    return below.where((f) => _heightFrom(f) == nearestBelow).toList();
   }
 
   String? _pickOrdered(
