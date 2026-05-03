@@ -192,7 +192,10 @@ class YtDlpEngineService {
                 : 'Vídeo da playlist',
             url: entryUrl,
             durationLabel: _durationLabel(entry['duration']),
-            thumbnailUrl: _httpUrlOrNull(entry['thumbnail']),
+            thumbnailUrl: _playlistThumbnailForEntry(
+              rawThumbnail: entry['thumbnail'],
+              entryId: id,
+            ),
             authorLabel: _authorLabel(entry) ?? playlistAuthor,
           ),
         );
@@ -718,6 +721,18 @@ class YtDlpEngineService {
       return 'https://www.youtube.com/watch?v=$entryId';
     }
     return null;
+  }
+
+  String? _playlistThumbnailForEntry({
+    required Object? rawThumbnail,
+    required String? entryId,
+  }) {
+    final direct = _httpUrlOrNull(rawThumbnail);
+    if (direct != null) return direct;
+    final safeId = entryId?.trim() ?? '';
+    if (safeId.isEmpty) return null;
+    if (safeId.contains('://') || safeId.contains('/')) return null;
+    return 'https://i.ytimg.com/vi/$safeId/hqdefault.jpg';
   }
 }
 

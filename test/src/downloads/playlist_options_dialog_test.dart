@@ -14,6 +14,7 @@ void main() {
         title: 'Video 1',
         url: 'https://www.youtube.com/watch?v=a1',
         durationLabel: '01:00',
+        thumbnailUrl: 'https://i.ytimg.com/vi/a1/hqdefault.jpg',
       ),
       YtDlpPlaylistEntry(
         id: 'b2',
@@ -40,30 +41,27 @@ void main() {
 
   testWidgets('all entries selected by default', (tester) async {
     await openDialog(tester, const PlaylistOptionsDialog(playlist: playlist));
-    expect(
-      tester
-          .widget<CheckboxListTile>(find.byKey(const Key('playlist-entry-a1')))
-          .value,
-      isTrue,
+    final firstCheckbox = find.descendant(
+      of: find.byKey(const Key('playlist-entry-a1')),
+      matching: find.byType(Checkbox),
     );
-    expect(
-      tester
-          .widget<CheckboxListTile>(find.byKey(const Key('playlist-entry-b2')))
-          .value,
-      isTrue,
+    final secondCheckbox = find.descendant(
+      of: find.byKey(const Key('playlist-entry-b2')),
+      matching: find.byType(Checkbox),
     );
+    expect(tester.widget<Checkbox>(firstCheckbox).value, isTrue);
+    expect(tester.widget<Checkbox>(secondCheckbox).value, isTrue);
   });
 
   testWidgets('uncheck entry reduces selection', (tester) async {
     await openDialog(tester, const PlaylistOptionsDialog(playlist: playlist));
     await tester.tap(find.byKey(const Key('playlist-entry-a1')));
     await tester.pumpAndSettle();
-    expect(
-      tester
-          .widget<CheckboxListTile>(find.byKey(const Key('playlist-entry-a1')))
-          .value,
-      isFalse,
+    final firstCheckbox = find.descendant(
+      of: find.byKey(const Key('playlist-entry-a1')),
+      matching: find.byType(Checkbox),
     );
+    expect(tester.widget<Checkbox>(firstCheckbox).value, isFalse);
   });
 
   testWidgets('cancel returns null', (tester) async {
@@ -106,5 +104,17 @@ void main() {
     await tester.pumpAndSettle();
     final button = tester.widget<FilledButton>(find.byType(FilledButton));
     expect(button.onPressed, isNull);
+  });
+
+  testWidgets('renders thumbnail when entry has thumbnailUrl', (tester) async {
+    await openDialog(tester, const PlaylistOptionsDialog(playlist: playlist));
+    expect(find.byKey(const Key('playlist-thumb-a1')), findsOneWidget);
+  });
+
+  testWidgets('renders fallback thumbnail when thumbnailUrl is null', (
+    tester,
+  ) async {
+    await openDialog(tester, const PlaylistOptionsDialog(playlist: playlist));
+    expect(find.byKey(const Key('playlist-thumb-fallback-b2')), findsOneWidget);
   });
 }

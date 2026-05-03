@@ -396,6 +396,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _startItem(DownloadItem item) {
+    if (item.status == DownloadStatus.analyzing) {
+      return;
+    }
+
     if (item.isYouTubeSource &&
         item.availableFormats.isEmpty &&
         (item.sourceUrl?.trim().isNotEmpty ?? false)) {
@@ -462,13 +466,19 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {});
       _startItem(ready);
     } catch (error) {
-      _queueController.markItemFailed(
-        item.id,
-        error is YtDlpEngineException
-            ? error.message
-            : 'Falha ao analisar vídeo da playlist.',
-      );
-      if (mounted) setState(() {});
+      final message = error is YtDlpEngineException
+          ? 'Falha ao analisar vídeo da playlist: ${error.message}'
+          : 'Falha ao analisar vídeo da playlist.';
+      _queueController.markItemFailed(item.id, message);
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            duration: const Duration(milliseconds: 1400),
+          ),
+        );
+      }
     }
   }
 
@@ -1489,13 +1499,19 @@ class _DownloadListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDownloading = item.status == DownloadStatus.downloading;
     final isMerging = item.sourceLabel == 'Mesclando com FFmpeg';
+    final isPlaylistQueuedPendingAnalysis =
+        item.isYouTubeSource &&
+        item.availableFormats.isEmpty &&
+        item.status == DownloadStatus.queued;
     final statusText = _statusText(item, isMerging);
-    final metadataParts = <String>[
-      item.durationLabel,
-      item.sizeLabel,
-      item.selectedFormatSummary ?? item.formatLabel,
-      statusText,
-    ];
+    final metadataParts = isPlaylistQueuedPendingAnalysis
+        ? <String>[item.durationLabel, item.sourceLabel]
+        : <String>[
+            item.durationLabel,
+            item.sizeLabel,
+            item.selectedFormatSummary ?? item.formatLabel,
+            statusText,
+          ];
     final completedOutputLabel =
         item.outputSummaryLabel ??
         (item.outputDirectoryPath != null ? 'Salvo em pasta' : null);
@@ -1667,11 +1683,16 @@ class _DownloadListItem extends StatelessWidget {
 
   String _statusText(DownloadItem item, bool isMerging) {
     if (isMerging) return 'Mesclando com FFmpeg';
+    final isPlaylistQueuedPendingAnalysis =
+        item.isYouTubeSource &&
+        item.availableFormats.isEmpty &&
+        item.status == DownloadStatus.queued;
+    if (isPlaylistQueuedPendingAnalysis) return 'Na fila';
     return switch (item.status) {
       DownloadStatus.queued => 'Aguardando',
       DownloadStatus.ready => 'Pronto',
       DownloadStatus.downloading => 'Baixando',
-      DownloadStatus.analyzing => 'Aguardando',
+      DownloadStatus.analyzing => 'Analisando',
       DownloadStatus.completed => 'Concluído',
       DownloadStatus.failed => 'Falhou',
       DownloadStatus.canceled => 'Cancelado',
@@ -1829,7 +1850,12 @@ class _ItemActions extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.play_arrow, size: 18),
             onPressed: onStart,
-            tooltip: 'Iniciar',
+            tooltip:
+                item.isYouTubeSource &&
+                    item.availableFormats.isEmpty &&
+                    item.status == DownloadStatus.queued
+                ? 'Analisar e baixar'
+                : 'Iniciar',
             visualDensity: VisualDensity.compact,
           ),
         if (_canPause)
@@ -1889,13 +1915,19 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMerging = item.sourceLabel == 'Mesclando com FFmpeg';
+    final isPlaylistQueuedPendingAnalysis =
+        item.isYouTubeSource &&
+        item.availableFormats.isEmpty &&
+        item.status == DownloadStatus.queued;
     final statusLabel = isMerging
         ? 'Mesclando com FFmpeg'
+        : isPlaylistQueuedPendingAnalysis
+        ? 'Na fila'
         : switch (item.status) {
             DownloadStatus.queued => 'Aguardando',
             DownloadStatus.ready => 'Pronto',
             DownloadStatus.downloading => 'Baixando',
-            DownloadStatus.analyzing => 'Aguardando',
+            DownloadStatus.analyzing => 'Analisando',
             DownloadStatus.completed => 'Concluído',
             DownloadStatus.failed => 'Falhou',
             DownloadStatus.canceled => 'Cancelado',

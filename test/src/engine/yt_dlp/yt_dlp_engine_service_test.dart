@@ -433,9 +433,49 @@ void main() {
       expect(result.entries.first.thumbnailUrl, isNotNull);
       expect(result.entries.first.authorLabel, 'Canal A');
       expect(result.entries.first.durationLabel, '01:05');
-      expect(result.entries[1].thumbnailUrl, isNull);
+      expect(
+        result.entries[1].thumbnailUrl,
+        'https://i.ytimg.com/vi/abc2/hqdefault.jpg',
+      );
       expect(result.entries[1].durationLabel, '1:00:05');
     });
+
+    test(
+      'analyzePlaylistUrl keeps http thumbnail and falls back by id',
+      () async {
+        const jsonOutput = '''
+{
+  "title": "Playlist Thumb",
+  "entries": [
+    {"id":"v1","title":"Um","thumbnail":"https://img.youtube.com/vi/v1/hqdefault.jpg"},
+    {"id":"v2","title":"Dois"},
+    {"id":"https://example.com/id-as-url","title":"Tres"}
+  ]
+}
+''';
+        final runner = _FakeRunner(
+          runResult: ProcessResult(1, 0, jsonOutput, ''),
+        );
+        final service = YtDlpEngineService(
+          resolver: const _FakeResolverAvailable(),
+          runner: runner,
+        );
+
+        final result = await service.analyzePlaylistUrl(
+          'https://www.youtube.com/playlist?list=PLX',
+        );
+
+        expect(
+          result.entries[0].thumbnailUrl,
+          'https://img.youtube.com/vi/v1/hqdefault.jpg',
+        );
+        expect(
+          result.entries[1].thumbnailUrl,
+          'https://i.ytimg.com/vi/v2/hqdefault.jpg',
+        );
+        expect(result.entries[2].thumbnailUrl, isNull);
+      },
+    );
 
     test(
       'analyzePlaylistUrl returns friendly error for invalid json',

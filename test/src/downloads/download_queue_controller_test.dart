@@ -1220,6 +1220,7 @@ void main() {
       expect(added.first.isYouTubeSource, isTrue);
       expect(added.first.availableFormats, isEmpty);
       expect(added.first.selectedFormatId, isNull);
+      expect(added.first.sourceLabel, 'Na fila · clique em play para analisar');
     });
 
     test('markItemAnalyzing updates source label and status', () {

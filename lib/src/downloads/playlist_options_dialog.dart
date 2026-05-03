@@ -93,32 +93,69 @@ class _PlaylistOptionsDialogState extends State<PlaylistOptionsDialog> {
                       if ((entry.authorLabel?.trim().isNotEmpty ?? false))
                         entry.authorLabel!,
                     ];
-                    return CheckboxListTile(
+                    return InkWell(
                       key: Key('playlist-entry-${entry.id}'),
-                      dense: true,
-                      value: checked,
-                      contentPadding: EdgeInsets.zero,
-                      onChanged: (value) {
+                      onTap: () {
                         setState(() {
-                          if (value == true) {
-                            _selectedIds.add(entry.id);
-                          } else {
+                          if (checked) {
                             _selectedIds.remove(entry.id);
+                          } else {
+                            _selectedIds.add(entry.id);
                           }
                         });
                       },
-                      title: Text(
-                        entry.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: details.isEmpty
-                          ? null
-                          : Text(
-                              details.join(' · '),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _EntryThumbnail(entry: entry),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    entry.title,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (details.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 2),
+                                      child: Text(
+                                        details.join(' · '),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black54,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
+                            Checkbox(
+                              value: checked,
+                              onChanged: (value) {
+                                setState(() {
+                                  if (value == true) {
+                                    _selectedIds.add(entry.id);
+                                  } else {
+                                    _selectedIds.remove(entry.id);
+                                  }
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
                     );
                   },
                 ),
@@ -144,6 +181,44 @@ class _PlaylistOptionsDialogState extends State<PlaylistOptionsDialog> {
           child: const Text('Adicionar à fila'),
         ),
       ],
+    );
+  }
+}
+
+class _EntryThumbnail extends StatelessWidget {
+  final YtDlpPlaylistEntry entry;
+
+  const _EntryThumbnail({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final url = entry.thumbnailUrl;
+    if (url != null && url.trim().isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: Image.network(
+          url,
+          key: Key('playlist-thumb-${entry.id}'),
+          width: 78,
+          height: 44,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _placeholder(entry.id),
+        ),
+      );
+    }
+    return _placeholder(entry.id);
+  }
+
+  Widget _placeholder(String id) {
+    return Container(
+      key: Key('playlist-thumb-fallback-$id'),
+      width: 78,
+      height: 44,
+      decoration: BoxDecoration(
+        color: const Color(0xFF2D2D2D),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: const Icon(Icons.play_arrow_rounded, color: Colors.white54),
     );
   }
 }

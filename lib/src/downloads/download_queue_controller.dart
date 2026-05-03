@@ -189,7 +189,7 @@ class DownloadQueueController {
         formatLabel: formatLabel,
         qualityLabel: qualityLabel,
         fpsLabel: '--fps',
-        sourceLabel: 'Playlist · aguardando análise',
+        sourceLabel: 'Na fila · clique em play para analisar',
         addedAt: DateTime.now(),
         transferType: transferType,
         status: DownloadStatus.queued,
