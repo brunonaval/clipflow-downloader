@@ -156,7 +156,7 @@ class YtDlpEngineService {
       '-f',
       selectedIsVideoOnly
           ? (isMp4VideoOnly
-                ? '$formatId+bestaudio[ext=m4a]/$formatId+140/$formatId+bestaudio/best'
+                ? '$formatId+bestaudio[ext=m4a]/$formatId+ba[acodec^=mp4a]/$formatId+140/$formatId+139'
                 : '$formatId+bestaudio/best')
           : formatId,
       if (selectedIsVideoOnly) ...const ['--merge-output-format', 'mp4'],
@@ -289,12 +289,22 @@ class YtDlpEngineService {
 
     return InternalDownloadResult(
       status: InternalDownloadStatus.failed,
-      message: lastError.isNotEmpty
-          ? 'Falha no download com yt-dlp: $lastError'
-          : 'Falha no download com yt-dlp.',
+      message: _friendlyDownloadFailureMessage(lastError),
       receivedBytes: receivedBytes,
       outputPath: detectedOutputPath,
     );
+  }
+
+  String _friendlyDownloadFailureMessage(String lastError) {
+    final normalized = lastError.toLowerCase();
+    if (normalized.contains('requested format is not available') ||
+        normalized.contains('format is not available')) {
+      return 'Não foi possível encontrar áudio M4A/AAC compatível para gerar MP4.';
+    }
+    if (lastError.isNotEmpty) {
+      return 'Falha no download com yt-dlp: $lastError';
+    }
+    return 'Falha no download com yt-dlp.';
   }
 
   static double? parseProgressPercent(String line) {

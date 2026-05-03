@@ -13,6 +13,7 @@ void main() {
     expect(find.text('Motor yt-dlp ativo para YouTube'), findsOneWidget);
     expect(find.byTooltip('Remover'), findsWidgets);
     expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
+    expect(find.text('Guardar em Downloads'), findsOneWidget);
   });
 
   testWidgets('menu Arquivo exibe ação de abrir pasta de downloads', (
@@ -84,5 +85,22 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Preferências'), findsOneWidget);
+  });
+
+  testWidgets('toolbar permite trocar Guardar em para Vídeos', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const ClipFlowApp());
+
+    await tester.tap(find.text('Guardar em Downloads'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Vídeos').last);
+    await tester.pump();
+
+    expect(find.text('Guardar em Vídeos'), findsOneWidget);
   });
 }

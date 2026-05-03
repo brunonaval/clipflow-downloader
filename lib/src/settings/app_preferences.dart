@@ -1,3 +1,5 @@
+import 'output_folder_choice.dart';
+
 class AppPreferences {
   final String languageLabel;
   final String themeLabel;
@@ -9,6 +11,7 @@ class AppPreferences {
   final bool confirmExitWithActiveDownloads;
   final bool keepSystemAwakeWhileDownloading;
   final bool showAdvancedFormats;
+  final OutputFolderChoice outputFolderChoice;
 
   const AppPreferences({
     required this.languageLabel,
@@ -21,6 +24,7 @@ class AppPreferences {
     required this.confirmExitWithActiveDownloads,
     required this.keepSystemAwakeWhileDownloading,
     required this.showAdvancedFormats,
+    required this.outputFolderChoice,
   });
 
   static const AppPreferences defaults = AppPreferences(
@@ -34,6 +38,7 @@ class AppPreferences {
     confirmExitWithActiveDownloads: true,
     keepSystemAwakeWhileDownloading: false,
     showAdvancedFormats: false,
+    outputFolderChoice: OutputFolderChoice.downloads,
   );
 
   AppPreferences copyWith({
@@ -47,6 +52,7 @@ class AppPreferences {
     bool? confirmExitWithActiveDownloads,
     bool? keepSystemAwakeWhileDownloading,
     bool? showAdvancedFormats,
+    OutputFolderChoice? outputFolderChoice,
   }) {
     return AppPreferences(
       languageLabel: languageLabel ?? this.languageLabel,
@@ -66,6 +72,7 @@ class AppPreferences {
           keepSystemAwakeWhileDownloading ??
           this.keepSystemAwakeWhileDownloading,
       showAdvancedFormats: showAdvancedFormats ?? this.showAdvancedFormats,
+      outputFolderChoice: outputFolderChoice ?? this.outputFolderChoice,
     );
   }
 }

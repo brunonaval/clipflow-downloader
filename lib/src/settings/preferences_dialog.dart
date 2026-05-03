@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_preferences.dart';
+import 'output_folder_choice.dart';
 
 enum PreferencesSection { general, downloads, engine, notifications, advanced }
 
@@ -156,6 +157,27 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
           onChanged: (value) => setState(
             () => _preferences = _preferences.copyWith(
               simultaneousDownloads: int.parse(value),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _dropdownRow(
+          label: 'Pasta padrão',
+          value: _preferences.outputFolderChoice.label,
+          options: const ['Downloads', 'Vídeos', 'Documentos'],
+          onChanged: (value) => setState(
+            () => _preferences = _preferences.copyWith(
+              outputFolderChoice: switch (value) {
+                'Vídeos' => const OutputFolderChoice(
+                  type: OutputFolderType.videos,
+                  label: 'Vídeos',
+                ),
+                'Documentos' => const OutputFolderChoice(
+                  type: OutputFolderType.documents,
+                  label: 'Documentos',
+                ),
+                _ => OutputFolderChoice.downloads,
+              },
             ),
           ),
         ),

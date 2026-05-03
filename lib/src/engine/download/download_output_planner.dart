@@ -36,8 +36,11 @@ class DownloadOutputPlanner {
     );
   }
 
-  Future<DownloadOutputPlan> plan({required String requestedFileName}) async {
-    final directory = defaultDownloadDirectory();
+  Future<DownloadOutputPlan> plan({
+    required String requestedFileName,
+    Directory? baseDirectory,
+  }) async {
+    final directory = baseDirectory ?? defaultDownloadDirectory();
     await directory.create(recursive: true);
 
     final safeRequested = _sanitizeFileName(requestedFileName);

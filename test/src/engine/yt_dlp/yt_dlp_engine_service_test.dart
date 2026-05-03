@@ -48,10 +48,14 @@ class _FakeRunner extends YtDlpProcessRunner {
   _FakeRunner({
     required this.runResult,
     this.startStdoutLines = const ['[download]  42.0%'],
+    this.startStderrLines = const [],
+    this.startExitCode = 0,
   });
 
   final ProcessResult runResult;
   final List<String> startStdoutLines;
+  final List<String> startStderrLines;
+  final int startExitCode;
   List<String>? lastStartArguments;
 
   @override
@@ -63,9 +67,9 @@ class _FakeRunner extends YtDlpProcessRunner {
   Future<Process> start(String executable, List<String> arguments) async {
     lastStartArguments = List<String>.from(arguments);
     return _FakeProcess(
-      0,
+      startExitCode,
       stdoutLines: startStdoutLines,
-      stderrLines: const [],
+      stderrLines: startStderrLines,
     );
   }
 }
@@ -215,48 +219,8 @@ void main() {
       },
     );
 
-    test(
-      'video-only MP4 with FFmpeg uses m4a-first merge selector and keeps %(ext)s',
-      () async {
-        final runner = _FakeRunner(runResult: ProcessResult(1, 0, '{}', ''));
-        final service = YtDlpEngineService(
-          resolver: const _FakeResolverAvailable(),
-          ffmpegResolver: const _FakeFfmpegResolverAvailable(),
-          runner: runner,
-        );
-
-        final result = await service.download(
-          url: 'https://youtube.com/watch?v=abc',
-          formatId: '299',
-          selectedFormatLabel: 'MP4',
-          outputTemplate: '/tmp/out.%(ext)s',
-          onProgress: (_) {},
-        );
-
-        expect(result.status, InternalDownloadStatus.completed);
-        final args = runner.lastStartArguments!;
-        expect(
-          args,
-          containsAllInOrder([
-            '-f',
-            '299+bestaudio[ext=m4a]/299+140/299+bestaudio/best',
-          ]),
-        );
-        expect(args, containsAllInOrder(['--merge-output-format', 'mp4']));
-        expect(args, contains('--ffmpeg-location'));
-        expect(args, contains('/tmp/out.%(ext)s'));
-      },
-    );
-
-    test('merge final path has priority over temporary destination', () async {
-      final runner = _FakeRunner(
-        runResult: ProcessResult(1, 0, '{}', ''),
-        startStdoutLines: const [
-          r'[download] Destination: C:\Downloads\ClipFlow\temp.f299.mp4',
-          '[Merger] Merging formats into "C:\\Downloads\\ClipFlow\\final.mp4"',
-          '[download]  42.0%',
-        ],
-      );
+    test('video-only MP4 with FFmpeg uses anti-Opus selector', () async {
+      final runner = _FakeRunner(runResult: ProcessResult(1, 0, '{}', ''));
       final service = YtDlpEngineService(
         resolver: const _FakeResolverAvailable(),
         ffmpegResolver: const _FakeFfmpegResolverAvailable(),
@@ -265,14 +229,24 @@ void main() {
 
       final result = await service.download(
         url: 'https://youtube.com/watch?v=abc',
-        formatId: '299',
+        formatId: '137',
         selectedFormatLabel: 'MP4',
         outputTemplate: '/tmp/out.%(ext)s',
         onProgress: (_) {},
       );
 
       expect(result.status, InternalDownloadStatus.completed);
-      expect(result.outputPath, r'C:\Downloads\ClipFlow\final.mp4');
+      final args = runner.lastStartArguments!;
+      expect(
+        args,
+        containsAllInOrder([
+          '-f',
+          '137+bestaudio[ext=m4a]/137+ba[acodec^=mp4a]/137+140/137+139',
+        ]),
+      );
+      expect(args.where((arg) => arg.contains('bestaudio/best')), isEmpty);
+      expect(args, containsAllInOrder(['--merge-output-format', 'mp4']));
+      expect(args, contains('--ffmpeg-location'));
     });
 
     test('muxed id 18 keeps -f 18', () async {
@@ -307,6 +281,86 @@ void main() {
         onProgress: (_) {},
       );
       expect(runner.lastStartArguments, containsAllInOrder(['-f', '140']));
+    });
+
+    test('selectedFormatIsVideoOnly true forces merge selector', () async {
+      final runner = _FakeRunner(runResult: ProcessResult(1, 0, '{}', ''));
+      final service = YtDlpEngineService(
+        resolver: const _FakeResolverAvailable(),
+        ffmpegResolver: const _FakeFfmpegResolverAvailable(),
+        runner: runner,
+      );
+
+      await service.download(
+        url: 'https://youtube.com/watch?v=abc',
+        formatId: '999',
+        selectedFormatLabel: 'MP4',
+        selectedFormatIsVideoOnly: true,
+        outputTemplate: '/tmp/out.%(ext)s',
+        onProgress: (_) {},
+      );
+
+      expect(
+        runner.lastStartArguments,
+        containsAllInOrder([
+          '-f',
+          '999+bestaudio[ext=m4a]/999+ba[acodec^=mp4a]/999+140/999+139',
+        ]),
+      );
+    });
+
+    test('friendly message for format unavailable', () async {
+      final runner = _FakeRunner(
+        runResult: ProcessResult(1, 0, '{}', ''),
+        startExitCode: 1,
+        startStderrLines: const ['ERROR: Requested format is not available'],
+      );
+      final service = YtDlpEngineService(
+        resolver: const _FakeResolverAvailable(),
+        ffmpegResolver: const _FakeFfmpegResolverAvailable(),
+        runner: runner,
+      );
+
+      final result = await service.download(
+        url: 'https://youtube.com/watch?v=abc',
+        formatId: '137',
+        selectedFormatLabel: 'MP4',
+        outputTemplate: '/tmp/out.%(ext)s',
+        onProgress: (_) {},
+      );
+
+      expect(result.status, InternalDownloadStatus.failed);
+      expect(
+        result.message,
+        'Não foi possível encontrar áudio M4A/AAC compatível para gerar MP4.',
+      );
+    });
+
+    test('merge final path has priority over temporary destination', () async {
+      final runner = _FakeRunner(
+        runResult: ProcessResult(1, 0, '{}', ''),
+        startStdoutLines: const [
+          r'[download] Destination: C:\Downloads\ClipFlow\temp.f299.mp4',
+          '[Merger] Merging formats into "C:\\Downloads\\ClipFlow\\final.mp4"',
+          '[download]  42.0%',
+        ],
+      );
+      final service = YtDlpEngineService(
+        resolver: const _FakeResolverAvailable(),
+        ffmpegResolver: const _FakeFfmpegResolverAvailable(),
+        runner: runner,
+      );
+
+      final result = await service.download(
+        url: 'https://youtube.com/watch?v=abc',
+        formatId: '299',
+        selectedFormatLabel: 'MP4',
+        outputTemplate: '/tmp/out.%(ext)s',
+        onProgress: (_) {},
+      );
+
+      expect(result.status, InternalDownloadStatus.completed);
+      expect(result.outputPath, r'C:\Downloads\ClipFlow\final.mp4');
     });
 
     test('detects video-only option helper by detailsLabel', () {

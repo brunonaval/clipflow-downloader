@@ -16,7 +16,9 @@ import '../engine/download/internal_download_result.dart';
 import '../engine/download/internal_http_downloader.dart';
 import '../engine/download/download_output_planner.dart';
 import '../engine/download/completed_output_resolver.dart';
+import '../engine/download/output_directory_resolver.dart';
 import '../settings/app_preferences.dart';
+import '../settings/output_folder_choice.dart';
 import '../settings/preferences_dialog.dart';
 import '../system/system_file_opener.dart';
 import '../engine/youtube/youtube_url_parser.dart';
@@ -44,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final Map<String, InternalDownloadCancellation> _downloadCancellations = {};
   static const _httpDownloader = InternalHttpDownloader();
   static const _outputPlanner = DownloadOutputPlanner();
+  static const _outputDirectoryResolver = OutputDirectoryResolver();
   static const _completedOutputResolver = CompletedOutputResolver();
   static const _ytDlpEngine = YtDlpEngineService();
   static const _fileOpener = SystemFileOpener();
@@ -53,6 +56,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _downloadOptions = _downloadOptions.copyWith(
+      outputFolderLabel: _preferences.outputFolderChoice.label,
+    );
     _queueController = DownloadQueueController(
       initialItems: initialMockDownloadItems,
     );
@@ -327,7 +333,13 @@ class _HomeScreenState extends State<HomeScreen> {
       final fileName = (item.outputFileName?.trim().isNotEmpty ?? false)
           ? item.outputFileName!.trim()
           : 'clipflow-download.bin';
-      final outputPlan = await _outputPlanner.plan(requestedFileName: fileName);
+      final baseDirectory = await _outputDirectoryResolver.resolve(
+        _preferences.outputFolderChoice,
+      );
+      final outputPlan = await _outputPlanner.plan(
+        requestedFileName: fileName,
+        baseDirectory: baseDirectory,
+      );
       outputPath = outputPlan.file.path;
       outputDirectoryPath = outputPlan.directory.path;
       savedFileName = outputPlan.fileName;
@@ -350,9 +362,10 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       switch (result.status) {
         case InternalDownloadStatus.completed:
+          final outputFolderLabel = _preferences.outputFolderChoice.label;
           _queueController.markItemCompletedWithOutput(
             id: item.id,
-            message: 'Salvo em Downloads/ClipFlow',
+            message: 'Salvo em $outputFolderLabel/ClipFlow',
             outputPath: outputPath,
             outputDirectoryPath: outputDirectoryPath,
           );
@@ -419,7 +432,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final startedAt = DateTime.now();
 
     try {
-      final directory = _outputPlanner.defaultDownloadDirectory();
+      final directory = await _outputDirectoryResolver.resolve(
+        _preferences.outputFolderChoice,
+      );
       await directory.create(recursive: true);
       final directoryPath = directory.path;
       final baseName = _safeTitleAsFileBase(item.title);
@@ -461,9 +476,10 @@ class _HomeScreenState extends State<HomeScreen> {
           );
           if (!mounted) return;
           if (outputPath == null) {
+            final outputFolderLabel = _preferences.outputFolderChoice.label;
             _queueController.markItemCompletedWithDirectory(
               id: item.id,
-              message: 'Salvo em Downloads/ClipFlow',
+              message: 'Salvo em $outputFolderLabel/ClipFlow',
               outputDirectoryPath: directoryPath,
             );
             ScaffoldMessenger.of(context).showSnackBar(
@@ -478,7 +494,8 @@ class _HomeScreenState extends State<HomeScreen> {
           }
           _queueController.markItemCompletedWithOutput(
             id: item.id,
-            message: 'Salvo em Downloads/ClipFlow',
+            message:
+                'Salvo em ${_preferences.outputFolderChoice.label}/ClipFlow',
             outputPath: outputPath,
             outputDirectoryPath: directoryPath,
           );
@@ -576,7 +593,12 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (_) => PreferencesDialog(initialPreferences: _preferences),
     );
     if (!mounted || updated == null) return;
-    setState(() => _preferences = updated);
+    setState(() {
+      _preferences = updated;
+      _downloadOptions = _downloadOptions.copyWith(
+        outputFolderLabel: updated.outputFolderChoice.label,
+      );
+    });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Preferências atualizadas'),
@@ -656,7 +678,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openDownloadsRootFolder() async {
     try {
-      final directory = _outputPlanner.defaultDownloadDirectory();
+      final directory = await _outputDirectoryResolver.resolve(
+        _preferences.outputFolderChoice,
+      );
       await directory.create(recursive: true);
       await _fileOpener.openFolder(directory.path);
     } catch (_) {
@@ -707,11 +731,35 @@ class _HomeScreenState extends State<HomeScreen> {
                 formatLabel: value,
               ),
             ),
-            onOutputFolderChanged: (value) => setState(
-              () => _downloadOptions = _downloadOptions.copyWith(
-                outputFolderLabel: value,
-              ),
-            ),
+            onOutputFolderChanged: (value) => setState(() {
+              if (value == 'Navegar...') {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Escolha de pasta personalizada virá em rodada futura.',
+                    ),
+                    duration: Duration(milliseconds: 1400),
+                  ),
+                );
+                return;
+              }
+
+              final choice = switch (value) {
+                'Vídeos' => const OutputFolderChoice(
+                  type: OutputFolderType.videos,
+                  label: 'Vídeos',
+                ),
+                'Documentos' => const OutputFolderChoice(
+                  type: OutputFolderType.documents,
+                  label: 'Documentos',
+                ),
+                _ => OutputFolderChoice.downloads,
+              };
+              _preferences = _preferences.copyWith(outputFolderChoice: choice);
+              _downloadOptions = _downloadOptions.copyWith(
+                outputFolderLabel: choice.label,
+              );
+            }),
             onPaste: _handlePaste,
             onOpenPreferences: _openPreferencesDialog,
           ),
@@ -959,7 +1007,6 @@ class _Toolbar extends StatelessWidget {
                     options: const {
                       'V\u00eddeos': 'V\u00eddeos',
                       'Downloads': 'Downloads',
-                      'Imagens': 'Imagens',
                       'Documentos': 'Documentos',
                       'Navegar...': 'Navegar...',
                     },

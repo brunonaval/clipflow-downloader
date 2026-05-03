@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:clipflow_downloader/src/settings/app_preferences.dart';
+import 'package:clipflow_downloader/src/settings/output_folder_choice.dart';
 import 'package:clipflow_downloader/src/settings/preferences_dialog.dart';
 
 void main() {
@@ -42,7 +43,9 @@ void main() {
     expect(find.text('Mostrar formatos avançados'), findsOneWidget);
   });
 
-  testWidgets('altera switch e salva retorna AppPreferences', (tester) async {
+  testWidgets('seção downloads mostra pasta padrão e salva vídeos', (
+    tester,
+  ) async {
     AppPreferences? saved;
 
     await tester.pumpWidget(
@@ -72,14 +75,19 @@ void main() {
     await tester.tap(find.text('Downloads'));
     await tester.pump();
 
-    await tester.tap(find.byType(Switch).first);
-    await tester.pump();
+    expect(find.text('Pasta padrão'), findsOneWidget);
+
+    await tester.tap(find.byType(DropdownButton<String>).at(1));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Vídeos').last);
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Salvar'));
     await tester.pumpAndSettle();
 
     expect(saved, isNotNull);
-    expect(saved!.openFolderWhenDone, isTrue);
+    expect(saved!.outputFolderChoice.type, OutputFolderType.videos);
+    expect(saved!.outputFolderChoice.label, 'Vídeos');
   });
 
   testWidgets('cancelar fecha sem salvar', (tester) async {
