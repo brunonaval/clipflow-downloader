@@ -63,7 +63,9 @@ void main() {
         final line = lines[i];
         for (final token in forbiddenTokens) {
           if (line.contains(token)) {
-            findings.add('$relative:${i + 1}: token "${_safeTokenLabel(token)}"');
+            findings.add(
+              '$relative:${i + 1}: token "${_safeTokenLabel(token)}"',
+            );
           }
         }
         if (line.contains(String.fromCharCode(0xFEFF))) {
