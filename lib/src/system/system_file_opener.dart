@@ -48,7 +48,7 @@ class SystemFileOpener {
           arguments: [
             '-NoProfile',
             '-Command',
-            'Start-Process -LiteralPath \$args[0]',
+            'Invoke-Item -LiteralPath \$args[0]',
             path,
           ],
         );

@@ -42,25 +42,30 @@ void main() {
       expect(runner.arguments, [r'C:\Downloads\ClipFlow']);
     });
 
-    test('Windows open file monta explorer args', () async {
-      final runner = _FakeRunner();
-      final opener = SystemFileOpener(
-        runner: runner,
-        platformResolver: _FakePlatformResolver(SystemPlatform.windows),
-      );
+    test(
+      'Windows open file usa powershell Invoke-Item com LiteralPath',
+      () async {
+        final runner = _FakeRunner();
+        final opener = SystemFileOpener(
+          runner: runner,
+          platformResolver: _FakePlatformResolver(SystemPlatform.windows),
+        );
 
-      try {
-        await opener.openFile(r'C:\Downloads\ClipFlow\video.mp4');
-      } catch (_) {}
+        try {
+          await opener.openFile(r'C:\Downloads\ClipFlow\video.mp4');
+        } catch (_) {}
 
-      expect(runner.executable, 'powershell');
-      expect(runner.arguments, [
-        '-NoProfile',
-        '-Command',
-        'Start-Process -LiteralPath \$args[0]',
-        r'C:\Downloads\ClipFlow\video.mp4',
-      ]);
-    });
+        expect(runner.executable, 'powershell');
+        final args = runner.arguments!;
+        expect(args, hasLength(4));
+        expect(args[0], '-NoProfile');
+        expect(args[1], '-Command');
+        expect(args[2], contains('Invoke-Item'));
+        expect(args[2], contains('LiteralPath'));
+        expect(args[2], isNot(contains('Start-Process')));
+        expect(args.last, r'C:\Downloads\ClipFlow\video.mp4');
+      },
+    );
 
     test('Linux usa xdg-open', () async {
       final runner = _FakeRunner();
