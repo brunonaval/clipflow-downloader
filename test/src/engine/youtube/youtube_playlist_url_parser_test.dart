@@ -25,6 +25,18 @@ void main() {
       parser.playlistIdFrom('https://youtube.com/watch?v=abc&list=PL999'),
       isNull,
     );
+    expect(
+      parser.isWatchUrlWithPlaylist(
+        'https://youtube.com/watch?v=abc&list=PL999',
+      ),
+      isTrue,
+    );
+    expect(
+      parser.playlistUrlFromWatchUrl(
+        'https://youtube.com/watch?v=abc&list=PL999',
+      ),
+      'https://www.youtube.com/playlist?list=PL999',
+    );
   });
 
   test('video url without list is not playlist', () {
@@ -35,5 +47,7 @@ void main() {
   test('invalid url is not playlist', () {
     expect(parser.isPlaylistUrl('not-a-url'), isFalse);
     expect(parser.playlistIdFrom('not-a-url'), isNull);
+    expect(parser.isWatchUrlWithPlaylist('not-a-url'), isFalse);
+    expect(parser.playlistUrlFromWatchUrl('not-a-url'), isNull);
   });
 }

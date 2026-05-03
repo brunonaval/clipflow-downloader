@@ -36,6 +36,8 @@ import 'mock_download_item.dart';
 const _kGreen = Color(0xFF2E7D32);
 const _kDivider = Color(0xFFE0E0E0);
 
+enum _WatchPlaylistChoice { cancel, video, playlist }
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -143,55 +145,33 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final safeUrl = (url ?? '').trim();
     if (_isHttpUrl(safeUrl)) {
-      if (_playlistUrlParser.isPlaylistUrl(safeUrl)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Analisando playlist'),
-            duration: Duration(milliseconds: 1200),
-          ),
-        );
-        try {
-          final playlist = await _ytDlpEngine.analyzePlaylistUrl(safeUrl);
-          if (!mounted) return;
-          final selectedEntries = await showDialog<List<YtDlpPlaylistEntry>>(
-            context: context,
-            builder: (_) => PlaylistOptionsDialog(playlist: playlist),
+      var effectiveUrl = safeUrl;
+      if (_playlistUrlParser.isWatchUrlWithPlaylist(safeUrl)) {
+        final choice = await _showWatchPlaylistChoiceDialog();
+        if (!mounted) return;
+        if (choice == _WatchPlaylistChoice.cancel) {
+          _queueController.removeItem(addedItem.id);
+          setState(() {});
+          return;
+        }
+        if (choice == _WatchPlaylistChoice.playlist) {
+          final playlistUrl = _playlistUrlParser.playlistUrlFromWatchUrl(
+            safeUrl,
           );
-          if (!mounted) return;
-          if (selectedEntries == null || selectedEntries.isEmpty) {
-            _queueController.removeItem(addedItem.id);
-            setState(() {});
+          if (playlistUrl != null) {
+            await _handlePlaylistUrl(playlistUrl, addedItem);
             return;
           }
-          _queueController.removeItem(addedItem.id);
-          final added = _queueController.addPlaylistEntries(
-            entries: selectedEntries,
-            transferType: _downloadOptions.transferType,
-            formatLabel: _downloadOptions.formatLabel,
-            qualityLabel: _downloadOptions.qualityLabel,
-            outputFolderLabel: _downloadOptions.outputFolderLabel,
-          );
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Vídeos adicionados à fila: ${added.length}'),
-              duration: const Duration(milliseconds: 1400),
-            ),
-          );
-        } catch (error) {
-          if (!mounted) return;
-          _queueController.markItemFailed(
-            addedItem.id,
-            error is YtDlpEngineException
-                ? error.message
-                : 'Falha ao analisar playlist.',
-          );
-          setState(() {});
+        } else {
+          effectiveUrl = safeUrl;
         }
+      }
+      if (_playlistUrlParser.isPlaylistUrl(effectiveUrl)) {
+        await _handlePlaylistUrl(effectiveUrl, addedItem);
         return;
       }
 
-      if (_youtubeUrlParser.isYouTubeUrl(safeUrl)) {
+      if (_youtubeUrlParser.isYouTubeUrl(effectiveUrl)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Análise do YouTube iniciada'),
@@ -200,7 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
 
         try {
-          final result = await _ytDlpEngine.analyzeUrl(safeUrl);
+          final result = await _ytDlpEngine.analyzeUrl(effectiveUrl);
           if (!mounted) return;
 
           final updated = _queueController.applyYtDlpAnalysis(
@@ -334,6 +314,89 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     });
+  }
+
+  Future<void> _handlePlaylistUrl(
+    String playlistUrl,
+    DownloadItem addedItem,
+  ) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Analisando playlist'),
+        duration: Duration(milliseconds: 1200),
+      ),
+    );
+    try {
+      final playlist = await _ytDlpEngine.analyzePlaylistUrl(playlistUrl);
+      if (!mounted) return;
+      final selectedEntries = await showDialog<List<YtDlpPlaylistEntry>>(
+        context: context,
+        builder: (_) => PlaylistOptionsDialog(playlist: playlist),
+      );
+      if (!mounted) return;
+      if (selectedEntries == null || selectedEntries.isEmpty) {
+        _queueController.removeItem(addedItem.id);
+        setState(() {});
+        return;
+      }
+      _queueController.removeItem(addedItem.id);
+      final added = _queueController.addPlaylistEntries(
+        entries: selectedEntries,
+        transferType: _downloadOptions.transferType,
+        formatLabel: _downloadOptions.formatLabel,
+        qualityLabel: _downloadOptions.qualityLabel,
+        outputFolderLabel: _downloadOptions.outputFolderLabel,
+      );
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Vídeos adicionados à fila: ${added.length}'),
+          duration: const Duration(milliseconds: 1400),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      _queueController.markItemFailed(
+        addedItem.id,
+        error is YtDlpEngineException
+            ? error.message
+            : 'Falha ao analisar playlist.',
+      );
+      setState(() {});
+    }
+  }
+
+  Future<_WatchPlaylistChoice> _showWatchPlaylistChoiceDialog() async {
+    final choice = await showDialog<_WatchPlaylistChoice>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Link com playlist'),
+        content: const Text(
+          'Este link contém um vídeo dentro de uma playlist. O que deseja baixar?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context, _WatchPlaylistChoice.cancel);
+            },
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context, _WatchPlaylistChoice.video);
+            },
+            child: const Text('Vídeo atual'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context, _WatchPlaylistChoice.playlist);
+            },
+            child: const Text('Playlist inteira'),
+          ),
+        ],
+      ),
+    );
+    return choice ?? _WatchPlaylistChoice.cancel;
   }
 
   bool _isHttpUrl(String value) {
