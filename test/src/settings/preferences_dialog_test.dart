@@ -41,6 +41,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Mostrar formatos avançados'), findsOneWidget);
+    expect(find.text('Transferências simultâneas'), findsOneWidget);
   });
 
   testWidgets('seção downloads mostra pasta padrão e salva vídeos', (
@@ -77,7 +78,7 @@ void main() {
 
     expect(find.text('Pasta padrão'), findsOneWidget);
 
-    await tester.tap(find.byType(DropdownButton<String>).at(1));
+    await tester.tap(find.byType(DropdownButton<String>).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Vídeos').last);
     await tester.pumpAndSettle();
@@ -159,5 +160,52 @@ void main() {
 
     expect(saved, isNotNull);
     expect(saved!.smartModeEnabled, isTrue);
+  });
+
+  testWidgets('avançado altera transferências simultâneas e mostra risco', (
+    tester,
+  ) async {
+    AppPreferences? saved;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () async {
+                final result = await showDialog<AppPreferences>(
+                  context: context,
+                  builder: (_) => const PreferencesDialog(
+                    initialPreferences: AppPreferences.defaults,
+                  ),
+                );
+                saved = result;
+              },
+              child: const Text('Abrir'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Abrir'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Avançado'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Transferências simultâneas'), findsOneWidget);
+    expect(find.textContaining('Ideal'), findsWidgets);
+    expect(find.textContaining('Arriscado'), findsWidgets);
+
+    final slider = tester.widget<Slider>(find.byType(Slider));
+    slider.onChanged?.call(3);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Salvar'));
+    await tester.pumpAndSettle();
+
+    expect(saved, isNotNull);
+    expect(saved!.simultaneousDownloads, 6);
   });
 }

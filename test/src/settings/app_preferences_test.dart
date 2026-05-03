@@ -28,7 +28,7 @@ void main() {
     final updated = prefs.copyWith(
       languageLabel: 'Português',
       themeLabel: 'Escuro',
-      simultaneousDownloads: 3,
+      simultaneousDownloads: 4,
       showAdvancedFormats: true,
       smartModeEnabled: true,
       outputFolderChoice: const OutputFolderChoice(
@@ -39,7 +39,7 @@ void main() {
 
     expect(updated.languageLabel, 'Português');
     expect(updated.themeLabel, 'Escuro');
-    expect(updated.simultaneousDownloads, 3);
+    expect(updated.simultaneousDownloads, 4);
     expect(updated.showAdvancedFormats, isTrue);
     expect(updated.smartModeEnabled, isTrue);
     expect(updated.outputFolderChoice.type, OutputFolderType.videos);
@@ -48,5 +48,11 @@ void main() {
       updated.notifyWhenDownloadCompletes,
       prefs.notifyWhenDownloadCompletes,
     );
+  });
+
+  test('allowed simultaneous values include expected ladder', () {
+    expect(AppPreferences.allowedSimultaneousDownloads, [1, 2, 4, 6, 8]);
+    expect(AppPreferences.simultaneousDownloadsRiskLabel(6), 'Ideal');
+    expect(AppPreferences.simultaneousDownloadsRiskLabel(8), 'Arriscado');
   });
 }

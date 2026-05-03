@@ -1,6 +1,8 @@
 import 'output_folder_choice.dart';
 
 class AppPreferences {
+  static const List<int> allowedSimultaneousDownloads = [1, 2, 4, 6, 8];
+
   final String languageLabel;
   final String themeLabel;
   final bool openFolderWhenDone;
@@ -79,5 +81,15 @@ class AppPreferences {
       smartModeEnabled: smartModeEnabled ?? this.smartModeEnabled,
       outputFolderChoice: outputFolderChoice ?? this.outputFolderChoice,
     );
+  }
+
+  static String simultaneousDownloadsRiskLabel(int value) {
+    return switch (value) {
+      1 || 2 => 'Seguro',
+      4 => 'Estável',
+      6 => 'Ideal',
+      8 => 'Arriscado',
+      _ => 'Seguro',
+    };
   }
 }

@@ -101,13 +101,15 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
   Widget _buildSectionContent() {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: switch (_section) {
-        PreferencesSection.general => _generalSection(),
-        PreferencesSection.downloads => _downloadsSection(),
-        PreferencesSection.engine => _engineSection(),
-        PreferencesSection.notifications => _notificationsSection(),
-        PreferencesSection.advanced => _advancedSection(),
-      },
+      child: SingleChildScrollView(
+        child: switch (_section) {
+          PreferencesSection.general => _generalSection(),
+          PreferencesSection.downloads => _downloadsSection(),
+          PreferencesSection.engine => _engineSection(),
+          PreferencesSection.notifications => _notificationsSection(),
+          PreferencesSection.advanced => _advancedSection(),
+        },
+      ),
     );
   }
 
@@ -161,17 +163,6 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 16),
-        _dropdownRow(
-          label: 'Transferências simultâneas',
-          value: _preferences.simultaneousDownloads.toString(),
-          options: const ['1', '2', '3'],
-          onChanged: (value) => setState(
-            () => _preferences = _preferences.copyWith(
-              simultaneousDownloads: int.parse(value),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
         _dropdownRow(
           label: 'Pasta padrão',
           value: _preferences.outputFolderChoice.label,
@@ -278,6 +269,9 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
   }
 
   Widget _advancedSection() {
+    final allowed = AppPreferences.allowedSimultaneousDownloads;
+    final rawIndex = allowed.indexOf(_preferences.simultaneousDownloads);
+    final selectedIndex = rawIndex < 0 ? 0 : rawIndex;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -286,6 +280,45 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 16),
+        const Text(
+          'Transferências simultâneas',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        Slider(
+          value: selectedIndex.toDouble(),
+          min: 0,
+          max: (allowed.length - 1).toDouble(),
+          divisions: allowed.length - 1,
+          label:
+              '${allowed[selectedIndex]} ${AppPreferences.simultaneousDownloadsRiskLabel(allowed[selectedIndex])}',
+          onChanged: (value) {
+            final index = value.round().clamp(0, allowed.length - 1);
+            setState(() {
+              _preferences = _preferences.copyWith(
+                simultaneousDownloads: allowed[index],
+              );
+            });
+          },
+        ),
+        Wrap(
+          spacing: 10,
+          runSpacing: 4,
+          children: allowed
+              .map(
+                (value) => Text(
+                  '$value ${AppPreferences.simultaneousDownloadsRiskLabel(value)}',
+                  style: const TextStyle(fontSize: 12, color: Colors.black87),
+                ),
+              )
+              .toList(),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'A alta intensidade pode aumentar o desempenho global da transferência, mas também pode causar falhas temporárias ou bloqueios do YouTube.',
+          style: TextStyle(color: Colors.black54),
+        ),
+        const SizedBox(height: 12),
         SwitchListTile(
           title: const Text('Impedir suspensão enquanto baixa'),
           value: _preferences.keepSystemAwakeWhileDownloading,
