@@ -26,6 +26,15 @@ void main() {
     expect(find.text('Abrir pasta de downloads'), findsOneWidget);
   });
 
+  testWidgets('item concluído com outputPath exibe abrir arquivo', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ClipFlowApp());
+
+    expect(find.byTooltip('Abrir arquivo'), findsWidgets);
+    expect(find.byTooltip('Abrir pasta'), findsWidgets);
+  });
+
   testWidgets('opens internal engine dialog from status bar', (
     WidgetTester tester,
   ) async {

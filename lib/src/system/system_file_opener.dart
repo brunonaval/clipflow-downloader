@@ -16,8 +16,8 @@ class SystemFileOpener {
     if (trimmed.isEmpty) {
       throw ArgumentError('Path vazio para abrir arquivo.');
     }
-    final command = _commandForCurrentPlatform();
-    await _runner.start(command, [trimmed]);
+    final launch = _fileCommandForCurrentPlatform(trimmed);
+    await _runner.start(launch.executable, launch.arguments);
   }
 
   Future<void> openFolder(String path) async {
@@ -39,6 +39,32 @@ class SystemFileOpener {
         return 'xdg-open';
     }
   }
+
+  _SystemLaunch _fileCommandForCurrentPlatform(String path) {
+    switch (_platformResolver.current()) {
+      case SystemPlatform.windows:
+        return _SystemLaunch(
+          executable: 'powershell',
+          arguments: [
+            '-NoProfile',
+            '-Command',
+            'Start-Process -LiteralPath \$args[0]',
+            path,
+          ],
+        );
+      case SystemPlatform.macos:
+        return _SystemLaunch(executable: 'open', arguments: [path]);
+      case SystemPlatform.linux:
+        return _SystemLaunch(executable: 'xdg-open', arguments: [path]);
+    }
+  }
+}
+
+class _SystemLaunch {
+  final String executable;
+  final List<String> arguments;
+
+  const _SystemLaunch({required this.executable, required this.arguments});
 }
 
 enum SystemPlatform { windows, macos, linux }

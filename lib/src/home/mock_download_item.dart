@@ -14,6 +14,8 @@ final initialMockDownloadItems = <DownloadItem>[
     transferType: DownloadTransferType.video,
     status: DownloadStatus.completed,
     progress: 1.0,
+    outputPath: r'C:\Downloads\ClipFlow\aula-violao.mp4',
+    outputDirectoryPath: r'C:\Downloads\ClipFlow',
   ),
   DownloadItem(
     id: 'mock-2',
@@ -27,6 +29,7 @@ final initialMockDownloadItems = <DownloadItem>[
     transferType: DownloadTransferType.video,
     status: DownloadStatus.completed,
     progress: 1.0,
+    outputDirectoryPath: r'C:\Downloads\ClipFlow',
   ),
   DownloadItem(
     id: 'mock-3',

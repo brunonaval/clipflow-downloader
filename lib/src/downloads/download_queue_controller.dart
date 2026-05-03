@@ -315,7 +315,7 @@ class DownloadQueueController {
   DownloadItem? markItemCompletedWithOutput({
     required String id,
     required String message,
-    required String outputPath,
+    String? outputPath,
     required String outputDirectoryPath,
   }) {
     final index = _indexOf(id);

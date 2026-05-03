@@ -53,8 +53,13 @@ void main() {
         await opener.openFile(r'C:\Downloads\ClipFlow\video.mp4');
       } catch (_) {}
 
-      expect(runner.executable, 'explorer');
-      expect(runner.arguments, [r'C:\Downloads\ClipFlow\video.mp4']);
+      expect(runner.executable, 'powershell');
+      expect(runner.arguments, [
+        '-NoProfile',
+        '-Command',
+        'Start-Process -LiteralPath \$args[0]',
+        r'C:\Downloads\ClipFlow\video.mp4',
+      ]);
     });
 
     test('Linux usa xdg-open', () async {
@@ -85,6 +90,17 @@ void main() {
 
       expect(runner.executable, 'open');
       expect(runner.arguments, ['/Users/user/Downloads/ClipFlow/video.mp4']);
+    });
+
+    test('path vazio lança ArgumentError', () async {
+      final runner = _FakeRunner();
+      final opener = SystemFileOpener(
+        runner: runner,
+        platformResolver: _FakePlatformResolver(SystemPlatform.windows),
+      );
+
+      expect(() => opener.openFile('   '), throwsArgumentError);
+      expect(() => opener.openFolder('   '), throwsArgumentError);
     });
   });
 }

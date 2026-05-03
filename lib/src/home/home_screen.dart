@@ -446,9 +446,29 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       switch (result.status) {
         case InternalDownloadStatus.completed:
-          final outputPath =
-              result.outputPath ??
-              '$directoryPath${Platform.pathSeparator}$baseName.%(ext)s';
+          final outputPath = await _resolveYtDlpCompletedOutputPath(
+            reportedPath: result.outputPath,
+            outputDirectoryPath: directoryPath,
+            baseName: baseName,
+          );
+          if (!mounted) return;
+          if (outputPath == null) {
+            _queueController.markItemCompletedWithOutput(
+              id: item.id,
+              message: 'Salvo em Downloads/ClipFlow',
+              outputPath: null,
+              outputDirectoryPath: directoryPath,
+            );
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Download concluído, mas o arquivo final não foi localizado automaticamente.',
+                ),
+                duration: Duration(seconds: 2),
+              ),
+            );
+            break;
+          }
           _queueController.markItemCompletedWithOutput(
             id: item.id,
             message: 'Salvo em Downloads/ClipFlow',
@@ -545,7 +565,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openDownloadedFile(DownloadItem item) async {
     final outputPath = item.outputPath?.trim() ?? '';
-    if (outputPath.isEmpty) return;
+    if (outputPath.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Arquivo não encontrado. Abra a pasta de downloads.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    if (!await File(outputPath).exists()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Arquivo não encontrado. Abra a pasta de downloads.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
     try {
       await _fileOpener.openFile(outputPath);
     } catch (_) {
@@ -563,6 +602,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final outputDirectoryPath = item.outputDirectoryPath?.trim() ?? '';
     if (outputDirectoryPath.isEmpty) return;
     try {
+      final directory = Directory(outputDirectoryPath);
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
+      }
       await _fileOpener.openFolder(outputDirectoryPath);
     } catch (_) {
       if (!mounted) return;
@@ -573,6 +616,38 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
+  }
+
+  Future<String?> _resolveYtDlpCompletedOutputPath({
+    required String? reportedPath,
+    required String outputDirectoryPath,
+    required String baseName,
+  }) async {
+    final safeReported = (reportedPath ?? '').trim();
+    if (safeReported.isNotEmpty &&
+        !safeReported.contains('%(ext)s') &&
+        await File(safeReported).exists()) {
+      return safeReported;
+    }
+
+    final directory = Directory(outputDirectoryPath);
+    if (!await directory.exists()) return null;
+
+    File? latestMatch;
+    DateTime? latestTime;
+    await for (final entity in directory.list(followLinks: false)) {
+      if (entity is! File) continue;
+      final name = entity.uri.pathSegments.isNotEmpty
+          ? entity.uri.pathSegments.last
+          : '';
+      if (!name.startsWith(baseName)) continue;
+      final stat = await entity.stat();
+      if (latestTime == null || stat.modified.isAfter(latestTime)) {
+        latestTime = stat.modified;
+        latestMatch = entity;
+      }
+    }
+    return latestMatch?.path;
   }
 
   Future<void> _openDownloadsRootFolder() async {
