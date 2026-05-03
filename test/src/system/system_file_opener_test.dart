@@ -42,28 +42,25 @@ void main() {
       expect(runner.arguments, [r'C:\Downloads\ClipFlow']);
     });
 
-    test(
-      'Windows open file usa powershell Invoke-Item com LiteralPath',
-      () async {
-        final runner = _FakeRunner();
-        final opener = SystemFileOpener(
-          runner: runner,
-          platformResolver: _FakePlatformResolver(SystemPlatform.windows),
-        );
+    test('Windows open file usa cmd start', () async {
+      final runner = _FakeRunner();
+      final opener = SystemFileOpener(
+        runner: runner,
+        platformResolver: _FakePlatformResolver(SystemPlatform.windows),
+      );
 
-        try {
-          await opener.openFile(r'C:\Downloads\ClipFlow\video.mp4');
-        } catch (_) {}
+      try {
+        await opener.openFile(r'C:\Downloads\ClipFlow\video.mp4');
+      } catch (_) {}
 
-        expect(runner.executable, 'cmd.exe');
-        expect(runner.arguments, [
+      expect(runner.executable, 'cmd.exe');
+      expect(runner.arguments, [
         '/c',
         'start',
         '',
-        r'C:\\Downloads\\ClipFlow\\video.mp4',
+        r'C:\Downloads\ClipFlow\video.mp4',
       ]);
-      },
-    );
+    });
 
     test('Linux usa xdg-open', () async {
       final runner = _FakeRunner();
