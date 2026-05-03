@@ -39,7 +39,7 @@ class YtDlpEngineService {
     final executable = await _resolver.resolve();
     if (executable == null) {
       throw const YtDlpEngineException(
-        'yt-dlp n\u00e3o dispon\u00edvel no sistema ou em tools/yt-dlp.exe.',
+        'yt-dlp não disponível no sistema ou em tools/yt-dlp.exe.',
       );
     }
 
@@ -85,7 +85,7 @@ class YtDlpEngineService {
       final errorText = _shortError(result.stderr, result.stdout);
       throw YtDlpEngineException('Falha na análise do yt-dlp: $errorText');
     } else {
-      throw const YtDlpEngineException('yt-dlp n\u00e3o retornou metadados.');
+      throw const YtDlpEngineException('yt-dlp não retornou metadados.');
     }
 
     if (decoded is! Map<String, dynamic>) {
@@ -118,8 +118,7 @@ class YtDlpEngineService {
     if (executable == null) {
       return const InternalDownloadResult(
         status: InternalDownloadStatus.failed,
-        message:
-            'yt-dlp n\u00e3o dispon\u00edvel no sistema ou em tools/yt-dlp.exe.',
+        message: 'yt-dlp não disponível no sistema ou em tools/yt-dlp.exe.',
         receivedBytes: 0,
       );
     }
@@ -133,7 +132,7 @@ class YtDlpEngineService {
       );
     }
 
-    final selectedIsVideoOnly = _formatIdLooksVideoOnly(formatId);
+    final selectedIsVideoOnly = _isVideoOnlyFormatId(formatId);
     final ffmpegExecutable = await _ffmpegResolver.resolve();
     if (selectedIsVideoOnly && ffmpegExecutable == null) {
       return const InternalDownloadResult(
@@ -148,9 +147,7 @@ class YtDlpEngineService {
       '--newline',
       '--no-playlist',
       '-f',
-      selectedIsVideoOnly
-          ? '${_rawFormatId(formatId)}+bestaudio/best'
-          : formatId,
+      selectedIsVideoOnly ? '$formatId+bestaudio/best' : formatId,
       if (selectedIsVideoOnly) ...const ['--merge-output-format', 'mp4'],
       if (ffmpegExecutable != null) ...[
         '--ffmpeg-location',
@@ -273,7 +270,42 @@ class YtDlpEngineService {
   }
 
   static bool formatNeedsFfmpeg(String formatId) {
-    return _formatIdLooksVideoOnly(formatId);
+    return _isVideoOnlyFormatId(formatId);
+  }
+
+  static bool _isVideoOnlyFormatId(String formatId) {
+    const directVideoOnlyIds = <String>{
+      '133',
+      '134',
+      '135',
+      '136',
+      '137',
+      '138',
+      '160',
+      '212',
+      '264',
+      '266',
+      '271',
+      '272',
+      '278',
+      '298',
+      '299',
+      '302',
+      '303',
+      '308',
+      '313',
+      '315',
+      '394',
+      '395',
+      '396',
+      '397',
+      '398',
+      '399',
+      '400',
+      '401',
+      '402',
+    };
+    return directVideoOnlyIds.contains(formatId.trim());
   }
 
   List<DownloadFormatOption> _mapFormats(Map<String, dynamic> json) {
@@ -310,9 +342,6 @@ class YtDlpEngineService {
 
       final quality = _qualityLabel(map, hasVideo);
       final size = _sizeLabel(map['filesize'] ?? map['filesize_approx']);
-      final optionId = category == _YtDlpFormatCategory.videoOnly
-          ? '$formatId-video-only'
-          : formatId;
 
       final label = switch (category) {
         _YtDlpFormatCategory.muxed => 'Vídeo $ext $quality',
@@ -337,7 +366,7 @@ class YtDlpEngineService {
 
       mapped.add(
         DownloadFormatOption(
-          id: optionId,
+          id: formatId,
           kind: kind,
           label: label,
           formatLabel: ext,
@@ -467,14 +496,6 @@ class YtDlpEngineService {
     final stdoutText = stdout?.toString().trim() ?? '';
     if (stdoutText.isNotEmpty) return stdoutText.split('\n').last.trim();
     return 'erro desconhecido';
-  }
-
-  static String _rawFormatId(String formatId) {
-    return formatId.replaceFirst('-video-only', '');
-  }
-
-  static bool _formatIdLooksVideoOnly(String formatId) {
-    return formatId.endsWith('-video-only');
   }
 
   static String _ffmpegLocationArgument(String ffmpegPath) {

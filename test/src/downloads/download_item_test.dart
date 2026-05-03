@@ -15,11 +15,11 @@ void main() {
         formatLabel: 'MP4',
         qualityLabel: '480p',
         fpsLabel: '25fps',
-        sourceLabel: 'Conteúdo autorizado',
+        sourceLabel: 'ConteÃºdo autorizado',
       );
       expect(
         item.metadataLabel,
-        '03:03 · 15,7 MB · MP4 · 480p · 25fps · Conteúdo autorizado',
+        '03:03 Â· 15,7 MB Â· MP4 Â· 480p Â· 25fps Â· ConteÃºdo autorizado',
       );
     });
 
@@ -112,11 +112,11 @@ void main() {
           DownloadFormatOption(
             id: 'audio-m4a',
             kind: DownloadFormatKind.audio,
-            label: 'Áudio M4A',
+            label: 'Ãudio M4A',
             formatLabel: 'M4A',
-            qualityLabel: 'Áudio',
+            qualityLabel: 'Ãudio',
             sizeLabel: '5 MB',
-            detailsLabel: 'Somente áudio',
+            detailsLabel: 'Somente Ã¡udio',
           ),
         ],
       );
@@ -156,12 +156,12 @@ void main() {
 
       final copied = item.copyWith(
         commandPreviewLabel:
-            'Motor interno --format video-mp4-1080p https://example.com',
+            'Plano mock interno video-mp4-1080p https://example.com',
       );
 
       expect(
         copied.commandPreviewLabel,
-        'Motor interno --format video-mp4-1080p https://example.com',
+        'Plano mock interno video-mp4-1080p https://example.com',
       );
     });
 
@@ -270,7 +270,7 @@ void main() {
         DownloadStatus.ready: 'Pronto',
         DownloadStatus.downloading: 'Baixando',
         DownloadStatus.paused: 'Pausado',
-        DownloadStatus.completed: 'Concluído',
+        DownloadStatus.completed: 'ConcluÃ­do',
         DownloadStatus.failed: 'Falhou',
         DownloadStatus.canceled: 'Cancelado',
       };

@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -122,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (_youtubeUrlParser.isYouTubeUrl(safeUrl)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Análise do YouTube iniciada'),
+            content: Text('AnÃ¡lise do YouTube iniciada'),
             duration: Duration(milliseconds: 1200),
           ),
         );
@@ -144,7 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
             setState(() {});
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Análise yt-dlp concluída'),
+                content: Text('AnÃ¡lise yt-dlp concluÃ­da'),
                 duration: Duration(milliseconds: 1200),
               ),
             );
@@ -177,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() {});
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Usando análise interna limitada para YouTube'),
+              content: Text('Usando anÃ¡lise interna limitada para YouTube'),
               duration: Duration(milliseconds: 1200),
             ),
           );
@@ -345,7 +345,7 @@ class _HomeScreenState extends State<HomeScreen> {
           );
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Download concluído: $savedFileName'),
+              content: Text('Download concluÃ­do: $savedFileName'),
               duration: const Duration(seconds: 2),
             ),
           );
@@ -385,23 +385,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final isVideoOnly = YtDlpEngineService.isVideoOnlyOption(selectedFormat);
     if (isVideoOnly) {
       final ffmpeg = await _ytDlpEngine.resolveFfmpeg();
-      if (ffmpeg == null) {
-        const message =
-            'Este formato tem vídeo sem áudio. Instale FFmpeg em uma próxima etapa para juntar áudio e vídeo.';
-        _queueController.markItemFailed(item.id, message);
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(message),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-        return;
-      }
-
-      if (mounted) {
+      if (ffmpeg != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Baixando vídeo e áudio para merge com FFmpeg.'),
@@ -410,7 +394,6 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     }
-
     final sourceUrl = (item.sourceUrl ?? '').trim();
     if (sourceUrl.isEmpty) {
       _queueController.markItemFailed(item.id, 'URL ausente para download.');
@@ -450,7 +433,7 @@ class _HomeScreenState extends State<HomeScreen> {
           );
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Download concluído em Downloads/ClipFlow'),
+              content: Text('Download concluÃ­do em Downloads/ClipFlow'),
               duration: Duration(seconds: 2),
             ),
           );

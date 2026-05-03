@@ -86,8 +86,8 @@ class DownloadQueueController {
     String? sourceUrl,
     DownloadTransferType transferType = DownloadTransferType.video,
     String formatLabel = 'MP4',
-    String qualityLabel = 'Ótima',
-    String outputFolderLabel = 'Vídeos',
+    String qualityLabel = 'Ã“tima',
+    String outputFolderLabel = 'VÃ­deos',
     DownloadStatus status = DownloadStatus.queued,
   }) {
     final currentNumber = _nextMockItemNumber;
@@ -102,7 +102,7 @@ class DownloadQueueController {
       formatLabel: formatLabel,
       qualityLabel: qualityLabel,
       fpsLabel: '--fps',
-      sourceLabel: 'Aguardando análise · $outputFolderLabel',
+      sourceLabel: 'Aguardando anÃ¡lise Â· $outputFolderLabel',
       transferType: transferType,
       status: status,
       progress: 0,
@@ -164,7 +164,7 @@ class DownloadQueueController {
 
   DownloadItem? markItemReadyAfterInternalAnalysis({
     required String id,
-    String outputFolderLabel = 'Vídeos',
+    String outputFolderLabel = 'VÃ­deos',
   }) {
     final index = _indexOf(id);
     if (index < 0) return null;
@@ -212,7 +212,7 @@ class DownloadQueueController {
 
   Future<DownloadItem?> markItemReadyAfterYouTubeMetadataAnalysis({
     required String id,
-    String outputFolderLabel = 'Vídeos',
+    String outputFolderLabel = 'VÃ­deos',
   }) async {
     final index = _indexOf(id);
     if (index < 0) return null;
@@ -274,7 +274,11 @@ class DownloadQueueController {
       directDownloadUrl: null,
       outputFileName: null,
     );
-    return _replaceAt(index, updated);
+    final preview = _buildYtDlpPreview(
+      selectedFormatId: updated.selectedFormatId,
+      formats: updated.availableFormats,
+    );
+    return _replaceAt(index, updated.copyWith(commandPreviewLabel: preview));
   }
 
   DownloadItem? updateItemProgress(String id, double progress) {
@@ -327,7 +331,17 @@ class DownloadQueueController {
     final exists = item.availableFormats.any((f) => f.id == formatId);
     if (!exists) return null;
 
-    final updated = item.copyWith(selectedFormatId: formatId);
+    String? preview = item.commandPreviewLabel;
+    if (item.isYouTubeSource) {
+      preview = _buildYtDlpPreview(
+        selectedFormatId: formatId,
+        formats: item.availableFormats,
+      );
+    }
+    final updated = item.copyWith(
+      selectedFormatId: formatId,
+      commandPreviewLabel: preview,
+    );
     return _replaceAt(index, updated);
   }
 
@@ -352,7 +366,7 @@ class DownloadQueueController {
 
   DownloadItem? attachMockCommandPreview({
     required String itemId,
-    String outputFolderLabel = 'Vídeos',
+    String outputFolderLabel = 'VÃ­deos',
   }) {
     final index = _indexOf(itemId);
     if (index < 0) return null;
@@ -366,6 +380,14 @@ class DownloadQueueController {
       return f.id == item.selectedFormatId;
     }).toList();
     if (selected.isEmpty) return null;
+    if (item.isYouTubeSource) {
+      final preview = _buildYtDlpPreview(
+        selectedFormatId: item.selectedFormatId,
+        formats: item.availableFormats,
+      );
+      final updated = item.copyWith(commandPreviewLabel: preview);
+      return _replaceAt(index, updated);
+    }
 
     final sourceUrl = (item.sourceUrl?.trim().isNotEmpty ?? false)
         ? item.sourceUrl!.trim()
@@ -454,9 +476,9 @@ class DownloadQueueController {
   int _indexOf(String id) => _items.indexWhere((item) => item.id == id);
 
   String _extractOutputFolderFromSource(String sourceLabel) {
-    const separator = '·';
+    const separator = 'Â·';
     final index = sourceLabel.lastIndexOf(separator);
-    if (index < 0 || index == sourceLabel.length - 1) return 'Vídeos';
+    if (index < 0 || index == sourceLabel.length - 1) return 'VÃ­deos';
     return sourceLabel.substring(index + 1).trim();
   }
 
@@ -475,5 +497,19 @@ class DownloadQueueController {
   DownloadItem _replaceAt(int index, DownloadItem updated) {
     _items[index] = updated;
     return updated;
+  }
+
+  String? _buildYtDlpPreview({
+    required String? selectedFormatId,
+    required List<DownloadFormatOption> formats,
+  }) {
+    if (selectedFormatId == null || selectedFormatId.isEmpty) return null;
+    final selected = formats.where((f) => f.id == selectedFormatId).toList();
+    if (selected.isEmpty) return null;
+    final format = selected.first;
+    if (format.detailsLabel.contains('[video-only]')) {
+      return 'yt-dlp -f ${format.id}+bestaudio/best · merge MP4 com FFmpeg';
+    }
+    return 'yt-dlp -f ${format.id}';
   }
 }
