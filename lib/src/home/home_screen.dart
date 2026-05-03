@@ -427,6 +427,7 @@ class _HomeScreenState extends State<HomeScreen> {
         url: sourceUrl,
         formatId: selectedFormat.id,
         selectedFormatLabel: selectedFormat.formatLabel,
+        selectedFormatIsVideoOnly: isVideoOnly,
         outputTemplate: outputTemplate,
         cancellation: cancellation,
         onLogLine: (line) {

@@ -111,6 +111,7 @@ class YtDlpEngineService {
     required String url,
     required String formatId,
     String? selectedFormatLabel,
+    bool selectedFormatIsVideoOnly = false,
     required String outputTemplate,
     required void Function(InternalDownloadProgress progress) onProgress,
     void Function(String line)? onLogLine,
@@ -134,7 +135,8 @@ class YtDlpEngineService {
       );
     }
 
-    final selectedIsVideoOnly = _isVideoOnlyFormatId(formatId);
+    final selectedIsVideoOnly =
+        selectedFormatIsVideoOnly || _isVideoOnlyFormatId(formatId);
     final isMp4VideoOnly =
         selectedIsVideoOnly &&
         (selectedFormatLabel?.trim().toUpperCase() ?? '') == 'MP4';
