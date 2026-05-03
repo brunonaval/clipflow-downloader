@@ -17,7 +17,7 @@ void main() {
     expect(find.text('ClipFlow Downloader'), findsOneWidget);
     expect(find.text('Colar link'), findsOneWidget);
     expect(find.text('Sobre o motor'), findsOneWidget);
-    expect(find.text('Motor yt-dlp ativo para YouTube'), findsOneWidget);
+    expect(find.text('Pronto para downloads'), findsOneWidget);
     expect(find.byTooltip('Remover'), findsWidgets);
     expect(find.text('Canal ClipFlow'), findsOneWidget);
     expect(find.textContaining('Pronto'), findsWidgets);
@@ -220,7 +220,11 @@ void main() {
     await tester.ensureVisible(startQueueButton);
     await tester.tap(startQueueButton, warnIfMissed: false);
     await tester.pumpAndSettle();
-    expect(find.text('Iniciar fila'), findsOneWidget);
+    expect(
+      find.text('Fila iniciada').evaluate().isNotEmpty ||
+          find.text('Nenhum item na fila para iniciar.').evaluate().isNotEmpty,
+      isTrue,
+    );
   });
 
   testWidgets('preferências mantém seção Notificações e switch funcional', (

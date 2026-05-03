@@ -38,6 +38,8 @@ const _kDivider = Color(0xFFE0E0E0);
 
 enum _WatchPlaylistChoice { cancel, video, playlist }
 
+enum _AppMessageType { info, success, failure }
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -56,6 +58,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _queueAutoRunEnabled = false;
   bool _queuePumpScheduled = false;
   bool _queueCompletionNotified = false;
+  String? _appMessage;
+  _AppMessageType _appMessageType = _AppMessageType.info;
+  Timer? _appMessageTimer;
   Timer? _fakeProgressTimer;
   Timer? _mockAnalysisTimer;
   final Map<String, InternalDownloadCancellation> _downloadCancellations = {};
@@ -90,6 +95,8 @@ class _HomeScreenState extends State<HomeScreen> {
     _fakeProgressTimer = null;
     _mockAnalysisTimer?.cancel();
     _mockAnalysisTimer = null;
+    _appMessageTimer?.cancel();
+    _appMessageTimer = null;
     super.dispose();
   }
 
@@ -126,30 +133,45 @@ class _HomeScreenState extends State<HomeScreen> {
     String message, {
     Duration duration = const Duration(milliseconds: 1200),
   }) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message), duration: duration));
+    _showAppMessage(message, _AppMessageType.info, duration: duration);
   }
 
   void _showSuccessMessage(
     String message, {
     Duration duration = const Duration(seconds: 2),
   }) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message), duration: duration));
+    _showAppMessage(message, _AppMessageType.success, duration: duration);
   }
 
   void _showFailureMessage(
     String message, {
     Duration duration = const Duration(seconds: 2),
   }) {
+    _showAppMessage(message, _AppMessageType.failure, duration: duration);
+  }
+
+  void _showAppMessage(
+    String message,
+    _AppMessageType type, {
+    Duration duration = const Duration(seconds: 2),
+  }) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message), duration: duration));
+    _appMessageTimer?.cancel();
+    setState(() {
+      _appMessage = message;
+      _appMessageType = type;
+    });
+    _appMessageTimer = Timer(duration, _hideAppMessage);
+  }
+
+  void _hideAppMessage() {
+    if (!mounted) return;
+    _appMessageTimer?.cancel();
+    _appMessageTimer = null;
+    if (_appMessage == null) return;
+    setState(() {
+      _appMessage = null;
+    });
   }
 
   void _notifyDownloadCompleted(
@@ -224,12 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       if (_youtubeUrlParser.isYouTubeUrl(effectiveUrl)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Análise do YouTube iniciada'),
-            duration: Duration(milliseconds: 1200),
-          ),
-        );
+        _showInfoMessage('An?lise do YouTube iniciada');
 
         try {
           final result = await _ytDlpEngine.analyzeUrl(effectiveUrl);
@@ -253,23 +270,14 @@ class _HomeScreenState extends State<HomeScreen> {
               await _handleManualDownloadChoice(updated);
               if (!mounted) return;
             }
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Análise yt-dlp concluída'),
-                duration: Duration(milliseconds: 1200),
-              ),
-            );
+            _showInfoMessage('An?lise yt-dlp conclu?da');
             return;
           }
         } catch (_) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'yt-dlp n\u00e3o dispon\u00edvel; usando an\u00e1lise interna limitada.',
-                ),
-                duration: Duration(milliseconds: 1500),
-              ),
+            _showInfoMessage(
+              'yt-dlp n?o dispon?vel; usando an?lise interna limitada.',
+              duration: const Duration(milliseconds: 1500),
             );
           }
         }
@@ -286,12 +294,7 @@ class _HomeScreenState extends State<HomeScreen> {
             outputFolderLabel: _downloadOptions.outputFolderLabel,
           );
           setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Usando análise interna limitada para YouTube'),
-              duration: Duration(milliseconds: 1200),
-            ),
-          );
+          _showInfoMessage('Usando an?lise interna limitada para YouTube');
           return;
         }
 
@@ -299,12 +302,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('An\u00e1lise interna iniciada'),
-          duration: Duration(milliseconds: 1200),
-        ),
-      );
+      _showInfoMessage('An?lise interna iniciada');
 
       final updated = _queueController.markItemReadyAfterInternalAnalysis(
         id: addedItem.id,
@@ -318,22 +316,13 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         setState(() {});
         _maybeAutoStartAfterAnalysis(updated);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('An\u00e1lise interna conclu\u00edda'),
-            duration: Duration(milliseconds: 1200),
-          ),
-        );
+        _showInfoMessage('An?lise interna conclu?da');
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'An\u00e1lise interna falhou; usando resultado mockado',
-          ),
-          duration: Duration(milliseconds: 1400),
-        ),
+      _showInfoMessage(
+        'An?lise interna falhou; usando resultado mockado',
+        duration: const Duration(milliseconds: 1400),
       );
     }
 
@@ -341,12 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _scheduleMockAnalysis(String itemId) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('An\u00e1lise mockada iniciada'),
-        duration: Duration(milliseconds: 1200),
-      ),
-    );
+    _showInfoMessage('An?lise mockada iniciada');
 
     _mockAnalysisTimer?.cancel();
     _mockAnalysisTimer = Timer(const Duration(milliseconds: 900), () {
@@ -359,12 +343,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('An\u00e1lise mockada conclu\u00edda'),
-          duration: Duration(milliseconds: 1200),
-        ),
-      );
+      _showInfoMessage('An?lise mockada conclu?da');
     });
   }
 
@@ -401,9 +380,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     } catch (error) {
       if (!mounted) return;
-      final message = error is YtDlpEngineException
-          ? 'Falha ao analisar playlist: ${error.message}'
-          : 'Falha ao analisar playlist.';
+      const message = 'Não foi possível analisar a playlist';
       _queueController.markItemFailed(addedItem.id, message);
       _showFailureMessage(message);
       setState(() {});
@@ -454,13 +431,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final canAutoStart = item.isYouTubeSource || item.directDownloadUrl != null;
     if (!canAutoStart) return;
     _startItem(item);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Modo inteligente: download iniciado'),
-        duration: Duration(milliseconds: 1200),
-      ),
-    );
+    _showInfoMessage('Modo inteligente: download iniciado');
   }
 
   Future<void> _handleManualDownloadChoice(DownloadItem item) async {
@@ -613,7 +584,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final sourceUrl = (item.sourceUrl ?? '').trim();
     if (sourceUrl.isEmpty) {
-      const message = 'Falha ao analisar vídeo da playlist: URL ausente.';
+      const message = 'Não foi possível analisar este vídeo';
       _queueController.markItemFailed(item.id, message);
       _showFailureMessage(
         message,
@@ -649,9 +620,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {});
       _startItem(ready);
     } catch (error) {
-      final message = error is YtDlpEngineException
-          ? 'Falha ao analisar vídeo da playlist: ${error.message}'
-          : 'Falha ao analisar vídeo da playlist.';
+      const message = 'Não foi possível analisar este vídeo';
       _queueController.markItemFailed(item.id, message);
       if (mounted) {
         setState(() {});
@@ -694,7 +663,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (uri == null || !uri.hasScheme) {
       const message = 'Falha ao iniciar download direto.';
       _queueController.markItemFailed(item.id, message);
-      _notifyDownloadFailed('Download falhou: $message');
+      _notifyDownloadFailed('Download falhou');
       if (mounted) setState(() {});
       if (_queueAutoRunEnabled) {
         _pumpDownloadQueue();
@@ -756,7 +725,7 @@ class _HomeScreenState extends State<HomeScreen> {
           break;
         case InternalDownloadStatus.failed:
           _queueController.markItemFailed(item.id, result.message);
-          _notifyDownloadFailed('Download falhou: ${result.message}');
+          _notifyDownloadFailed('Download falhou');
           break;
       }
       setState(() {});
@@ -766,7 +735,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {
       const message = 'Falha ao iniciar download direto.';
       _queueController.markItemFailed(item.id, message);
-      _notifyDownloadFailed('Download falhou: $message');
+      _notifyDownloadFailed('Download falhou');
       if (mounted) {
         setState(() {});
       }
@@ -786,9 +755,7 @@ class _HomeScreenState extends State<HomeScreen> {
         item.id,
         'Selecione um formato antes de iniciar.',
       );
-      _notifyDownloadFailed(
-        'Download falhou: selecione um formato antes de iniciar.',
-      );
+      _notifyDownloadFailed('Download falhou');
       if (mounted) setState(() {});
       if (_queueAutoRunEnabled) {
         _pumpDownloadQueue();
@@ -799,11 +766,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (isVideoOnly) {
       final ffmpeg = await _ytDlpEngine.resolveFfmpeg();
       if (ffmpeg != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Baixando vídeo e áudio para merge com FFmpeg.'),
-            duration: Duration(seconds: 2),
-          ),
+        _showInfoMessage(
+          'Baixando vídeo e áudio para merge com FFmpeg.',
+          duration: const Duration(seconds: 2),
         );
       }
     }
@@ -811,7 +776,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (sourceUrl.isEmpty) {
       const message = 'URL ausente para download.';
       _queueController.markItemFailed(item.id, message);
-      _notifyDownloadFailed('Download falhou: $message');
+      _notifyDownloadFailed('Download falhou');
       if (mounted) setState(() {});
       if (_queueAutoRunEnabled) {
         _pumpDownloadQueue();
@@ -878,14 +843,6 @@ class _HomeScreenState extends State<HomeScreen> {
               message: 'Salvo em $outputFolderLabel/ClipFlow',
               outputDirectoryPath: directoryPath,
             );
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Download concluído, mas o arquivo final não foi localizado automaticamente.',
-                ),
-                duration: Duration(seconds: 2),
-              ),
-            );
             _notifyDownloadCompleted(
               'Download concluído, mas o arquivo final não foi localizado automaticamente.',
             );
@@ -905,7 +862,7 @@ class _HomeScreenState extends State<HomeScreen> {
           break;
         case InternalDownloadStatus.failed:
           _queueController.markItemFailed(item.id, result.message);
-          _notifyDownloadFailed('Download falhou: ${result.message}');
+          _notifyDownloadFailed('Download falhou');
           break;
       }
       setState(() {});
@@ -915,7 +872,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {
       const message = 'Falha ao iniciar download via yt-dlp.';
       _queueController.markItemFailed(item.id, message);
-      _notifyDownloadFailed('Download falhou: $message');
+      _notifyDownloadFailed('Download falhou');
       if (mounted) setState(() {});
       if (_queueAutoRunEnabled) {
         _pumpDownloadQueue();
@@ -1007,34 +964,19 @@ class _HomeScreenState extends State<HomeScreen> {
     final outputPath = item.outputPath?.trim() ?? '';
     if (outputPath.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Arquivo não encontrado. Abra a pasta de downloads.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      _showFailureMessage('Arquivo não encontrado. Abra a pasta de downloads.');
       return;
     }
     if (!await File(outputPath).exists()) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Arquivo não encontrado. Abra a pasta de downloads.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      _showFailureMessage('Arquivo não encontrado. Abra a pasta de downloads.');
       return;
     }
     try {
       await _fileOpener.openFile(outputPath);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível abrir o arquivo.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      _showFailureMessage('Não foi possível abrir o arquivo.');
     }
   }
 
@@ -1049,12 +991,7 @@ class _HomeScreenState extends State<HomeScreen> {
       await _fileOpener.openFolder(outputDirectoryPath);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível abrir a pasta.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      _showFailureMessage('Não foi possível abrir a pasta.');
     }
   }
 
@@ -1081,12 +1018,7 @@ class _HomeScreenState extends State<HomeScreen> {
       await _fileOpener.openFolder(directory.path);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível abrir a pasta de downloads.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      _showFailureMessage('Não foi possível abrir a pasta de downloads.');
     }
   }
 
@@ -1100,112 +1032,132 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      body: Column(
+      body: Stack(
         children: [
-          _MenuBar(
-            onOpenDownloadsFolder: () => _openDownloadsRootFolder(),
-            onOpenPreferences: _openPreferencesDialog,
-          ),
-          const Divider(height: 1, thickness: 1, color: _kDivider),
-          _Toolbar(
-            selectedTransferLabel: _downloadOptions.toolbarTransferLabel,
-            selectedQualityLabel: _downloadOptions.toolbarQualityLabel,
-            selectedFormatLabel: _downloadOptions.toolbarFormatLabel,
-            selectedOutputFolderLabel:
-                _downloadOptions.toolbarOutputFolderLabel,
-            onTransferChanged: (type) => setState(() {
-              _downloadOptions = _downloadOptions.copyWith(transferType: type);
-              _applyCurrentPresetToReadyItems();
-            }),
-            onQualityChanged: (value) => setState(() {
-              _downloadOptions = _downloadOptions.copyWith(qualityLabel: value);
-              _applyCurrentPresetToReadyItems();
-            }),
-            onFormatChanged: (value) => setState(() {
-              _downloadOptions = _downloadOptions.copyWith(formatLabel: value);
-              _applyCurrentPresetToReadyItems();
-            }),
-            onOutputFolderChanged: (value) => setState(() {
-              if (value == 'Navegar...') {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
+          Column(
+            children: [
+              _MenuBar(
+                onOpenDownloadsFolder: () => _openDownloadsRootFolder(),
+                onOpenPreferences: _openPreferencesDialog,
+              ),
+              const Divider(height: 1, thickness: 1, color: _kDivider),
+              _Toolbar(
+                selectedTransferLabel: _downloadOptions.toolbarTransferLabel,
+                selectedQualityLabel: _downloadOptions.toolbarQualityLabel,
+                selectedFormatLabel: _downloadOptions.toolbarFormatLabel,
+                selectedOutputFolderLabel:
+                    _downloadOptions.toolbarOutputFolderLabel,
+                onTransferChanged: (type) => setState(() {
+                  _downloadOptions = _downloadOptions.copyWith(
+                    transferType: type,
+                  );
+                  _applyCurrentPresetToReadyItems();
+                }),
+                onQualityChanged: (value) => setState(() {
+                  _downloadOptions = _downloadOptions.copyWith(
+                    qualityLabel: value,
+                  );
+                  _applyCurrentPresetToReadyItems();
+                }),
+                onFormatChanged: (value) => setState(() {
+                  _downloadOptions = _downloadOptions.copyWith(
+                    formatLabel: value,
+                  );
+                  _applyCurrentPresetToReadyItems();
+                }),
+                onOutputFolderChanged: (value) => setState(() {
+                  if (value == 'Navegar...') {
+                    _showInfoMessage(
                       'Escolha de pasta personalizada virá em rodada futura.',
-                    ),
-                    duration: Duration(milliseconds: 1400),
-                  ),
-                );
-                return;
-              }
+                      duration: const Duration(milliseconds: 1400),
+                    );
+                    return;
+                  }
 
-              final choice = switch (value) {
-                'Vídeos' => const OutputFolderChoice(
-                  type: OutputFolderType.videos,
-                  label: 'Vídeos',
-                ),
-                'Documentos' => const OutputFolderChoice(
-                  type: OutputFolderType.documents,
-                  label: 'Documentos',
-                ),
-                _ => OutputFolderChoice.downloads,
-              };
-              _preferences = _preferences.copyWith(outputFolderChoice: choice);
-              _downloadOptions = _downloadOptions.copyWith(
-                outputFolderLabel: choice.label,
-              );
-            }),
-            smartModeEnabled: _preferences.smartModeEnabled,
-            onSmartModeChanged: (value) => setState(() {
-              _preferences = _preferences.copyWith(smartModeEnabled: value);
-            }),
-            onPaste: _handlePaste,
-            onOpenPreferences: _openPreferencesDialog,
-          ),
-          const Divider(height: 1, thickness: 1, color: _kDivider),
-          _FilterTabs(
-            selectedFilter: _activeFilter,
-            itemCountLabel: _queueController.filteredItemCountLabel(
-              filter: _activeFilter,
-              searchQuery: _searchQuery,
-              sortOption: _sortOption,
-            ),
-            onSearchChanged: (value) => setState(() => _searchQuery = value),
-            onChanged: (filter) => setState(() => _activeFilter = filter),
-            sortOption: _sortOption,
-            onSortChanged: (option) => setState(() => _sortOption = option),
-          ),
-          const Divider(height: 1, thickness: 1, color: _kDivider),
-          Expanded(
-            child: ColoredBox(
-              color: Colors.white,
-              child: visibleItems.isEmpty
-                  ? const _EmptyFilterState()
-                  : ListView.builder(
-                      itemCount: visibleItems.length,
-                      itemBuilder: (_, i) => _DownloadListItem(
-                        item: visibleItems[i],
-                        onStart: () => _startItem(visibleItems[i]),
-                        onPause: () => _pauseItem(visibleItems[i]),
-                        onCancel: () => _cancelItem(visibleItems[i]),
-                        onRemove: () => _removeItem(visibleItems[i]),
-                        onOpenFile: () => _openDownloadedFile(visibleItems[i]),
-                        onOpenFolder: () =>
-                            _openDownloadFolder(visibleItems[i]),
-                        onFormatSelected: (formatId) =>
-                            _selectFormatForItem(visibleItems[i], formatId),
-                      ),
+                  final choice = switch (value) {
+                    'Vídeos' => const OutputFolderChoice(
+                      type: OutputFolderType.videos,
+                      label: 'Vídeos',
                     ),
+                    'Documentos' => const OutputFolderChoice(
+                      type: OutputFolderType.documents,
+                      label: 'Documentos',
+                    ),
+                    _ => OutputFolderChoice.downloads,
+                  };
+                  _preferences = _preferences.copyWith(
+                    outputFolderChoice: choice,
+                  );
+                  _downloadOptions = _downloadOptions.copyWith(
+                    outputFolderLabel: choice.label,
+                  );
+                }),
+                smartModeEnabled: _preferences.smartModeEnabled,
+                onSmartModeChanged: (value) => setState(() {
+                  _preferences = _preferences.copyWith(smartModeEnabled: value);
+                }),
+                onPaste: _handlePaste,
+                onOpenPreferences: _openPreferencesDialog,
+              ),
+              const Divider(height: 1, thickness: 1, color: _kDivider),
+              _FilterTabs(
+                selectedFilter: _activeFilter,
+                itemCountLabel: _queueController.filteredItemCountLabel(
+                  filter: _activeFilter,
+                  searchQuery: _searchQuery,
+                  sortOption: _sortOption,
+                ),
+                onSearchChanged: (value) =>
+                    setState(() => _searchQuery = value),
+                onChanged: (filter) => setState(() => _activeFilter = filter),
+                sortOption: _sortOption,
+                onSortChanged: (option) => setState(() => _sortOption = option),
+              ),
+              const Divider(height: 1, thickness: 1, color: _kDivider),
+              Expanded(
+                child: ColoredBox(
+                  color: Colors.white,
+                  child: visibleItems.isEmpty
+                      ? const _EmptyFilterState()
+                      : ListView.builder(
+                          itemCount: visibleItems.length,
+                          itemBuilder: (_, i) => _DownloadListItem(
+                            item: visibleItems[i],
+                            onStart: () => _startItem(visibleItems[i]),
+                            onPause: () => _pauseItem(visibleItems[i]),
+                            onCancel: () => _cancelItem(visibleItems[i]),
+                            onRemove: () => _removeItem(visibleItems[i]),
+                            onOpenFile: () =>
+                                _openDownloadedFile(visibleItems[i]),
+                            onOpenFolder: () =>
+                                _openDownloadFolder(visibleItems[i]),
+                            onFormatSelected: (formatId) =>
+                                _selectFormatForItem(visibleItems[i], formatId),
+                          ),
+                        ),
+                ),
+              ),
+              _StatusBar(
+                onClearFinished: _clearFinishedItems,
+                onShowEngineInfo: _showInternalEngineDialog,
+                onToggleQueueAutoRun: _queueAutoRunEnabled
+                    ? _stopQueueAutoRun
+                    : _startQueueAutoRun,
+                queueAutoRunEnabled: _queueAutoRunEnabled,
+                simultaneousLimit: _preferences.simultaneousDownloads,
+              ),
+            ],
+          ),
+          if (_appMessage != null)
+            Positioned(
+              top: 92,
+              right: 16,
+              child: _AppMessageBanner(
+                message: _appMessage!,
+                type: _appMessageType,
+                onClose: _hideAppMessage,
+              ),
             ),
-          ),
-          _StatusBar(
-            onClearFinished: _clearFinishedItems,
-            onShowEngineInfo: _showInternalEngineDialog,
-            onToggleQueueAutoRun: _queueAutoRunEnabled
-                ? _stopQueueAutoRun
-                : _startQueueAutoRun,
-            queueAutoRunEnabled: _queueAutoRunEnabled,
-            simultaneousLimit: _preferences.simultaneousDownloads,
-          ),
         ],
       ),
     );
@@ -1797,19 +1749,6 @@ class _DownloadListItem extends StatelessWidget {
                           ),
                         ),
                       ),
-                    if (item.commandPreviewLabel != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          'Plano: ${item.commandPreviewLabel}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ),
                     if (isDownloading)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
@@ -2174,6 +2113,86 @@ class _EmptyFilterState extends StatelessWidget {
   }
 }
 
+class _AppMessageBanner extends StatelessWidget {
+  final String message;
+  final _AppMessageType type;
+  final VoidCallback onClose;
+
+  const _AppMessageBanner({
+    required this.message,
+    required this.type,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final (Color bg, Color fg, IconData icon) = switch (type) {
+      _AppMessageType.info => (
+        const Color(0xFFEAF2FF),
+        const Color(0xFF1D4ED8),
+        Icons.info_outline,
+      ),
+      _AppMessageType.success => (
+        const Color(0xFFEAF7EE),
+        const Color(0xFF166534),
+        Icons.check_circle_outline,
+      ),
+      _AppMessageType.failure => (
+        const Color(0xFFFDECEC),
+        const Color(0xFFB91C1C),
+        Icons.error_outline,
+      ),
+    };
+    return Material(
+      color: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Container(
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: fg.withValues(alpha: 0.24)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x22000000),
+                blurRadius: 12,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: fg),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  message,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: fg,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                iconSize: 16,
+                onPressed: onClose,
+                icon: Icon(Icons.close, color: fg),
+                tooltip: 'Fechar',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _StatusBar extends StatelessWidget {
   final VoidCallback onClearFinished;
   final VoidCallback onShowEngineInfo;
@@ -2203,24 +2222,12 @@ class _StatusBar extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Pronto para downloads autorizados',
+                  'Pronto para downloads',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
-                ),
-                const Text(
-                  'Motor yt-dlp ativo para YouTube',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Colors.white70, fontSize: 11),
-                ),
-                const Text(
-                  'FFmpeg ainda n\u00e3o configurado; qualidades altas podem exigir merge.',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Colors.white70, fontSize: 10),
                 ),
                 Text(
                   'Fila: até $simultaneousLimit simultâneo(s)',
