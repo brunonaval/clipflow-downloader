@@ -16,14 +16,14 @@ void main() {
     );
   });
 
-  test('detects watch endpoint with list parameter', () {
+  test('watch endpoint with list parameter is not treated as playlist', () {
     expect(
       parser.isPlaylistUrl('https://m.youtube.com/watch?v=abc&list=PL999'),
-      isTrue,
+      isFalse,
     );
     expect(
       parser.playlistIdFrom('https://youtube.com/watch?v=abc&list=PL999'),
-      'PL999',
+      isNull,
     );
   });
 

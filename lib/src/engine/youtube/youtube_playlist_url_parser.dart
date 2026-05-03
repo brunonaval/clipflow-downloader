@@ -14,6 +14,7 @@ class YouTubePlaylistUrlParser {
         host == 'www.youtube.com' ||
         host == 'm.youtube.com';
     if (!isYouTubeHost) return null;
+    if (uri.path.toLowerCase() != '/playlist') return null;
 
     final listId = uri.queryParameters['list']?.trim();
     if (listId == null || listId.isEmpty) return null;
