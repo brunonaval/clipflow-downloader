@@ -122,4 +122,42 @@ void main() {
 
     expect(saved, isNull);
   });
+
+  testWidgets('modo inteligente pode ser ativado e salvo', (tester) async {
+    AppPreferences? saved;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () async {
+                final result = await showDialog<AppPreferences>(
+                  context: context,
+                  builder: (_) => const PreferencesDialog(
+                    initialPreferences: AppPreferences.defaults,
+                  ),
+                );
+                saved = result;
+              },
+              child: const Text('Abrir'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Abrir'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Modo inteligente'), findsOneWidget);
+    await tester.tap(find.byType(Switch).first);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Salvar'));
+    await tester.pumpAndSettle();
+
+    expect(saved, isNotNull);
+    expect(saved!.smartModeEnabled, isTrue);
+  });
 }

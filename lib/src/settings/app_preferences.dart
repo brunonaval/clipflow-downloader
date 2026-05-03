@@ -11,6 +11,7 @@ class AppPreferences {
   final bool confirmExitWithActiveDownloads;
   final bool keepSystemAwakeWhileDownloading;
   final bool showAdvancedFormats;
+  final bool smartModeEnabled;
   final OutputFolderChoice outputFolderChoice;
 
   const AppPreferences({
@@ -24,6 +25,7 @@ class AppPreferences {
     required this.confirmExitWithActiveDownloads,
     required this.keepSystemAwakeWhileDownloading,
     required this.showAdvancedFormats,
+    required this.smartModeEnabled,
     required this.outputFolderChoice,
   });
 
@@ -38,6 +40,7 @@ class AppPreferences {
     confirmExitWithActiveDownloads: true,
     keepSystemAwakeWhileDownloading: false,
     showAdvancedFormats: false,
+    smartModeEnabled: false,
     outputFolderChoice: OutputFolderChoice.downloads,
   );
 
@@ -52,6 +55,7 @@ class AppPreferences {
     bool? confirmExitWithActiveDownloads,
     bool? keepSystemAwakeWhileDownloading,
     bool? showAdvancedFormats,
+    bool? smartModeEnabled,
     OutputFolderChoice? outputFolderChoice,
   }) {
     return AppPreferences(
@@ -72,6 +76,7 @@ class AppPreferences {
           keepSystemAwakeWhileDownloading ??
           this.keepSystemAwakeWhileDownloading,
       showAdvancedFormats: showAdvancedFormats ?? this.showAdvancedFormats,
+      smartModeEnabled: smartModeEnabled ?? this.smartModeEnabled,
       outputFolderChoice: outputFolderChoice ?? this.outputFolderChoice,
     );
   }

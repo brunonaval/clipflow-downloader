@@ -157,6 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
               outputFolderLabel: _downloadOptions.outputFolderLabel,
             );
             setState(() {});
+            _maybeAutoStartAfterAnalysis(updated);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Análise yt-dlp concluída'),
@@ -221,6 +222,7 @@ class _HomeScreenState extends State<HomeScreen> {
           outputFolderLabel: _downloadOptions.outputFolderLabel,
         );
         setState(() {});
+        _maybeAutoStartAfterAnalysis(updated);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('An\u00e1lise interna conclu\u00edda'),
@@ -274,6 +276,21 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isHttpUrl(String value) {
     final lower = value.toLowerCase();
     return lower.startsWith('http://') || lower.startsWith('https://');
+  }
+
+  void _maybeAutoStartAfterAnalysis(DownloadItem? item) {
+    if (!_preferences.smartModeEnabled) return;
+    if (item == null || item.status != DownloadStatus.ready) return;
+    final canAutoStart = item.isYouTubeSource || item.directDownloadUrl != null;
+    if (!canAutoStart) return;
+    _startItem(item);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Modo inteligente: download iniciado'),
+        duration: Duration(milliseconds: 1200),
+      ),
+    );
   }
 
   void _applyCurrentPresetToReadyItems() {
@@ -768,6 +785,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 outputFolderLabel: choice.label,
               );
             }),
+            smartModeEnabled: _preferences.smartModeEnabled,
+            onSmartModeChanged: (value) => setState(() {
+              _preferences = _preferences.copyWith(smartModeEnabled: value);
+            }),
             onPaste: _handlePaste,
             onOpenPreferences: _openPreferencesDialog,
           ),
@@ -920,6 +941,8 @@ class _Toolbar extends StatelessWidget {
   final ValueChanged<String> onQualityChanged;
   final ValueChanged<String> onFormatChanged;
   final ValueChanged<String> onOutputFolderChanged;
+  final bool smartModeEnabled;
+  final ValueChanged<bool> onSmartModeChanged;
   final VoidCallback onPaste;
   final VoidCallback onOpenPreferences;
 
@@ -932,6 +955,8 @@ class _Toolbar extends StatelessWidget {
     required this.onQualityChanged,
     required this.onFormatChanged,
     required this.onOutputFolderChanged,
+    required this.smartModeEnabled,
+    required this.onSmartModeChanged,
     required this.onPaste,
     required this.onOpenPreferences,
   });
@@ -972,6 +997,33 @@ class _Toolbar extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 16),
+                  Tooltip(
+                    message:
+                        'Quando ativado, baixa automaticamente após colar link.',
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Switch(
+                          value: smartModeEnabled,
+                          onChanged: onSmartModeChanged,
+                          activeThumbColor: _kGreen,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        Text(
+                          'Modo inteligente',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: smartModeEnabled
+                                ? _kGreen
+                                : Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   _SelectorButton<DownloadTransferType>(
                     valueLabel: selectedTransferLabel,
                     options: const {

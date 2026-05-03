@@ -19,6 +19,7 @@ void main() {
     expect(find.text('Transferir Vídeo'), findsOneWidget);
     expect(find.text('Qualidade Ótima'), findsOneWidget);
     expect(find.text('Para MP4'), findsOneWidget);
+    expect(find.text('Modo inteligente'), findsOneWidget);
   });
 
   testWidgets('menu Arquivo exibe ação de abrir pasta de downloads', (
@@ -107,5 +108,19 @@ void main() {
     await tester.pump();
 
     expect(find.text('Guardar em Vídeos'), findsOneWidget);
+  });
+
+  testWidgets('toggle de modo inteligente muda estado visual', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ClipFlowApp());
+
+    final smartModeSwitch = find.byType(Switch).first;
+    expect(tester.widget<Switch>(smartModeSwitch).value, isFalse);
+
+    await tester.tap(smartModeSwitch);
+    await tester.pump();
+
+    expect(tester.widget<Switch>(smartModeSwitch).value, isTrue);
   });
 }

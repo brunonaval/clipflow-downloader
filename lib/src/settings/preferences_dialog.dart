@@ -137,6 +137,17 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
             () => _preferences = _preferences.copyWith(themeLabel: value),
           ),
         ),
+        const SizedBox(height: 12),
+        SwitchListTile(
+          title: const Text('Modo inteligente'),
+          subtitle: const Text(
+            'Colar link inicia automaticamente usando as opções atuais.',
+          ),
+          value: _preferences.smartModeEnabled,
+          onChanged: (value) => setState(
+            () => _preferences = _preferences.copyWith(smartModeEnabled: value),
+          ),
+        ),
       ],
     );
   }

@@ -17,6 +17,7 @@ void main() {
     expect(prefs.confirmExitWithActiveDownloads, isTrue);
     expect(prefs.keepSystemAwakeWhileDownloading, isFalse);
     expect(prefs.showAdvancedFormats, isFalse);
+    expect(prefs.smartModeEnabled, isFalse);
     expect(prefs.outputFolderChoice.type, OutputFolderType.downloads);
     expect(prefs.outputFolderChoice.label, 'Downloads');
   });
@@ -29,6 +30,7 @@ void main() {
       themeLabel: 'Escuro',
       simultaneousDownloads: 3,
       showAdvancedFormats: true,
+      smartModeEnabled: true,
       outputFolderChoice: const OutputFolderChoice(
         type: OutputFolderType.videos,
         label: 'Vídeos',
@@ -39,6 +41,7 @@ void main() {
     expect(updated.themeLabel, 'Escuro');
     expect(updated.simultaneousDownloads, 3);
     expect(updated.showAdvancedFormats, isTrue);
+    expect(updated.smartModeEnabled, isTrue);
     expect(updated.outputFolderChoice.type, OutputFolderType.videos);
     expect(updated.outputFolderChoice.label, 'Vídeos');
     expect(
