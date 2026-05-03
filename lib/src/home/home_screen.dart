@@ -16,6 +16,8 @@ import '../engine/download/internal_download_result.dart';
 import '../engine/download/internal_http_downloader.dart';
 import '../engine/download/download_output_planner.dart';
 import '../engine/download/completed_output_resolver.dart';
+import '../settings/app_preferences.dart';
+import '../settings/preferences_dialog.dart';
 import '../system/system_file_opener.dart';
 import '../engine/youtube/youtube_url_parser.dart';
 import '../engine/yt_dlp/yt_dlp_engine_service.dart';
@@ -34,6 +36,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   static const _youtubeUrlParser = YouTubeUrlParser();
   DownloadQueueFilter _activeFilter = DownloadQueueFilter.all;
+  AppPreferences _preferences = AppPreferences.defaults;
   DownloadOptions _downloadOptions = const DownloadOptions();
   String _searchQuery = '';
   Timer? _fakeProgressTimer;
@@ -567,6 +570,21 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _openPreferencesDialog() async {
+    final updated = await showDialog<AppPreferences>(
+      context: context,
+      builder: (_) => PreferencesDialog(initialPreferences: _preferences),
+    );
+    if (!mounted || updated == null) return;
+    setState(() => _preferences = updated);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Preferências atualizadas'),
+        duration: Duration(milliseconds: 1200),
+      ),
+    );
+  }
+
   Future<void> _openDownloadedFile(DownloadItem item) async {
     final outputPath = item.outputPath?.trim() ?? '';
     if (outputPath.isEmpty) {
@@ -663,7 +681,10 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: const Color(0xFFF5F5F5),
       body: Column(
         children: [
-          _MenuBar(onOpenDownloadsFolder: () => _openDownloadsRootFolder()),
+          _MenuBar(
+            onOpenDownloadsFolder: () => _openDownloadsRootFolder(),
+            onOpenPreferences: _openPreferencesDialog,
+          ),
           const Divider(height: 1, thickness: 1, color: _kDivider),
           _Toolbar(
             selectedTransferLabel: _downloadOptions.toolbarTransferLabel,
@@ -692,6 +713,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             onPaste: _handlePaste,
+            onOpenPreferences: _openPreferencesDialog,
           ),
           const Divider(height: 1, thickness: 1, color: _kDivider),
           _FilterTabs(
@@ -738,10 +760,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _MenuBar extends StatelessWidget {
   final VoidCallback onOpenDownloadsFolder;
+  final VoidCallback onOpenPreferences;
 
-  const _MenuBar({required this.onOpenDownloadsFolder});
+  const _MenuBar({
+    required this.onOpenDownloadsFolder,
+    required this.onOpenPreferences,
+  });
 
-  static const _items = ['Editar', 'Ver', 'Ferramentas', 'Ajuda'];
+  static const _items = ['Editar', 'Ver', 'Ajuda'];
 
   @override
   Widget build(BuildContext context) {
@@ -789,6 +815,26 @@ class _MenuBar extends StatelessWidget {
                 ),
               ),
             ),
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'preferences') {
+                  onOpenPreferences();
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem<String>(
+                  value: 'preferences',
+                  child: Text('Preferências'),
+                ),
+              ],
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                child: Text(
+                  'Ferramentas',
+                  style: TextStyle(fontSize: 13, color: Colors.black87),
+                ),
+              ),
+            ),
             ..._items.map(
               (item) => TextButton(
                 onPressed: () {},
@@ -819,6 +865,7 @@ class _Toolbar extends StatelessWidget {
   final ValueChanged<String> onFormatChanged;
   final ValueChanged<String> onOutputFolderChanged;
   final VoidCallback onPaste;
+  final VoidCallback onOpenPreferences;
 
   const _Toolbar({
     required this.selectedTransferLabel,
@@ -830,6 +877,7 @@ class _Toolbar extends StatelessWidget {
     required this.onFormatChanged,
     required this.onOutputFolderChanged,
     required this.onPaste,
+    required this.onOpenPreferences,
   });
 
   @override
@@ -924,7 +972,7 @@ class _Toolbar extends StatelessWidget {
           const SizedBox(width: 8),
           IconButton(
             icon: const Icon(Icons.settings_outlined, size: 20),
-            onPressed: () {},
+            onPressed: onOpenPreferences,
             tooltip: 'Configura\u00e7\u00f5es',
             color: Colors.black54,
             visualDensity: VisualDensity.compact,

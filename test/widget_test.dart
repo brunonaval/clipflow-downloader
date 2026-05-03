@@ -55,4 +55,34 @@ void main() {
 
     expect(find.text('Motor interno'), findsNothing);
   });
+
+  testWidgets('botão Configurações abre Preferências', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ClipFlowApp());
+
+    await tester.tap(find.byTooltip('Configurações'));
+    await tester.pump();
+
+    expect(find.text('Preferências'), findsOneWidget);
+    expect(find.text('Geral'), findsWidgets);
+  });
+
+  testWidgets('menu Ferramentas abre Preferências', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ClipFlowApp());
+
+    await tester.tap(find.text('Ferramentas').first);
+    await tester.pumpAndSettle();
+
+    final prefsMenuItem = find.descendant(
+      of: find.byType(PopupMenuItem<String>),
+      matching: find.text('Preferências'),
+    );
+    await tester.tap(prefsMenuItem);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Preferências'), findsOneWidget);
+  });
 }
