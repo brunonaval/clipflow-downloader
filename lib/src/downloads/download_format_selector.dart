@@ -98,25 +98,36 @@ class DownloadFormatSelector {
     List<DownloadFormatOption> formats,
     int? maxHeight,
   ) {
-    if (maxHeight == null) return formats;
+    final withKnownHeight = formats
+        .where((f) => _heightFrom(f) != null)
+        .toList();
+    if (maxHeight == null) {
+      if (withKnownHeight.isEmpty) return formats;
+      final highest = withKnownHeight
+          .map((f) => _heightFrom(f)!)
+          .reduce((a, b) => a > b ? a : b);
+      return withKnownHeight.where((f) => _heightFrom(f) == highest).toList();
+    }
 
-    final atOrBelow = formats.where((f) {
-      final h = _heightFrom(f);
-      return h != null && h <= maxHeight;
-    }).toList();
-    if (atOrBelow.isNotEmpty) return atOrBelow;
+    if (withKnownHeight.isEmpty) return formats;
 
-    final above = formats.where((f) {
-      final h = _heightFrom(f);
-      return h != null && h > maxHeight;
-    }).toList();
-    if (above.isEmpty) return formats;
+    final atOrBelow = withKnownHeight
+        .where((f) => _heightFrom(f)! <= maxHeight)
+        .toList();
+    if (atOrBelow.isNotEmpty) {
+      final bestHeight = atOrBelow
+          .map((f) => _heightFrom(f)!)
+          .reduce((a, b) => a > b ? a : b);
+      return atOrBelow.where((f) => _heightFrom(f) == bestHeight).toList();
+    }
 
-    above.sort(
-      (a, b) => (_heightFrom(a) ?? 99999).compareTo(_heightFrom(b) ?? 99999),
-    );
-    final smallest = _heightFrom(above.first);
-    return above.where((f) => _heightFrom(f) == smallest).toList();
+    final above = withKnownHeight
+        .where((f) => _heightFrom(f)! > maxHeight)
+        .toList();
+    final fallbackHeight = above
+        .map((f) => _heightFrom(f)!)
+        .reduce((a, b) => a < b ? a : b);
+    return above.where((f) => _heightFrom(f) == fallbackHeight).toList();
   }
 
   String? _pickOrdered(

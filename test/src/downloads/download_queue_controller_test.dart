@@ -983,6 +983,65 @@ void main() {
       expect(updated!.selectedFormatId, '18');
     });
 
+    test(
+      'preset vídeo MP4 720p seleciona videoOnly 720p quando só há muxed 360p e videoOnly superiores',
+      () {
+        final controller = DownloadQueueController(
+          initialItems: [
+            _item(id: '1', title: 'Item', status: DownloadStatus.analyzing),
+          ],
+        );
+
+        const result = YtDlpAnalysisResult(
+          title: 'Título yt-dlp',
+          durationLabel: '02:00',
+          formats: [
+            DownloadFormatOption(
+              id: '18',
+              kind: DownloadFormatKind.video,
+              label: 'Vídeo MP4 360p',
+              formatLabel: 'MP4',
+              qualityLabel: '360p',
+              sizeLabel: '5 MB',
+              detailsLabel: '[muxed] mp4',
+            ),
+            DownloadFormatOption(
+              id: '136',
+              kind: DownloadFormatKind.video,
+              label: 'Vídeo sem áudio MP4 720p',
+              formatLabel: 'MP4',
+              qualityLabel: '720p',
+              sizeLabel: '8 MB',
+              detailsLabel: '[video-only] mp4',
+            ),
+            DownloadFormatOption(
+              id: '137',
+              kind: DownloadFormatKind.video,
+              label: 'Vídeo sem áudio MP4 1080p',
+              formatLabel: 'MP4',
+              qualityLabel: '1080p',
+              sizeLabel: '11 MB',
+              detailsLabel: '[video-only] mp4',
+            ),
+          ],
+          recommendedFormatId: '18',
+        );
+
+        final updated = controller.applyYtDlpAnalysis(
+          id: '1',
+          result: result,
+          preset: const DownloadPreset(
+            transferType: DownloadTransferType.video,
+            qualityLabel: '720p',
+            formatLabel: 'MP4',
+          ),
+        );
+
+        expect(updated, isNotNull);
+        expect(updated!.selectedFormatId, '136');
+      },
+    );
+
     test('applyPresetSelectionForItem altera selectedFormatId', () {
       final controller = DownloadQueueController(
         initialItems: [

@@ -131,6 +131,119 @@ void main() {
     expect(selected, '22');
   });
 
+  test(
+    'video + MP4 + 1080p escolhe videoOnly MP4 1080p quando também existe muxed MP4 360p',
+    () {
+      final formats = [
+        _f(
+          id: '18',
+          kind: DownloadFormatKind.video,
+          label: 'Vídeo MP4 360p',
+          formatLabel: 'MP4',
+          qualityLabel: '360p',
+          detailsLabel: '[muxed] mp4',
+        ),
+        _f(
+          id: '137',
+          kind: DownloadFormatKind.video,
+          label: 'Vídeo sem áudio MP4 1080p',
+          formatLabel: 'MP4',
+          qualityLabel: '1080p',
+          detailsLabel: '[video-only] mp4',
+        ),
+      ];
+
+      final selected = selector.selectRecommendedFormatId(
+        formats: formats,
+        preset: const DownloadPreset(
+          transferType: DownloadTransferType.video,
+          qualityLabel: '1080p',
+          formatLabel: 'MP4',
+        ),
+      );
+
+      expect(selected, '137');
+    },
+  );
+
+  test(
+    'video + MP4 + 720p escolhe videoOnly MP4 720p quando também existe muxed MP4 360p e videoOnly MP4 1080p',
+    () {
+      final formats = [
+        _f(
+          id: '18',
+          kind: DownloadFormatKind.video,
+          label: 'Vídeo MP4 360p',
+          formatLabel: 'MP4',
+          qualityLabel: '360p',
+          detailsLabel: '[muxed] mp4',
+        ),
+        _f(
+          id: '136',
+          kind: DownloadFormatKind.video,
+          label: 'Vídeo sem áudio MP4 720p',
+          formatLabel: 'MP4',
+          qualityLabel: '720p',
+          detailsLabel: '[video-only] mp4',
+        ),
+        _f(
+          id: '137',
+          kind: DownloadFormatKind.video,
+          label: 'Vídeo sem áudio MP4 1080p',
+          formatLabel: 'MP4',
+          qualityLabel: '1080p',
+          detailsLabel: '[video-only] mp4',
+        ),
+      ];
+
+      final selected = selector.selectRecommendedFormatId(
+        formats: formats,
+        preset: const DownloadPreset(
+          transferType: DownloadTransferType.video,
+          qualityLabel: '720p',
+          formatLabel: 'MP4',
+        ),
+      );
+
+      expect(selected, '136');
+    },
+  );
+
+  test(
+    'video + MP4 + 480p escolhe muxed MP4 360p se não existe 480p nem 720p dentro do limite',
+    () {
+      final formats = [
+        _f(
+          id: '18',
+          kind: DownloadFormatKind.video,
+          label: 'Vídeo MP4 360p',
+          formatLabel: 'MP4',
+          qualityLabel: '360p',
+          detailsLabel: '[muxed] mp4',
+        ),
+        _f(
+          id: '22',
+          kind: DownloadFormatKind.video,
+          label: 'Vídeo MP4 1080p',
+          formatLabel: 'MP4',
+          qualityLabel: '1080p',
+          detailsLabel: '[muxed] mp4',
+        ),
+      ];
+
+      final selected = selector.selectRecommendedFormatId(
+        formats: formats,
+        preset: const DownloadPreset(
+          transferType: DownloadTransferType.video,
+          qualityLabel: '480p',
+          formatLabel: 'MP4',
+        ),
+      );
+
+      expect(selected, '18');
+    },
+  );
+
   test('video + MP4 + 1080p escolhe videoOnly MP4 se não há muxed', () {
     final formats = [
       _f(
@@ -187,7 +300,7 @@ void main() {
     expect(selected, '18');
   });
 
-  test('video + automático escolhe muxed MP4', () {
+  test('video + automático prefere melhor altura disponível', () {
     final formats = [
       _f(
         id: '248',
@@ -216,7 +329,7 @@ void main() {
       ),
     );
 
-    expect(selected, '22');
+    expect(selected, '248');
   });
 
   test('sem formatos retorna null', () {
