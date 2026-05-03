@@ -208,4 +208,49 @@ void main() {
     expect(saved, isNotNull);
     expect(saved!.simultaneousDownloads, 6);
   });
+
+  testWidgets('seção notificações mantém opções e subtítulo interno', (
+    tester,
+  ) async {
+    AppPreferences? saved;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () async {
+                final result = await showDialog<AppPreferences>(
+                  context: context,
+                  builder: (_) => const PreferencesDialog(
+                    initialPreferences: AppPreferences.defaults,
+                  ),
+                );
+                saved = result;
+              },
+              child: const Text('Abrir'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Abrir'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.textContaining('Notifica'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Notificar ao concluir download'), findsOneWidget);
+    expect(find.text('Notificar ao falhar download'), findsOneWidget);
+    expect(find.text('Exibe mensagens dentro do app.'), findsNWidgets(2));
+
+    await tester.tap(find.byType(Switch).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Salvar'));
+    await tester.pumpAndSettle();
+
+    expect(saved, isNotNull);
+    expect(saved!.notifyWhenDownloadCompletes, isFalse);
+  });
 }

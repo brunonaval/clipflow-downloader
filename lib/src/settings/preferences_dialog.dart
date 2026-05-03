@@ -239,6 +239,7 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
         const SizedBox(height: 16),
         SwitchListTile(
           title: const Text('Notificar ao concluir download'),
+          subtitle: const Text('Exibe mensagens dentro do app.'),
           value: _preferences.notifyWhenDownloadCompletes,
           onChanged: (value) => setState(
             () => _preferences = _preferences.copyWith(
@@ -248,6 +249,7 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
         ),
         SwitchListTile(
           title: const Text('Notificar ao falhar download'),
+          subtitle: const Text('Exibe mensagens dentro do app.'),
           value: _preferences.notifyWhenDownloadFails,
           onChanged: (value) => setState(
             () => _preferences = _preferences.copyWith(

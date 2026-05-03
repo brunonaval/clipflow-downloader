@@ -55,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _searchQuery = '';
   bool _queueAutoRunEnabled = false;
   bool _queuePumpScheduled = false;
+  bool _queueCompletionNotified = false;
   Timer? _fakeProgressTimer;
   Timer? _mockAnalysisTimer;
   final Map<String, InternalDownloadCancellation> _downloadCancellations = {};
@@ -119,6 +120,52 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_queueAutoRunEnabled) {
       _pumpDownloadQueue();
     }
+  }
+
+  void _showInfoMessage(
+    String message, {
+    Duration duration = const Duration(milliseconds: 1200),
+  }) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), duration: duration));
+  }
+
+  void _showSuccessMessage(
+    String message, {
+    Duration duration = const Duration(seconds: 2),
+  }) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), duration: duration));
+  }
+
+  void _showFailureMessage(
+    String message, {
+    Duration duration = const Duration(seconds: 2),
+  }) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), duration: duration));
+  }
+
+  void _notifyDownloadCompleted(
+    String message, {
+    Duration duration = const Duration(seconds: 2),
+  }) {
+    if (!_preferences.notifyWhenDownloadCompletes) return;
+    _showSuccessMessage(message, duration: duration);
+  }
+
+  void _notifyDownloadFailed(
+    String message, {
+    Duration duration = const Duration(seconds: 2),
+  }) {
+    if (!_preferences.notifyWhenDownloadFails) return;
+    _showFailureMessage(message, duration: duration);
   }
 
   Future<void> _handlePaste() async {
@@ -325,12 +372,7 @@ class _HomeScreenState extends State<HomeScreen> {
     String playlistUrl,
     DownloadItem addedItem,
   ) async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Analisando playlist'),
-        duration: Duration(milliseconds: 1200),
-      ),
-    );
+    _showInfoMessage('Analisando playlist');
     try {
       final playlist = await _ytDlpEngine.analyzePlaylistUrl(playlistUrl);
       if (!mounted) return;
@@ -353,20 +395,17 @@ class _HomeScreenState extends State<HomeScreen> {
         outputFolderLabel: _downloadOptions.outputFolderLabel,
       );
       setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Vídeos adicionados à fila: ${added.length}'),
-          duration: const Duration(milliseconds: 1400),
-        ),
+      _showInfoMessage(
+        'Vídeos adicionados à fila: ${added.length}',
+        duration: const Duration(milliseconds: 1400),
       );
     } catch (error) {
       if (!mounted) return;
-      _queueController.markItemFailed(
-        addedItem.id,
-        error is YtDlpEngineException
-            ? error.message
-            : 'Falha ao analisar playlist.',
-      );
+      final message = error is YtDlpEngineException
+          ? 'Falha ao analisar playlist: ${error.message}'
+          : 'Falha ao analisar playlist.';
+      _queueController.markItemFailed(addedItem.id, message);
+      _showFailureMessage(message);
       setState(() {});
     }
   }
@@ -465,24 +504,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _startQueueAutoRun() {
     if (!_queueController.hasStartableItems) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nenhum item na fila para iniciar.'),
-          duration: Duration(milliseconds: 1200),
-        ),
-      );
+      _showInfoMessage('Nenhum item na fila para iniciar.');
       return;
     }
     setState(() {
       _queueAutoRunEnabled = true;
+      _queueCompletionNotified = false;
     });
     _pumpDownloadQueue();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Fila iniciada'),
-        duration: Duration(milliseconds: 1200),
-      ),
-    );
+    _showInfoMessage('Fila iniciada');
   }
 
   void _stopQueueAutoRun() {
@@ -490,12 +520,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _queueAutoRunEnabled = false;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Fila pausada'),
-        duration: Duration(milliseconds: 1200),
-      ),
-    );
+    _showInfoMessage('Fila pausada');
   }
 
   void _pumpDownloadQueue() {
@@ -506,14 +531,30 @@ class _HomeScreenState extends State<HomeScreen> {
       _queuePumpScheduled = false;
       if (!mounted || !_queueAutoRunEnabled) return;
 
+      if (!_queueController.hasStartableItems &&
+          _queueController.activeTransferCount == 0) {
+        setState(() {
+          _queueAutoRunEnabled = false;
+        });
+        if (!_queueCompletionNotified) {
+          _queueCompletionNotified = true;
+          _showSuccessMessage('Fila concluída');
+        }
+        return;
+      }
+
       final limit = _preferences.simultaneousDownloads;
       while (_queueController.activeTransferCount < limit) {
         final next = _queueController.nextStartableItem();
         if (next == null) {
-          if (mounted) {
+          if (_queueController.activeTransferCount == 0 && mounted) {
             setState(() {
               _queueAutoRunEnabled = false;
             });
+            if (!_queueCompletionNotified) {
+              _queueCompletionNotified = true;
+              _showSuccessMessage('Fila concluída');
+            }
           }
           return;
         }
@@ -567,17 +608,17 @@ class _HomeScreenState extends State<HomeScreen> {
     if (marked == null) return;
     if (mounted) {
       setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Analisando vídeo da playlist'),
-          duration: Duration(milliseconds: 1200),
-        ),
-      );
+      _showInfoMessage('Analisando vídeo da playlist');
     }
 
     final sourceUrl = (item.sourceUrl ?? '').trim();
     if (sourceUrl.isEmpty) {
-      _queueController.markItemFailed(item.id, 'URL ausente para análise.');
+      const message = 'Falha ao analisar vídeo da playlist: URL ausente.';
+      _queueController.markItemFailed(item.id, message);
+      _showFailureMessage(
+        message,
+        duration: const Duration(milliseconds: 1400),
+      );
       if (mounted) setState(() {});
       if (_queueAutoRunEnabled) {
         _pumpDownloadQueue();
@@ -614,11 +655,9 @@ class _HomeScreenState extends State<HomeScreen> {
       _queueController.markItemFailed(item.id, message);
       if (mounted) {
         setState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            duration: const Duration(milliseconds: 1400),
-          ),
+        _showFailureMessage(
+          message,
+          duration: const Duration(milliseconds: 1400),
         );
       }
       if (_queueAutoRunEnabled) {
@@ -653,10 +692,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final url = item.directDownloadUrl?.trim() ?? '';
     final uri = Uri.tryParse(url);
     if (uri == null || !uri.hasScheme) {
-      _queueController.markItemFailed(
-        item.id,
-        'Falha ao iniciar download direto.',
-      );
+      const message = 'Falha ao iniciar download direto.';
+      _queueController.markItemFailed(item.id, message);
+      _notifyDownloadFailed('Download falhou: $message');
       if (mounted) setState(() {});
       if (_queueAutoRunEnabled) {
         _pumpDownloadQueue();
@@ -711,18 +749,14 @@ class _HomeScreenState extends State<HomeScreen> {
             outputPath: outputPath,
             outputDirectoryPath: outputDirectoryPath,
           );
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Download concluído: $savedFileName'),
-              duration: const Duration(seconds: 2),
-            ),
-          );
+          _notifyDownloadCompleted('Download concluído: $savedFileName');
           break;
         case InternalDownloadStatus.canceled:
           _queueController.cancelItem(item.id);
           break;
         case InternalDownloadStatus.failed:
           _queueController.markItemFailed(item.id, result.message);
+          _notifyDownloadFailed('Download falhou: ${result.message}');
           break;
       }
       setState(() {});
@@ -730,10 +764,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _pumpDownloadQueue();
       }
     } catch (_) {
-      _queueController.markItemFailed(
-        item.id,
-        'Falha ao iniciar download direto.',
-      );
+      const message = 'Falha ao iniciar download direto.';
+      _queueController.markItemFailed(item.id, message);
+      _notifyDownloadFailed('Download falhou: $message');
       if (mounted) {
         setState(() {});
       }
@@ -752,6 +785,9 @@ class _HomeScreenState extends State<HomeScreen> {
       _queueController.markItemFailed(
         item.id,
         'Selecione um formato antes de iniciar.',
+      );
+      _notifyDownloadFailed(
+        'Download falhou: selecione um formato antes de iniciar.',
       );
       if (mounted) setState(() {});
       if (_queueAutoRunEnabled) {
@@ -773,7 +809,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     final sourceUrl = (item.sourceUrl ?? '').trim();
     if (sourceUrl.isEmpty) {
-      _queueController.markItemFailed(item.id, 'URL ausente para download.');
+      const message = 'URL ausente para download.';
+      _queueController.markItemFailed(item.id, message);
+      _notifyDownloadFailed('Download falhou: $message');
       if (mounted) setState(() {});
       if (_queueAutoRunEnabled) {
         _pumpDownloadQueue();
@@ -848,6 +886,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 duration: Duration(seconds: 2),
               ),
             );
+            _notifyDownloadCompleted(
+              'Download concluído, mas o arquivo final não foi localizado automaticamente.',
+            );
             break;
           }
           _queueController.markItemCompletedWithOutput(
@@ -857,18 +898,14 @@ class _HomeScreenState extends State<HomeScreen> {
             outputPath: outputPath,
             outputDirectoryPath: directoryPath,
           );
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Download concluído em Downloads/ClipFlow'),
-              duration: Duration(seconds: 2),
-            ),
-          );
+          _notifyDownloadCompleted('Download concluído');
           break;
         case InternalDownloadStatus.canceled:
           _queueController.cancelItem(item.id);
           break;
         case InternalDownloadStatus.failed:
           _queueController.markItemFailed(item.id, result.message);
+          _notifyDownloadFailed('Download falhou: ${result.message}');
           break;
       }
       setState(() {});
@@ -876,10 +913,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _pumpDownloadQueue();
       }
     } catch (_) {
-      _queueController.markItemFailed(
-        item.id,
-        'Falha ao iniciar download via yt-dlp.',
-      );
+      const message = 'Falha ao iniciar download via yt-dlp.';
+      _queueController.markItemFailed(item.id, message);
+      _notifyDownloadFailed('Download falhou: $message');
       if (mounted) setState(() {});
       if (_queueAutoRunEnabled) {
         _pumpDownloadQueue();
@@ -943,11 +979,9 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {});
     _stopFakeProgressTimerIfIdle();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Itens finalizados removidos: $removed'),
-        duration: const Duration(seconds: 2),
-      ),
+    _showInfoMessage(
+      'Itens finalizados removidos: $removed',
+      duration: const Duration(seconds: 2),
     );
   }
 
@@ -963,12 +997,7 @@ class _HomeScreenState extends State<HomeScreen> {
         outputFolderLabel: updated.outputFolderChoice.label,
       );
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Preferências atualizadas'),
-        duration: Duration(milliseconds: 1200),
-      ),
-    );
+    _showInfoMessage('Preferências atualizadas');
     if (_queueAutoRunEnabled) {
       _pumpDownloadQueue();
     }

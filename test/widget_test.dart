@@ -222,4 +222,26 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Iniciar fila'), findsOneWidget);
   });
+
+  testWidgets('preferências mantém seção Notificações e switch funcional', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ClipFlowApp());
+
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.textContaining('Notifica'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Notificar ao concluir download'), findsOneWidget);
+    expect(find.text('Notificar ao falhar download'), findsOneWidget);
+    expect(find.text('Exibe mensagens dentro do app.'), findsNWidgets(2));
+
+    final switches = find.byType(Switch);
+    expect(switches, findsWidgets);
+    await tester.ensureVisible(switches.first);
+    await tester.tap(switches.first, warnIfMissed: false);
+    await tester.pumpAndSettle();
+  });
 }
