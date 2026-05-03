@@ -86,8 +86,8 @@ class DownloadQueueController {
     String? sourceUrl,
     DownloadTransferType transferType = DownloadTransferType.video,
     String formatLabel = 'MP4',
-    String qualityLabel = 'Ã“tima',
-    String outputFolderLabel = 'VÃ­deos',
+    String qualityLabel = 'Ótima',
+    String outputFolderLabel = 'Vídeos',
     DownloadStatus status = DownloadStatus.queued,
   }) {
     final currentNumber = _nextMockItemNumber;
@@ -102,7 +102,7 @@ class DownloadQueueController {
       formatLabel: formatLabel,
       qualityLabel: qualityLabel,
       fpsLabel: '--fps',
-      sourceLabel: 'Aguardando anÃ¡lise Â· $outputFolderLabel',
+      sourceLabel: 'Aguardando análise · $outputFolderLabel',
       transferType: transferType,
       status: status,
       progress: 0,
@@ -164,7 +164,7 @@ class DownloadQueueController {
 
   DownloadItem? markItemReadyAfterInternalAnalysis({
     required String id,
-    String outputFolderLabel = 'VÃ­deos',
+    String outputFolderLabel = 'Vídeos',
   }) {
     final index = _indexOf(id);
     if (index < 0) return null;
@@ -212,7 +212,7 @@ class DownloadQueueController {
 
   Future<DownloadItem?> markItemReadyAfterYouTubeMetadataAnalysis({
     required String id,
-    String outputFolderLabel = 'VÃ­deos',
+    String outputFolderLabel = 'Vídeos',
   }) async {
     final index = _indexOf(id);
     if (index < 0) return null;
@@ -366,7 +366,7 @@ class DownloadQueueController {
 
   DownloadItem? attachMockCommandPreview({
     required String itemId,
-    String outputFolderLabel = 'VÃ­deos',
+    String outputFolderLabel = 'Vídeos',
   }) {
     final index = _indexOf(itemId);
     if (index < 0) return null;
@@ -476,9 +476,9 @@ class DownloadQueueController {
   int _indexOf(String id) => _items.indexWhere((item) => item.id == id);
 
   String _extractOutputFolderFromSource(String sourceLabel) {
-    const separator = 'Â·';
+    const separator = '·';
     final index = sourceLabel.lastIndexOf(separator);
-    if (index < 0 || index == sourceLabel.length - 1) return 'VÃ­deos';
+    if (index < 0 || index == sourceLabel.length - 1) return 'Vídeos';
     return sourceLabel.substring(index + 1).trim();
   }
 

@@ -15,11 +15,11 @@ void main() {
         formatLabel: 'MP4',
         qualityLabel: '480p',
         fpsLabel: '25fps',
-        sourceLabel: 'ConteÃºdo autorizado',
+        sourceLabel: 'Conteúdo autorizado',
       );
       expect(
         item.metadataLabel,
-        '03:03 Â· 15,7 MB Â· MP4 Â· 480p Â· 25fps Â· ConteÃºdo autorizado',
+        '03:03 · 15,7 MB · MP4 · 480p · 25fps · Conteúdo autorizado',
       );
     });
 
@@ -112,11 +112,11 @@ void main() {
           DownloadFormatOption(
             id: 'audio-m4a',
             kind: DownloadFormatKind.audio,
-            label: 'Ãudio M4A',
+            label: 'Áudio M4A',
             formatLabel: 'M4A',
-            qualityLabel: 'Ãudio',
+            qualityLabel: 'Áudio',
             sizeLabel: '5 MB',
-            detailsLabel: 'Somente Ã¡udio',
+            detailsLabel: 'Somente áudio',
           ),
         ],
       );
@@ -270,7 +270,7 @@ void main() {
         DownloadStatus.ready: 'Pronto',
         DownloadStatus.downloading: 'Baixando',
         DownloadStatus.paused: 'Pausado',
-        DownloadStatus.completed: 'ConcluÃ­do',
+        DownloadStatus.completed: 'Concluído',
         DownloadStatus.failed: 'Falhou',
         DownloadStatus.canceled: 'Cancelado',
       };

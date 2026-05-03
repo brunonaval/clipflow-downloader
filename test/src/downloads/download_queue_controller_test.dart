@@ -138,7 +138,7 @@ void main() {
           ),
           _item(
             id: '2',
-            title: 'Aula de vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­deo',
+            title: 'Aula de vídeo',
             transferType: DownloadTransferType.video,
           ),
         ],
@@ -159,7 +159,7 @@ void main() {
           _item(
             id: '2',
             title: 'B',
-            sourceLabel: 'Pasta vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­deos',
+            sourceLabel: 'Pasta vídeos',
           ),
         ],
       );
@@ -409,7 +409,7 @@ void main() {
     });
 
     test(
-      'markItemReadyAfterInternalAnalysis marca URL invÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lida como failed',
+      'markItemReadyAfterInternalAnalysis marca URL inválida como failed',
       () {
         final controller = DownloadQueueController();
         final created = controller.addMockAuthorizedLink(
@@ -487,7 +487,7 @@ void main() {
     );
 
     test(
-      'markItemReadyAfterInternalAnalysis marca URL invÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lida como failed',
+      'markItemReadyAfterInternalAnalysis marca URL inválida como failed',
       () {
         final controller = DownloadQueueController();
         final created = controller.addMockAuthorizedLink(
@@ -520,7 +520,7 @@ void main() {
     );
 
     test(
-      'selectFormatForItem retorna null quando item nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o existe',
+      'selectFormatForItem retorna null quando item não existe',
       () {
         final controller = DownloadQueueController();
 
@@ -534,7 +534,7 @@ void main() {
     );
 
     test(
-      'selectFormatForItem retorna null quando formato nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o existe',
+      'selectFormatForItem retorna null quando formato não existe',
       () {
         final controller = DownloadQueueController();
         final created = controller.addMockAuthorizedLink(
@@ -669,7 +669,7 @@ void main() {
     });
 
     test(
-      'attachMockCommandPreview retorna null se item nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o tiver formato selecionado',
+      'attachMockCommandPreview retorna null se item não tiver formato selecionado',
       () {
         final controller = DownloadQueueController();
         final created = controller.addMockAuthorizedLink(
@@ -694,7 +694,7 @@ void main() {
 
         final updated = controller.attachMockCommandPreview(
           itemId: created.id,
-          outputFolderLabel: 'vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­deos',
+          outputFolderLabel: 'vídeos',
         );
 
         expect(updated, isNotNull);
@@ -760,13 +760,13 @@ void main() {
       );
 
       const result = YtDlpAnalysisResult(
-        title: 'TÃƒÂ­tulo yt-dlp',
+        title: 'Título yt-dlp',
         durationLabel: '02:00',
         formats: [
           DownloadFormatOption(
             id: '22',
             kind: DownloadFormatKind.video,
-            label: 'VÃƒÆ’Ã‚Â­deo MP4 720p',
+            label: 'Vídeo MP4 720p',
             formatLabel: 'MP4',
             qualityLabel: '720p',
             sizeLabel: '10 MB',
@@ -794,18 +794,18 @@ void main() {
       );
 
       const result = YtDlpAnalysisResult(
-        title: 'TÃƒÂ­tulo yt-dlp',
+        title: 'Título yt-dlp',
         durationLabel: '02:00',
         formats: [
           DownloadFormatOption(
             id: '299',
             kind: DownloadFormatKind.video,
-            label: 'VÃƒÂ­deo sem ÃƒÂ¡udio Ã¢â‚¬â€ requer FFmpeg',
+            label: 'Vídeo sem áudio — requer FFmpeg',
             formatLabel: 'MP4',
             qualityLabel: '1080p',
             sizeLabel: '15 MB',
             detailsLabel:
-                '[video-only] yt-dlp format 299 Ãƒâ€šÃ‚Â· vÃƒÆ’Ã‚Â­deo sem ÃƒÆ’Ã‚Â¡udio Ãƒâ€šÃ‚Â· requer FFmpeg futuro',
+                '[video-only] yt-dlp format 299 · vídeo sem áudio · requer FFmpeg futuro',
           ),
         ],
         recommendedFormatId: '299',

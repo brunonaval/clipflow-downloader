@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -122,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (_youtubeUrlParser.isYouTubeUrl(safeUrl)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('AnÃ¡lise do YouTube iniciada'),
+            content: Text('Análise do YouTube iniciada'),
             duration: Duration(milliseconds: 1200),
           ),
         );
@@ -144,7 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
             setState(() {});
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('AnÃ¡lise yt-dlp concluÃ­da'),
+                content: Text('Análise yt-dlp concluída'),
                 duration: Duration(milliseconds: 1200),
               ),
             );
@@ -177,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() {});
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Usando anÃ¡lise interna limitada para YouTube'),
+              content: Text('Usando análise interna limitada para YouTube'),
               duration: Duration(milliseconds: 1200),
             ),
           );
@@ -345,7 +345,7 @@ class _HomeScreenState extends State<HomeScreen> {
           );
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Download concluÃ­do: $savedFileName'),
+              content: Text('Download concluído: $savedFileName'),
               duration: const Duration(seconds: 2),
             ),
           );
@@ -433,7 +433,7 @@ class _HomeScreenState extends State<HomeScreen> {
           );
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Download concluÃ­do em Downloads/ClipFlow'),
+              content: Text('Download concluído em Downloads/ClipFlow'),
               duration: Duration(seconds: 2),
             ),
           );
