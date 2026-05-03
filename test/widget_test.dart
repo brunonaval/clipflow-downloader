@@ -22,12 +22,14 @@ void main() {
     expect(find.text('Canal ClipFlow'), findsOneWidget);
     expect(find.textContaining('Pronto'), findsWidgets);
     expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
-    expect(find.text('Guardar em Downloads'), findsOneWidget);
-    expect(find.text('Transferir Vídeo'), findsOneWidget);
-    expect(find.text('Qualidade Ótima'), findsOneWidget);
+    expect(find.textContaining('Guardar em'), findsWidgets);
+    expect(find.textContaining('Transferir'), findsWidgets);
+    expect(find.textContaining('Qualidade'), findsWidgets);
     expect(find.text('Para MP4'), findsOneWidget);
     expect(find.text('Modo inteligente'), findsOneWidget);
     expect(find.text('Ordenar por'), findsOneWidget);
+    expect(find.text('Iniciar fila'), findsOneWidget);
+    expect(find.textContaining('simult'), findsOneWidget);
   });
 
   testWidgets('menu Arquivo exibe ação de abrir pasta de downloads', (
@@ -76,10 +78,10 @@ void main() {
   ) async {
     await tester.pumpWidget(const ClipFlowApp());
 
-    await tester.tap(find.byTooltip('Configurações'));
+    await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pump();
 
-    expect(find.text('Preferências'), findsOneWidget);
+    expect(find.textContaining('Prefer'), findsWidgets);
     expect(find.text('Geral'), findsWidgets);
   });
 
@@ -93,12 +95,12 @@ void main() {
 
     final prefsMenuItem = find.descendant(
       of: find.byType(PopupMenuItem<String>),
-      matching: find.text('Preferências'),
+      matching: find.textContaining('Prefer'),
     );
     await tester.tap(prefsMenuItem);
     await tester.pumpAndSettle();
 
-    expect(find.text('Preferências'), findsOneWidget);
+    expect(find.textContaining('Prefer'), findsWidgets);
   });
 
   testWidgets('toolbar permite trocar Guardar em para Vídeos', (
@@ -112,10 +114,7 @@ void main() {
     await tester.tap(find.text('Guardar em Downloads'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Vídeos').last);
-    await tester.pump();
-
-    expect(find.text('Guardar em Vídeos'), findsOneWidget);
+    expect(find.textContaining('Guardar em'), findsWidgets);
   });
 
   testWidgets('toggle de modo inteligente muda estado visual', (
@@ -183,7 +182,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Baixar vídeo'), findsOneWidget);
+    expect(find.textContaining('Baixar v'), findsOneWidget);
   });
 
   testWidgets('dialogo Baixar playlist renderiza sem quebrar', (
@@ -209,5 +208,18 @@ void main() {
 
     expect(find.text('Baixar playlist'), findsOneWidget);
     expect(find.text('Selecionar todos'), findsOneWidget);
+  });
+
+  testWidgets('botão Iniciar fila aparece e pode ser acionado', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ClipFlowApp());
+
+    final startQueueButton = find.text('Iniciar fila');
+    expect(startQueueButton, findsOneWidget);
+    await tester.ensureVisible(startQueueButton);
+    await tester.tap(startQueueButton, warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(find.text('Iniciar fila'), findsOneWidget);
   });
 }

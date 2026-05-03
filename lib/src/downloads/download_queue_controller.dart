@@ -34,6 +34,30 @@ class DownloadQueueController {
   bool get hasRunningItems =>
       _items.any((item) => item.status == DownloadStatus.downloading);
 
+  int get activeTransferCount => _items
+      .where(
+        (item) =>
+            item.status == DownloadStatus.downloading ||
+            item.status == DownloadStatus.analyzing,
+      )
+      .length;
+
+  List<DownloadItem> get startableItems => _items
+      .where(
+        (item) =>
+            item.status == DownloadStatus.queued ||
+            item.status == DownloadStatus.ready,
+      )
+      .toList(growable: false);
+
+  bool get hasStartableItems => startableItems.isNotEmpty;
+
+  DownloadItem? nextStartableItem() {
+    final list = startableItems;
+    if (list.isEmpty) return null;
+    return list.first;
+  }
+
   String get itemCountLabel {
     if (itemCount == 0) return '0 itens';
     if (itemCount == 1) return '1 item';

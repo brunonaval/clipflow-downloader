@@ -53,6 +53,8 @@ class _HomeScreenState extends State<HomeScreen> {
   AppPreferences _preferences = AppPreferences.defaults;
   DownloadOptions _downloadOptions = const DownloadOptions();
   String _searchQuery = '';
+  bool _queueAutoRunEnabled = false;
+  bool _queuePumpScheduled = false;
   Timer? _fakeProgressTimer;
   Timer? _mockAnalysisTimer;
   final Map<String, InternalDownloadCancellation> _downloadCancellations = {};
@@ -114,6 +116,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     setState(() {});
     _stopFakeProgressTimerIfIdle();
+    if (_queueAutoRunEnabled) {
+      _pumpDownloadQueue();
+    }
   }
 
   Future<void> _handlePaste() async {
@@ -458,6 +463,74 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _startQueueAutoRun() {
+    if (!_queueController.hasStartableItems) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nenhum item na fila para iniciar.'),
+          duration: Duration(milliseconds: 1200),
+        ),
+      );
+      return;
+    }
+    setState(() {
+      _queueAutoRunEnabled = true;
+    });
+    _pumpDownloadQueue();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Fila iniciada'),
+        duration: Duration(milliseconds: 1200),
+      ),
+    );
+  }
+
+  void _stopQueueAutoRun() {
+    if (!_queueAutoRunEnabled) return;
+    setState(() {
+      _queueAutoRunEnabled = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Fila pausada'),
+        duration: Duration(milliseconds: 1200),
+      ),
+    );
+  }
+
+  void _pumpDownloadQueue() {
+    if (!_queueAutoRunEnabled) return;
+    if (_queuePumpScheduled) return;
+    _queuePumpScheduled = true;
+    Future<void>.microtask(() {
+      _queuePumpScheduled = false;
+      if (!mounted || !_queueAutoRunEnabled) return;
+
+      final limit = _preferences.simultaneousDownloads;
+      while (_queueController.activeTransferCount < limit) {
+        final next = _queueController.nextStartableItem();
+        if (next == null) {
+          if (mounted) {
+            setState(() {
+              _queueAutoRunEnabled = false;
+            });
+          }
+          return;
+        }
+
+        final beforeActive = _queueController.activeTransferCount;
+        _startItem(next);
+        final afterActive = _queueController.activeTransferCount;
+        final stillStartable = _queueController.startableItems.any(
+          (item) => item.id == next.id,
+        );
+        if (afterActive <= beforeActive && stillStartable) {
+          break;
+        }
+      }
+    });
+  }
+
   void _startItem(DownloadItem item) {
     if (item.status == DownloadStatus.analyzing) {
       return;
@@ -506,6 +579,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (sourceUrl.isEmpty) {
       _queueController.markItemFailed(item.id, 'URL ausente para análise.');
       if (mounted) setState(() {});
+      if (_queueAutoRunEnabled) {
+        _pumpDownloadQueue();
+      }
       return;
     }
 
@@ -520,6 +596,9 @@ class _HomeScreenState extends State<HomeScreen> {
       if (ready == null || ready.status != DownloadStatus.ready) {
         _queueController.markItemFailed(item.id, 'Falha ao preparar formatos.');
         setState(() {});
+        if (_queueAutoRunEnabled) {
+          _pumpDownloadQueue();
+        }
         return;
       }
       _queueController.attachMockCommandPreview(
@@ -542,6 +621,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       }
+      if (_queueAutoRunEnabled) {
+        _pumpDownloadQueue();
+      }
     }
   }
 
@@ -562,6 +644,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() {});
     _stopFakeProgressTimerIfIdle();
+    if (_queueAutoRunEnabled) {
+      _pumpDownloadQueue();
+    }
   }
 
   Future<void> _startInternalDirectDownload(DownloadItem item) async {
@@ -573,6 +658,9 @@ class _HomeScreenState extends State<HomeScreen> {
         'Falha ao iniciar download direto.',
       );
       if (mounted) setState(() {});
+      if (_queueAutoRunEnabled) {
+        _pumpDownloadQueue();
+      }
       return;
     }
 
@@ -638,6 +726,9 @@ class _HomeScreenState extends State<HomeScreen> {
           break;
       }
       setState(() {});
+      if (_queueAutoRunEnabled) {
+        _pumpDownloadQueue();
+      }
     } catch (_) {
       _queueController.markItemFailed(
         item.id,
@@ -645,6 +736,9 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       if (mounted) {
         setState(() {});
+      }
+      if (_queueAutoRunEnabled) {
+        _pumpDownloadQueue();
       }
     } finally {
       await sink?.close();
@@ -660,6 +754,9 @@ class _HomeScreenState extends State<HomeScreen> {
         'Selecione um formato antes de iniciar.',
       );
       if (mounted) setState(() {});
+      if (_queueAutoRunEnabled) {
+        _pumpDownloadQueue();
+      }
       return;
     }
     final isVideoOnly = YtDlpEngineService.isVideoOnlyOption(selectedFormat);
@@ -678,6 +775,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (sourceUrl.isEmpty) {
       _queueController.markItemFailed(item.id, 'URL ausente para download.');
       if (mounted) setState(() {});
+      if (_queueAutoRunEnabled) {
+        _pumpDownloadQueue();
+      }
       return;
     }
 
@@ -772,12 +872,18 @@ class _HomeScreenState extends State<HomeScreen> {
           break;
       }
       setState(() {});
+      if (_queueAutoRunEnabled) {
+        _pumpDownloadQueue();
+      }
     } catch (_) {
       _queueController.markItemFailed(
         item.id,
         'Falha ao iniciar download via yt-dlp.',
       );
       if (mounted) setState(() {});
+      if (_queueAutoRunEnabled) {
+        _pumpDownloadQueue();
+      }
     } finally {
       _downloadCancellations.remove(item.id);
     }
@@ -863,6 +969,9 @@ class _HomeScreenState extends State<HomeScreen> {
         duration: Duration(milliseconds: 1200),
       ),
     );
+    if (_queueAutoRunEnabled) {
+      _pumpDownloadQueue();
+    }
   }
 
   Future<void> _openDownloadedFile(DownloadItem item) async {
@@ -1062,6 +1171,11 @@ class _HomeScreenState extends State<HomeScreen> {
           _StatusBar(
             onClearFinished: _clearFinishedItems,
             onShowEngineInfo: _showInternalEngineDialog,
+            onToggleQueueAutoRun: _queueAutoRunEnabled
+                ? _stopQueueAutoRun
+                : _startQueueAutoRun,
+            queueAutoRunEnabled: _queueAutoRunEnabled,
+            simultaneousLimit: _preferences.simultaneousDownloads,
           ),
         ],
       ),
@@ -2034,16 +2148,22 @@ class _EmptyFilterState extends StatelessWidget {
 class _StatusBar extends StatelessWidget {
   final VoidCallback onClearFinished;
   final VoidCallback onShowEngineInfo;
+  final VoidCallback onToggleQueueAutoRun;
+  final bool queueAutoRunEnabled;
+  final int simultaneousLimit;
 
   const _StatusBar({
     required this.onClearFinished,
     required this.onShowEngineInfo,
+    required this.onToggleQueueAutoRun,
+    required this.queueAutoRunEnabled,
+    required this.simultaneousLimit,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 68,
+      height: 84,
       color: _kGreen,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -2072,6 +2192,12 @@ class _StatusBar extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: Colors.white70, fontSize: 10),
+                ),
+                Text(
+                  'Fila: até $simultaneousLimit simultâneo(s)',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white70, fontSize: 10),
                 ),
               ],
             ),
@@ -2112,6 +2238,28 @@ class _StatusBar extends StatelessWidget {
                     child: const Text(
                       'Sobre o motor',
                       style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Tooltip(
+                    message: queueAutoRunEnabled
+                        ? 'Parar de iniciar novos downloads'
+                        : 'Iniciar downloads pendentes respeitando o limite de simultaneidade',
+                    child: OutlinedButton(
+                      onPressed: onToggleQueueAutoRun,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white54),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: Text(
+                        queueAutoRunEnabled ? 'Parar fila' : 'Iniciar fila',
+                        style: const TextStyle(fontSize: 13),
+                      ),
                     ),
                   ),
                 ],
