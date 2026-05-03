@@ -31,8 +31,8 @@ void main() {
   ) async {
     await tester.pumpWidget(const ClipFlowApp());
 
-    expect(find.byTooltip('Abrir arquivo'), findsWidgets);
-    expect(find.byTooltip('Abrir pasta'), findsWidgets);
+    expect(find.byTooltip('Abrir arquivo'), findsOneWidget);
+    expect(find.byTooltip('Abrir pasta'), findsNWidgets(2));
   });
 
   testWidgets('opens internal engine dialog from status bar', (

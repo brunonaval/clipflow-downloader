@@ -649,6 +649,34 @@ void main() {
       expect(completed.outputDirectoryPath, r'C:\Downloads\ClipFlow');
     });
 
+    test(
+      'markItemCompletedWithDirectory conclui e salva apenas outputDirectoryPath',
+      () {
+        final controller = DownloadQueueController(
+          initialItems: [
+            _item(
+              id: '1',
+              title: 'Run',
+              status: DownloadStatus.downloading,
+              progress: 0.7,
+            ),
+          ],
+        );
+
+        final completed = controller.markItemCompletedWithDirectory(
+          id: '1',
+          message: 'Salvo em Downloads/ClipFlow',
+          outputDirectoryPath: r'C:\Downloads\ClipFlow',
+        );
+
+        expect(completed, isNotNull);
+        expect(completed!.status, DownloadStatus.completed);
+        expect(completed.progress, 1.0);
+        expect(completed.outputPath, isNull);
+        expect(completed.outputDirectoryPath, r'C:\Downloads\ClipFlow');
+      },
+    );
+
     test('markItemMerging atualiza sourceLabel', () {
       final controller = DownloadQueueController(
         initialItems: [

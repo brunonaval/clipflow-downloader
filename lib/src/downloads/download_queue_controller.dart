@@ -331,6 +331,24 @@ class DownloadQueueController {
     return _replaceAt(index, updated);
   }
 
+  DownloadItem? markItemCompletedWithDirectory({
+    required String id,
+    required String message,
+    required String outputDirectoryPath,
+  }) {
+    final index = _indexOf(id);
+    if (index < 0) return null;
+    final item = _items[index];
+    final updated = item.copyWith(
+      status: DownloadStatus.completed,
+      progress: 1,
+      sourceLabel: message,
+      outputPath: null,
+      outputDirectoryPath: outputDirectoryPath,
+    );
+    return _replaceAt(index, updated);
+  }
+
   DownloadItem? markItemMerging(String id) {
     final index = _indexOf(id);
     if (index < 0) return null;

@@ -15,6 +15,7 @@ import '../engine/download/internal_download_request.dart';
 import '../engine/download/internal_download_result.dart';
 import '../engine/download/internal_http_downloader.dart';
 import '../engine/download/download_output_planner.dart';
+import '../engine/download/completed_output_resolver.dart';
 import '../system/system_file_opener.dart';
 import '../engine/youtube/youtube_url_parser.dart';
 import '../engine/yt_dlp/yt_dlp_engine_service.dart';
@@ -40,6 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final Map<String, InternalDownloadCancellation> _downloadCancellations = {};
   static const _httpDownloader = InternalHttpDownloader();
   static const _outputPlanner = DownloadOutputPlanner();
+  static const _completedOutputResolver = CompletedOutputResolver();
   static const _ytDlpEngine = YtDlpEngineService();
   static const _fileOpener = SystemFileOpener();
 
@@ -411,6 +413,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final cancellation = InternalDownloadCancellation();
     _downloadCancellations[item.id] = cancellation;
+    final startedAt = DateTime.now();
 
     try {
       final directory = _outputPlanner.defaultDownloadDirectory();
@@ -446,17 +449,17 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       switch (result.status) {
         case InternalDownloadStatus.completed:
-          final outputPath = await _resolveYtDlpCompletedOutputPath(
-            reportedPath: result.outputPath,
+          final outputPath = await _resolveCompletedOutputPath(
+            reportedOutputPath: result.outputPath,
             outputDirectoryPath: directoryPath,
             baseName: baseName,
+            startedAt: startedAt,
           );
           if (!mounted) return;
           if (outputPath == null) {
-            _queueController.markItemCompletedWithOutput(
+            _queueController.markItemCompletedWithDirectory(
               id: item.id,
               message: 'Salvo em Downloads/ClipFlow',
-              outputPath: null,
               outputDirectoryPath: directoryPath,
             );
             ScaffoldMessenger.of(context).showSnackBar(
@@ -618,36 +621,18 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<String?> _resolveYtDlpCompletedOutputPath({
-    required String? reportedPath,
+  Future<String?> _resolveCompletedOutputPath({
+    required String? reportedOutputPath,
     required String outputDirectoryPath,
     required String baseName,
+    DateTime? startedAt,
   }) async {
-    final safeReported = (reportedPath ?? '').trim();
-    if (safeReported.isNotEmpty &&
-        !safeReported.contains('%(ext)s') &&
-        await File(safeReported).exists()) {
-      return safeReported;
-    }
-
-    final directory = Directory(outputDirectoryPath);
-    if (!await directory.exists()) return null;
-
-    File? latestMatch;
-    DateTime? latestTime;
-    await for (final entity in directory.list(followLinks: false)) {
-      if (entity is! File) continue;
-      final name = entity.uri.pathSegments.isNotEmpty
-          ? entity.uri.pathSegments.last
-          : '';
-      if (!name.startsWith(baseName)) continue;
-      final stat = await entity.stat();
-      if (latestTime == null || stat.modified.isAfter(latestTime)) {
-        latestTime = stat.modified;
-        latestMatch = entity;
-      }
-    }
-    return latestMatch?.path;
+    return _completedOutputResolver.resolve(
+      reportedOutputPath: reportedOutputPath,
+      outputDirectoryPath: outputDirectoryPath,
+      baseName: baseName,
+      startedAt: startedAt,
+    );
   }
 
   Future<void> _openDownloadsRootFolder() async {
