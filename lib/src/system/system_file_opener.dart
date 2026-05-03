@@ -44,11 +44,11 @@ class SystemFileOpener {
     switch (_platformResolver.current()) {
       case SystemPlatform.windows:
         return _SystemLaunch(
-          executable: 'powershell',
+          executable: 'cmd.exe',
           arguments: [
-            '-NoProfile',
-            '-Command',
-            'Invoke-Item -LiteralPath \$args[0]',
+            '/c',
+            'start',
+            '',
             path,
           ],
         );

@@ -55,15 +55,13 @@ void main() {
           await opener.openFile(r'C:\Downloads\ClipFlow\video.mp4');
         } catch (_) {}
 
-        expect(runner.executable, 'powershell');
-        final args = runner.arguments!;
-        expect(args, hasLength(4));
-        expect(args[0], '-NoProfile');
-        expect(args[1], '-Command');
-        expect(args[2], contains('Invoke-Item'));
-        expect(args[2], contains('LiteralPath'));
-        expect(args[2], isNot(contains('Start-Process')));
-        expect(args.last, r'C:\Downloads\ClipFlow\video.mp4');
+        expect(runner.executable, 'cmd.exe');
+        expect(runner.arguments, [
+        '/c',
+        'start',
+        '',
+        r'C:\\Downloads\\ClipFlow\\video.mp4',
+      ]);
       },
     );
 
