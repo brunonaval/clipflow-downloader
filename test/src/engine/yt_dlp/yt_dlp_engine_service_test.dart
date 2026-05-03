@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -113,7 +113,9 @@ void main() {
         runner: runner,
       );
 
-      final result = await service.analyzeUrl('https://youtube.com/watch?v=abc');
+      final result = await service.analyzeUrl(
+        'https://youtube.com/watch?v=abc',
+      );
 
       expect(result.title, 'Video Teste');
       expect(result.durationLabel, '03:21');
@@ -153,25 +155,28 @@ void main() {
       expect(value, closeTo(0.42, 0.0001));
     });
 
-    test('video-only without FFmpeg fails and does not start process', () async {
-      final runner = _FakeRunner(runResult: ProcessResult(1, 0, '{}', ''));
-      final service = YtDlpEngineService(
-        resolver: const _FakeResolverAvailable(),
-        ffmpegResolver: const _FakeFfmpegResolverUnavailable(),
-        runner: runner,
-      );
+    test(
+      'video-only without FFmpeg fails and does not start process',
+      () async {
+        final runner = _FakeRunner(runResult: ProcessResult(1, 0, '{}', ''));
+        final service = YtDlpEngineService(
+          resolver: const _FakeResolverAvailable(),
+          ffmpegResolver: const _FakeFfmpegResolverUnavailable(),
+          runner: runner,
+        );
 
-      final result = await service.download(
-        url: 'https://youtube.com/watch?v=abc',
-        formatId: '299',
-        outputTemplate: '/tmp/out.%(ext)s',
-        onProgress: (_) {},
-      );
+        final result = await service.download(
+          url: 'https://youtube.com/watch?v=abc',
+          formatId: '299',
+          outputTemplate: '/tmp/out.%(ext)s',
+          onProgress: (_) {},
+        );
 
-      expect(result.status, InternalDownloadStatus.failed);
-      expect(result.message, contains('requer FFmpeg'));
-      expect(runner.lastStartArguments, isNull);
-    });
+        expect(result.status, InternalDownloadStatus.failed);
+        expect(result.message, contains('requer FFmpeg'));
+        expect(runner.lastStartArguments, isNull);
+      },
+    );
 
     test('video-only with FFmpeg uses merge args and keeps %(ext)s', () async {
       final runner = _FakeRunner(runResult: ProcessResult(1, 0, '{}', ''));

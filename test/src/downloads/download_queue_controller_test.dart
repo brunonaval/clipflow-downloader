@@ -156,11 +156,7 @@ void main() {
       final controller = DownloadQueueController(
         initialItems: [
           _item(id: '1', title: 'A', sourceLabel: 'Pasta Downloads'),
-          _item(
-            id: '2',
-            title: 'B',
-            sourceLabel: 'Pasta vídeos',
-          ),
+          _item(id: '2', title: 'B', sourceLabel: 'Pasta vídeos'),
         ],
       );
 
@@ -519,37 +515,28 @@ void main() {
       },
     );
 
-    test(
-      'selectFormatForItem retorna null quando item não existe',
-      () {
-        final controller = DownloadQueueController();
+    test('selectFormatForItem retorna null quando item não existe', () {
+      final controller = DownloadQueueController();
 
-        final updated = controller.selectFormatForItem(
-          'missing-id',
-          'audio-m4a',
-        );
+      final updated = controller.selectFormatForItem('missing-id', 'audio-m4a');
 
-        expect(updated, isNull);
-      },
-    );
+      expect(updated, isNull);
+    });
 
-    test(
-      'selectFormatForItem retorna null quando formato não existe',
-      () {
-        final controller = DownloadQueueController();
-        final created = controller.addMockAuthorizedLink(
-          status: DownloadStatus.analyzing,
-        );
-        controller.markItemReadyAfterMockAnalysis(created.id);
+    test('selectFormatForItem retorna null quando formato não existe', () {
+      final controller = DownloadQueueController();
+      final created = controller.addMockAuthorizedLink(
+        status: DownloadStatus.analyzing,
+      );
+      controller.markItemReadyAfterMockAnalysis(created.id);
 
-        final updated = controller.selectFormatForItem(
-          created.id,
-          'missing-format',
-        );
+      final updated = controller.selectFormatForItem(
+        created.id,
+        'missing-format',
+      );
 
-        expect(updated, isNull);
-      },
-    );
+      expect(updated, isNull);
+    });
 
     test('startItem ainda funciona depois de selecionar formato', () {
       final controller = DownloadQueueController();
