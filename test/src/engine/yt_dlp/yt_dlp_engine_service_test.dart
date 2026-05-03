@@ -133,7 +133,10 @@ void main() {
 
       final videoOnly = result.formats.firstWhere((f) => f.id == '299');
       expect(videoOnly.label, 'Vídeo sem áudio — requer FFmpeg');
-      expect(videoOnly.detailsLabel.contains('requer FFmpeg futuro'), isTrue);
+      expect(
+        videoOnly.detailsLabel.contains('áudio M4A preferido para MP4'),
+        isTrue,
+      );
       expect(videoOnly.detailsLabel.contains('[video-only]'), isTrue);
     });
 
@@ -168,6 +171,7 @@ void main() {
         final result = await service.download(
           url: 'https://youtube.com/watch?v=abc',
           formatId: '299',
+          selectedFormatLabel: 'MP4',
           outputTemplate: '/tmp/out.%(ext)s',
           onProgress: (_) {},
         );
@@ -178,28 +182,38 @@ void main() {
       },
     );
 
-    test('video-only with FFmpeg uses merge args and keeps %(ext)s', () async {
-      final runner = _FakeRunner(runResult: ProcessResult(1, 0, '{}', ''));
-      final service = YtDlpEngineService(
-        resolver: const _FakeResolverAvailable(),
-        ffmpegResolver: const _FakeFfmpegResolverAvailable(),
-        runner: runner,
-      );
+    test(
+      'video-only MP4 with FFmpeg uses m4a-first merge selector and keeps %(ext)s',
+      () async {
+        final runner = _FakeRunner(runResult: ProcessResult(1, 0, '{}', ''));
+        final service = YtDlpEngineService(
+          resolver: const _FakeResolverAvailable(),
+          ffmpegResolver: const _FakeFfmpegResolverAvailable(),
+          runner: runner,
+        );
 
-      final result = await service.download(
-        url: 'https://youtube.com/watch?v=abc',
-        formatId: '299',
-        outputTemplate: '/tmp/out.%(ext)s',
-        onProgress: (_) {},
-      );
+        final result = await service.download(
+          url: 'https://youtube.com/watch?v=abc',
+          formatId: '299',
+          selectedFormatLabel: 'MP4',
+          outputTemplate: '/tmp/out.%(ext)s',
+          onProgress: (_) {},
+        );
 
-      expect(result.status, InternalDownloadStatus.completed);
-      final args = runner.lastStartArguments!;
-      expect(args, containsAllInOrder(['-f', '299+bestaudio/best']));
-      expect(args, containsAllInOrder(['--merge-output-format', 'mp4']));
-      expect(args, contains('--ffmpeg-location'));
-      expect(args, contains('/tmp/out.%(ext)s'));
-    });
+        expect(result.status, InternalDownloadStatus.completed);
+        final args = runner.lastStartArguments!;
+        expect(
+          args,
+          containsAllInOrder([
+            '-f',
+            '299+bestaudio[ext=m4a]/299+140/299+bestaudio/best',
+          ]),
+        );
+        expect(args, containsAllInOrder(['--merge-output-format', 'mp4']));
+        expect(args, contains('--ffmpeg-location'));
+        expect(args, contains('/tmp/out.%(ext)s'));
+      },
+    );
 
     test('muxed id 18 keeps -f 18', () async {
       final runner = _FakeRunner(runResult: ProcessResult(1, 0, '{}', ''));
@@ -244,7 +258,7 @@ void main() {
         qualityLabel: '1080p',
         sizeLabel: '15 MB',
         detailsLabel:
-            '[video-only] yt-dlp format 299 · vídeo sem áudio · requer FFmpeg futuro',
+            '[video-only] yt-dlp format 299 · vídeo sem áudio · requer FFmpeg · áudio M4A preferido para MP4',
       );
 
       expect(YtDlpEngineService.isVideoOnlyOption(videoOnly), isTrue);

@@ -110,6 +110,7 @@ class YtDlpEngineService {
   Future<InternalDownloadResult> download({
     required String url,
     required String formatId,
+    String? selectedFormatLabel,
     required String outputTemplate,
     required void Function(InternalDownloadProgress progress) onProgress,
     InternalDownloadCancellation? cancellation,
@@ -133,6 +134,9 @@ class YtDlpEngineService {
     }
 
     final selectedIsVideoOnly = _isVideoOnlyFormatId(formatId);
+    final isMp4VideoOnly =
+        selectedIsVideoOnly &&
+        (selectedFormatLabel?.trim().toUpperCase() ?? '') == 'MP4';
     final ffmpegExecutable = await _ffmpegResolver.resolve();
     if (selectedIsVideoOnly && ffmpegExecutable == null) {
       return const InternalDownloadResult(
@@ -147,7 +151,11 @@ class YtDlpEngineService {
       '--newline',
       '--no-playlist',
       '-f',
-      selectedIsVideoOnly ? '$formatId+bestaudio/best' : formatId,
+      selectedIsVideoOnly
+          ? (isMp4VideoOnly
+                ? '$formatId+bestaudio[ext=m4a]/$formatId+140/$formatId+bestaudio/best'
+                : '$formatId+bestaudio/best')
+          : formatId,
       if (selectedIsVideoOnly) ...const ['--merge-output-format', 'mp4'],
       if (ffmpegExecutable != null) ...[
         '--ffmpeg-location',
@@ -359,7 +367,7 @@ class YtDlpEngineService {
         _YtDlpFormatCategory.muxed =>
           '[muxed] $baseDetails$sizeDetails · vídeo+áudio',
         _YtDlpFormatCategory.videoOnly =>
-          '[video-only] $baseDetails$sizeDetails · vídeo sem áudio · requer FFmpeg futuro',
+          '[video-only] $baseDetails$sizeDetails · vídeo sem áudio · requer FFmpeg · áudio M4A preferido para MP4',
         _YtDlpFormatCategory.audioOnly =>
           '[audio-only] $baseDetails$sizeDetails · áudio',
       };

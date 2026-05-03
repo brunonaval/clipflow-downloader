@@ -508,7 +508,11 @@ class DownloadQueueController {
     if (selected.isEmpty) return null;
     final format = selected.first;
     if (format.detailsLabel.contains('[video-only]')) {
-      return 'yt-dlp -f ${format.id}+bestaudio/best · merge MP4 com FFmpeg';
+      final isMp4 = format.formatLabel.trim().toUpperCase() == 'MP4';
+      if (isMp4) {
+        return 'yt-dlp -f ${format.id}+bestaudio[ext=m4a]/${format.id}+140/${format.id}+bestaudio/best · merge MP4 com FFmpeg';
+      }
+      return 'yt-dlp -f ${format.id}+bestaudio/best · merge com FFmpeg';
     }
     return 'yt-dlp -f ${format.id}';
   }

@@ -414,6 +414,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final result = await _ytDlpEngine.download(
         url: sourceUrl,
         formatId: selectedFormat.id,
+        selectedFormatLabel: selectedFormat.formatLabel,
         outputTemplate: outputTemplate,
         cancellation: cancellation,
         onProgress: (progress) {

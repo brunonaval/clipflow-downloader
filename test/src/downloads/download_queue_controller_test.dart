@@ -792,7 +792,7 @@ void main() {
             qualityLabel: '1080p',
             sizeLabel: '15 MB',
             detailsLabel:
-                '[video-only] yt-dlp format 299 · vídeo sem áudio · requer FFmpeg futuro',
+                '[video-only] yt-dlp format 299 · vídeo sem áudio · requer FFmpeg · áudio M4A preferido para MP4',
           ),
         ],
         recommendedFormatId: '299',
@@ -806,7 +806,11 @@ void main() {
         updated.availableFormats.first.id.contains('-video-only'),
         isFalse,
       );
-      expect(updated.commandPreviewLabel, contains('299+bestaudio/best'));
+      expect(
+        updated.commandPreviewLabel,
+        contains('299+bestaudio[ext=m4a]/299+140/299+bestaudio/best'),
+      );
+      expect(updated.commandPreviewLabel, contains('FFmpeg'));
       expect(updated.commandPreviewLabel!.contains('Motor interno'), isFalse);
     });
   });
