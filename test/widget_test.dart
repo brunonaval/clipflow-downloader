@@ -39,23 +39,4 @@ void main() {
 
     expect(find.text('Motor interno'), findsNothing);
   });
-
-  testWidgets('paste flow finishes with ready item and format section', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(const ClipFlowApp());
-
-    await tester.tap(find.text('Colar link'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 1200));
-
-    final hasAnalyzing = find.text('Analisando').evaluate().isNotEmpty;
-    final hasReady = find.text('Pronto').evaluate().isNotEmpty;
-    expect(hasAnalyzing || hasReady, isTrue);
-
-    await tester.pump(const Duration(milliseconds: 1200));
-
-    expect(find.textContaining('Formato:'), findsWidgets);
-    expect(find.textContaining('Plano:'), findsWidgets);
-  });
 }

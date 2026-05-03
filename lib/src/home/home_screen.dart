@@ -155,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(
-                  'yt-dlp não disponível; usando análise interna limitada.',
+                  'yt-dlp n\u00e3o dispon\u00edvel; usando an\u00e1lise interna limitada.',
                 ),
                 duration: Duration(milliseconds: 1500),
               ),
@@ -382,20 +382,33 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) setState(() {});
       return;
     }
-    if (YtDlpEngineService.isVideoOnlyOption(selectedFormat)) {
-      const message =
-          'Este formato contém apenas vídeo e requer FFmpeg para juntar áudio.';
-      _queueController.markItemFailed(item.id, message);
+    final isVideoOnly = YtDlpEngineService.isVideoOnlyOption(selectedFormat);
+    if (isVideoOnly) {
+      final ffmpeg = await _ytDlpEngine.resolveFfmpeg();
+      if (ffmpeg == null) {
+        const message =
+            'Este formato tem vídeo sem áudio. Instale FFmpeg em uma próxima etapa para juntar áudio e vídeo.';
+        _queueController.markItemFailed(item.id, message);
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(message),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        return;
+      }
+
       if (mounted) {
-        setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(message),
+            content: Text('Baixando vídeo e áudio para merge com FFmpeg.'),
             duration: Duration(seconds: 2),
           ),
         );
       }
-      return;
     }
 
     final sourceUrl = (item.sourceUrl ?? '').trim();
@@ -497,7 +510,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return AlertDialog(
           title: const Text('Motor interno'),
           content: const Text(
-            'ClipFlow usa um motor interno próprio para reconhecer links do YouTube e preparar downloads autorizados. Motor yt-dlp ativo para YouTube. FFmpeg ainda não configurado; qualidades altas podem exigir merge.',
+            'ClipFlow usa um motor interno pr\u00f3prio para reconhecer links do YouTube e preparar downloads autorizados. Motor yt-dlp ativo para YouTube. FFmpeg ainda n\u00e3o configurado; qualidades altas podem exigir merge.',
           ),
           actions: [
             TextButton(
@@ -1256,7 +1269,7 @@ class _StatusBar extends StatelessWidget {
                   style: TextStyle(color: Colors.white70, fontSize: 11),
                 ),
                 const Text(
-                  'FFmpeg ainda não configurado; qualidades altas podem exigir merge.',
+                  'FFmpeg ainda n\u00e3o configurado; qualidades altas podem exigir merge.',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: Colors.white70, fontSize: 10),
