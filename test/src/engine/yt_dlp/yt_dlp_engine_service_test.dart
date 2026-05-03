@@ -45,9 +45,13 @@ class _FakeFfmpegResolverUnavailable extends FfmpegExecutableResolver {
 }
 
 class _FakeRunner extends YtDlpProcessRunner {
-  _FakeRunner({required this.runResult});
+  _FakeRunner({
+    required this.runResult,
+    this.startStdoutLines = const ['[download]  42.0%'],
+  });
 
   final ProcessResult runResult;
+  final List<String> startStdoutLines;
   List<String>? lastStartArguments;
 
   @override
@@ -58,31 +62,46 @@ class _FakeRunner extends YtDlpProcessRunner {
   @override
   Future<Process> start(String executable, List<String> arguments) async {
     lastStartArguments = List<String>.from(arguments);
-    return _FakeProcess(0);
+    return _FakeProcess(
+      0,
+      stdoutLines: startStdoutLines,
+      stderrLines: const [],
+    );
   }
 }
 
 class _FakeProcess implements Process {
-  _FakeProcess(this._exitCode);
+  _FakeProcess(
+    this._exitCode, {
+    required this.stdoutLines,
+    required this.stderrLines,
+  });
 
   final int _exitCode;
+  final List<String> stdoutLines;
+  final List<String> stderrLines;
 
   @override
   int get pid => 123;
 
   @override
-  Stream<List<int>> get stderr => Stream<List<int>>.fromIterable(const []);
+  Stream<List<int>> get stderr => Stream<List<int>>.fromIterable(
+    stderrLines.map((line) => Uint8List.fromList('$line\n'.codeUnits)),
+  );
 
   @override
   IOSink get stdin => throw UnimplementedError();
 
   @override
-  Stream<List<int>> get stdout => Stream<List<int>>.fromIterable([
-    Uint8List.fromList('[download]  42.0%\n'.codeUnits),
-  ]);
+  Stream<List<int>> get stdout => Stream<List<int>>.fromIterable(
+    stdoutLines.map((line) => Uint8List.fromList('$line\n'.codeUnits)),
+  );
 
   @override
-  Future<int> get exitCode async => _exitCode;
+  Future<int> get exitCode async {
+    await Future<void>.delayed(const Duration(milliseconds: 1));
+    return _exitCode;
+  }
 
   @override
   bool kill([ProcessSignal signal = ProcessSignal.sigterm]) => true;
@@ -158,6 +177,20 @@ void main() {
       expect(value, closeTo(0.42, 0.0001));
     });
 
+    test('parses output path from download destination line', () {
+      final output = YtDlpEngineService.parseOutputPathFromLogLine(
+        r'[download] Destination: C:\Downloads\ClipFlow\video.mp4',
+      );
+      expect(output, r'C:\Downloads\ClipFlow\video.mp4');
+    });
+
+    test('parses output path from merger line', () {
+      final output = YtDlpEngineService.parseOutputPathFromLogLine(
+        r'[Merger] Merging formats into "C:\Downloads\ClipFlow\final.mp4"',
+      );
+      expect(output, r'C:\Downloads\ClipFlow\final.mp4');
+    });
+
     test(
       'video-only without FFmpeg fails and does not start process',
       () async {
@@ -214,6 +247,33 @@ void main() {
         expect(args, contains('/tmp/out.%(ext)s'));
       },
     );
+
+    test('merge final path has priority over temporary destination', () async {
+      final runner = _FakeRunner(
+        runResult: ProcessResult(1, 0, '{}', ''),
+        startStdoutLines: const [
+          r'[download] Destination: C:\Downloads\ClipFlow\temp.f299.mp4',
+          '[Merger] Merging formats into "C:\\Downloads\\ClipFlow\\final.mp4"',
+          '[download]  42.0%',
+        ],
+      );
+      final service = YtDlpEngineService(
+        resolver: const _FakeResolverAvailable(),
+        ffmpegResolver: const _FakeFfmpegResolverAvailable(),
+        runner: runner,
+      );
+
+      final result = await service.download(
+        url: 'https://youtube.com/watch?v=abc',
+        formatId: '299',
+        selectedFormatLabel: 'MP4',
+        outputTemplate: '/tmp/out.%(ext)s',
+        onProgress: (_) {},
+      );
+
+      expect(result.status, InternalDownloadStatus.completed);
+      expect(result.outputPath, r'C:\Downloads\ClipFlow\final.mp4');
+    });
 
     test('muxed id 18 keeps -f 18', () async {
       final runner = _FakeRunner(runResult: ProcessResult(1, 0, '{}', ''));

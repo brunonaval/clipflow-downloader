@@ -30,6 +30,8 @@ class DownloadItem {
   final String? commandPreviewLabel;
   final String? directDownloadUrl;
   final String? outputFileName;
+  final String? outputPath;
+  final String? outputDirectoryPath;
   final bool isYouTubeSource;
 
   DownloadItem({
@@ -49,6 +51,8 @@ class DownloadItem {
     this.commandPreviewLabel,
     this.directDownloadUrl,
     this.outputFileName,
+    this.outputPath,
+    this.outputDirectoryPath,
     this.isYouTubeSource = false,
     double progress = 0.0,
   }) : progress = progress.clamp(0.0, 1.0),
@@ -86,6 +90,8 @@ class DownloadItem {
     String? commandPreviewLabel,
     String? directDownloadUrl,
     String? outputFileName,
+    String? outputPath,
+    String? outputDirectoryPath,
     bool? isYouTubeSource,
   }) {
     return DownloadItem(
@@ -106,6 +112,8 @@ class DownloadItem {
       commandPreviewLabel: commandPreviewLabel ?? this.commandPreviewLabel,
       directDownloadUrl: directDownloadUrl ?? this.directDownloadUrl,
       outputFileName: outputFileName ?? this.outputFileName,
+      outputPath: outputPath ?? this.outputPath,
+      outputDirectoryPath: outputDirectoryPath ?? this.outputDirectoryPath,
       isYouTubeSource: isYouTubeSource ?? this.isYouTubeSource,
     );
   }

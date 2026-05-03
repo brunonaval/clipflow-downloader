@@ -54,6 +54,8 @@ void main() {
       expect(item.commandPreviewLabel, isNull);
       expect(item.directDownloadUrl, isNull);
       expect(item.outputFileName, isNull);
+      expect(item.outputPath, isNull);
+      expect(item.outputDirectoryPath, isNull);
       expect(item.isYouTubeSource, isFalse);
     });
 
@@ -184,6 +186,27 @@ void main() {
 
       expect(copied.directDownloadUrl, 'https://example.com/file.mp4');
       expect(copied.outputFileName, 'file.mp4');
+    });
+
+    test('copyWith updates outputPath and outputDirectoryPath', () {
+      final item = DownloadItem(
+        id: 'output-path',
+        title: 'Output',
+        durationLabel: '-',
+        sizeLabel: '-',
+        formatLabel: 'MP4',
+        qualityLabel: '720p',
+        fpsLabel: '-',
+        sourceLabel: '-',
+      );
+
+      final copied = item.copyWith(
+        outputPath: r'C:\Downloads\ClipFlow\video.mp4',
+        outputDirectoryPath: r'C:\Downloads\ClipFlow',
+      );
+
+      expect(copied.outputPath, r'C:\Downloads\ClipFlow\video.mp4');
+      expect(copied.outputDirectoryPath, r'C:\Downloads\ClipFlow');
     });
 
     test('copyWith updates isYouTubeSource', () {

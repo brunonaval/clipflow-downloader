@@ -621,6 +621,55 @@ void main() {
       expect(completed.sourceLabel, 'Salvo em Downloads/ClipFlow');
     });
 
+    test('markItemCompletedWithOutput conclui e salva paths', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(
+            id: '1',
+            title: 'Run',
+            status: DownloadStatus.downloading,
+            progress: 0.7,
+            sourceLabel: 'Origem antiga',
+          ),
+        ],
+      );
+
+      final completed = controller.markItemCompletedWithOutput(
+        id: '1',
+        message: 'Salvo em Downloads/ClipFlow',
+        outputPath: r'C:\Downloads\ClipFlow\video.mp4',
+        outputDirectoryPath: r'C:\Downloads\ClipFlow',
+      );
+
+      expect(completed, isNotNull);
+      expect(completed!.status, DownloadStatus.completed);
+      expect(completed.progress, 1.0);
+      expect(completed.sourceLabel, 'Salvo em Downloads/ClipFlow');
+      expect(completed.outputPath, r'C:\Downloads\ClipFlow\video.mp4');
+      expect(completed.outputDirectoryPath, r'C:\Downloads\ClipFlow');
+    });
+
+    test('markItemMerging atualiza sourceLabel', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(
+            id: '1',
+            title: 'Run',
+            status: DownloadStatus.downloading,
+            sourceLabel: 'Baixando',
+            progress: 0.5,
+          ),
+        ],
+      );
+
+      final updated = controller.markItemMerging('1');
+
+      expect(updated, isNotNull);
+      expect(updated!.status, DownloadStatus.downloading);
+      expect(updated.sourceLabel, 'Mesclando com FFmpeg');
+      expect(updated.progress, 0.5);
+    });
+
     test('markItemFailed marca failed', () {
       final controller = DownloadQueueController(
         initialItems: [
@@ -806,10 +855,7 @@ void main() {
         updated.availableFormats.first.id.contains('-video-only'),
         isFalse,
       );
-      expect(
-        updated.commandPreviewLabel,
-        contains('299+bestaudio[ext=m4a]/299+140/299+bestaudio/best'),
-      );
+      expect(updated.commandPreviewLabel, contains('M4A/AAC'));
       expect(updated.commandPreviewLabel, contains('FFmpeg'));
       expect(updated.commandPreviewLabel!.contains('Motor interno'), isFalse);
     });

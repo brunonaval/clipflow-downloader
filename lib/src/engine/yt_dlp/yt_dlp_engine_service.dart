@@ -113,6 +113,7 @@ class YtDlpEngineService {
     String? selectedFormatLabel,
     required String outputTemplate,
     required void Function(InternalDownloadProgress progress) onProgress,
+    void Function(String line)? onLogLine,
     InternalDownloadCancellation? cancellation,
   }) async {
     final executable = await _resolver.resolve();
@@ -179,44 +180,71 @@ class YtDlpEngineService {
 
     var receivedBytes = 0;
     String lastError = '';
+    String? detectedOutputPath;
 
+    final stdoutDone = Completer<void>();
     final stdoutSub = process.stdout
         .transform(utf8.decoder)
         .transform(const LineSplitter())
-        .listen((line) {
-          final percent = parseProgressPercent(line);
-          if (percent != null) {
-            final scaled = (percent * 1000000).round();
-            receivedBytes = scaled;
-            onProgress(
-              InternalDownloadProgress(
-                receivedBytes: scaled,
-                totalBytes: 1000000,
-                isDone: percent >= 1.0,
-              ),
-            );
-          }
-        });
+        .listen(
+          (line) {
+            onLogLine?.call(line);
+            final parsedPath = parseOutputPathFromLogLine(line);
+            if (parsedPath != null) {
+              detectedOutputPath = parsedPath;
+            }
+            final percent = parseProgressPercent(line);
+            if (percent != null) {
+              final scaled = (percent * 1000000).round();
+              receivedBytes = scaled;
+              onProgress(
+                InternalDownloadProgress(
+                  receivedBytes: scaled,
+                  totalBytes: 1000000,
+                  isDone: percent >= 1.0,
+                ),
+              );
+            }
+          },
+          onDone: () {
+            if (!stdoutDone.isCompleted) {
+              stdoutDone.complete();
+            }
+          },
+        );
 
+    final stderrDone = Completer<void>();
     final stderrSub = process.stderr
         .transform(utf8.decoder)
         .transform(const LineSplitter())
-        .listen((line) {
-          final percent = parseProgressPercent(line);
-          if (percent != null) {
-            final scaled = (percent * 1000000).round();
-            receivedBytes = scaled;
-            onProgress(
-              InternalDownloadProgress(
-                receivedBytes: scaled,
-                totalBytes: 1000000,
-                isDone: percent >= 1.0,
-              ),
-            );
-          } else if (line.trim().isNotEmpty) {
-            lastError = line.trim();
-          }
-        });
+        .listen(
+          (line) {
+            onLogLine?.call(line);
+            final parsedPath = parseOutputPathFromLogLine(line);
+            if (parsedPath != null) {
+              detectedOutputPath = parsedPath;
+            }
+            final percent = parseProgressPercent(line);
+            if (percent != null) {
+              final scaled = (percent * 1000000).round();
+              receivedBytes = scaled;
+              onProgress(
+                InternalDownloadProgress(
+                  receivedBytes: scaled,
+                  totalBytes: 1000000,
+                  isDone: percent >= 1.0,
+                ),
+              );
+            } else if (line.trim().isNotEmpty) {
+              lastError = line.trim();
+            }
+          },
+          onDone: () {
+            if (!stderrDone.isCompleted) {
+              stderrDone.complete();
+            }
+          },
+        );
 
     Timer? cancelTimer;
     if (cancellation != null) {
@@ -227,6 +255,7 @@ class YtDlpEngineService {
     }
 
     final exitCode = await process.exitCode;
+    await Future.wait<void>([stdoutDone.future, stderrDone.future]);
     await stdoutSub.cancel();
     await stderrSub.cancel();
     cancelTimer?.cancel();
@@ -236,6 +265,7 @@ class YtDlpEngineService {
         status: InternalDownloadStatus.canceled,
         message: 'Download cancelado.',
         receivedBytes: receivedBytes,
+        outputPath: detectedOutputPath,
       );
     }
 
@@ -247,10 +277,11 @@ class YtDlpEngineService {
           isDone: true,
         ),
       );
-      return const InternalDownloadResult(
+      return InternalDownloadResult(
         status: InternalDownloadStatus.completed,
         message: 'Download concluído.',
         receivedBytes: 1000000,
+        outputPath: detectedOutputPath,
       );
     }
 
@@ -260,6 +291,7 @@ class YtDlpEngineService {
           ? 'Falha no download com yt-dlp: $lastError'
           : 'Falha no download com yt-dlp.',
       receivedBytes: receivedBytes,
+      outputPath: detectedOutputPath,
     );
   }
 
@@ -271,6 +303,34 @@ class YtDlpEngineService {
     final value = double.tryParse(match.group(1)!);
     if (value == null) return null;
     return (value / 100).clamp(0.0, 1.0);
+  }
+
+  static String? parseOutputPathFromLogLine(String line) {
+    final trimmed = line.trim();
+    if (trimmed.isEmpty) return null;
+
+    final merger = RegExp(
+      r'^\[Merger\]\s+Merging formats into "([^"]+)"$',
+    ).firstMatch(trimmed);
+    if (merger != null) {
+      return merger.group(1)?.trim();
+    }
+
+    final downloadDestination = RegExp(
+      r'^\[download\]\s+Destination:\s+(.+)$',
+    ).firstMatch(trimmed);
+    if (downloadDestination != null) {
+      return downloadDestination.group(1)?.trim();
+    }
+
+    final extractAudio = RegExp(
+      r'^\[ExtractAudio\]\s+Destination:\s+(.+)$',
+    ).firstMatch(trimmed);
+    if (extractAudio != null) {
+      return extractAudio.group(1)?.trim();
+    }
+
+    return null;
   }
 
   static bool isVideoOnlyOption(DownloadFormatOption option) {

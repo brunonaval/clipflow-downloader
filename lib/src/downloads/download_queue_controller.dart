@@ -312,6 +312,34 @@ class DownloadQueueController {
     return _replaceAt(index, updated);
   }
 
+  DownloadItem? markItemCompletedWithOutput({
+    required String id,
+    required String message,
+    required String outputPath,
+    required String outputDirectoryPath,
+  }) {
+    final index = _indexOf(id);
+    if (index < 0) return null;
+    final item = _items[index];
+    final updated = item.copyWith(
+      status: DownloadStatus.completed,
+      progress: 1,
+      sourceLabel: message,
+      outputPath: outputPath,
+      outputDirectoryPath: outputDirectoryPath,
+    );
+    return _replaceAt(index, updated);
+  }
+
+  DownloadItem? markItemMerging(String id) {
+    final index = _indexOf(id);
+    if (index < 0) return null;
+    final item = _items[index];
+    if (item.status != DownloadStatus.downloading) return null;
+    final updated = item.copyWith(sourceLabel: 'Mesclando com FFmpeg');
+    return _replaceAt(index, updated);
+  }
+
   DownloadItem? markItemFailed(String id, String message) {
     final index = _indexOf(id);
     if (index < 0) return null;
@@ -510,7 +538,7 @@ class DownloadQueueController {
     if (format.detailsLabel.contains('[video-only]')) {
       final isMp4 = format.formatLabel.trim().toUpperCase() == 'MP4';
       if (isMp4) {
-        return 'yt-dlp -f ${format.id}+bestaudio[ext=m4a]/${format.id}+140/${format.id}+bestaudio/best · merge MP4 com FFmpeg';
+        return 'yt-dlp -f ${format.id} + áudio M4A/AAC · merge MP4 com FFmpeg';
       }
       return 'yt-dlp -f ${format.id}+bestaudio/best · merge com FFmpeg';
     }

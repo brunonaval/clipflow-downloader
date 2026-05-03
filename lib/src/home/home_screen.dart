@@ -15,6 +15,7 @@ import '../engine/download/internal_download_request.dart';
 import '../engine/download/internal_download_result.dart';
 import '../engine/download/internal_http_downloader.dart';
 import '../engine/download/download_output_planner.dart';
+import '../system/system_file_opener.dart';
 import '../engine/youtube/youtube_url_parser.dart';
 import '../engine/yt_dlp/yt_dlp_engine_service.dart';
 import 'mock_download_item.dart';
@@ -40,6 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static const _httpDownloader = InternalHttpDownloader();
   static const _outputPlanner = DownloadOutputPlanner();
   static const _ytDlpEngine = YtDlpEngineService();
+  static const _fileOpener = SystemFileOpener();
 
   late final DownloadQueueController _queueController;
 
@@ -313,12 +315,16 @@ class _HomeScreenState extends State<HomeScreen> {
     _downloadCancellations[item.id] = cancellation;
 
     IOSink? sink;
+    late String outputPath;
+    late String outputDirectoryPath;
     String? savedFileName;
     try {
       final fileName = (item.outputFileName?.trim().isNotEmpty ?? false)
           ? item.outputFileName!.trim()
           : 'clipflow-download.bin';
       final outputPlan = await _outputPlanner.plan(requestedFileName: fileName);
+      outputPath = outputPlan.file.path;
+      outputDirectoryPath = outputPlan.directory.path;
       savedFileName = outputPlan.fileName;
       sink = outputPlan.file.openWrite();
 
@@ -339,9 +345,11 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       switch (result.status) {
         case InternalDownloadStatus.completed:
-          _queueController.markItemCompletedWithMessage(
-            item.id,
-            'Salvo em Downloads/ClipFlow',
+          _queueController.markItemCompletedWithOutput(
+            id: item.id,
+            message: 'Salvo em Downloads/ClipFlow',
+            outputPath: outputPath,
+            outputDirectoryPath: outputDirectoryPath,
           );
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -407,6 +415,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final directory = _outputPlanner.defaultDownloadDirectory();
       await directory.create(recursive: true);
+      final directoryPath = directory.path;
       final baseName = _safeTitleAsFileBase(item.title);
       final outputTemplate =
           '${directory.path}${Platform.pathSeparator}$baseName-%(id)s.%(ext)s';
@@ -417,6 +426,15 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedFormatLabel: selectedFormat.formatLabel,
         outputTemplate: outputTemplate,
         cancellation: cancellation,
+        onLogLine: (line) {
+          final lower = line.toLowerCase();
+          if (lower.contains('[merger]') || lower.contains('merging formats')) {
+            final updated = _queueController.markItemMerging(item.id);
+            if (updated != null && mounted) {
+              setState(() {});
+            }
+          }
+        },
         onProgress: (progress) {
           final fraction = progress.fraction;
           if (fraction == null) return;
@@ -428,9 +446,14 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       switch (result.status) {
         case InternalDownloadStatus.completed:
-          _queueController.markItemCompletedWithMessage(
-            item.id,
-            'Salvo em Downloads/ClipFlow',
+          final outputPath =
+              result.outputPath ??
+              '$directoryPath${Platform.pathSeparator}$baseName.%(ext)s';
+          _queueController.markItemCompletedWithOutput(
+            id: item.id,
+            message: 'Salvo em Downloads/ClipFlow',
+            outputPath: outputPath,
+            outputDirectoryPath: directoryPath,
           );
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -520,6 +543,54 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _openDownloadedFile(DownloadItem item) async {
+    final outputPath = item.outputPath?.trim() ?? '';
+    if (outputPath.isEmpty) return;
+    try {
+      await _fileOpener.openFile(outputPath);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível abrir o arquivo.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _openDownloadFolder(DownloadItem item) async {
+    final outputDirectoryPath = item.outputDirectoryPath?.trim() ?? '';
+    if (outputDirectoryPath.isEmpty) return;
+    try {
+      await _fileOpener.openFolder(outputDirectoryPath);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível abrir a pasta.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _openDownloadsRootFolder() async {
+    try {
+      final directory = _outputPlanner.defaultDownloadDirectory();
+      await directory.create(recursive: true);
+      await _fileOpener.openFolder(directory.path);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível abrir a pasta de downloads.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final visibleItems = _queueController.filteredItems(
@@ -531,7 +602,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: const Color(0xFFF5F5F5),
       body: Column(
         children: [
-          const _MenuBar(),
+          _MenuBar(onOpenDownloadsFolder: () => _openDownloadsRootFolder()),
           const Divider(height: 1, thickness: 1, color: _kDivider),
           _Toolbar(
             selectedTransferLabel: _downloadOptions.toolbarTransferLabel,
@@ -585,6 +656,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         onPause: () => _pauseItem(visibleItems[i]),
                         onCancel: () => _cancelItem(visibleItems[i]),
                         onRemove: () => _removeItem(visibleItems[i]),
+                        onOpenFile: () => _openDownloadedFile(visibleItems[i]),
+                        onOpenFolder: () =>
+                            _openDownloadFolder(visibleItems[i]),
                         onFormatSelected: (formatId) =>
                             _selectFormatForItem(visibleItems[i], formatId),
                       ),
@@ -602,9 +676,11 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _MenuBar extends StatelessWidget {
-  const _MenuBar();
+  final VoidCallback onOpenDownloadsFolder;
 
-  static const _items = ['Arquivo', 'Editar', 'Ver', 'Ferramentas', 'Ajuda'];
+  const _MenuBar({required this.onOpenDownloadsFolder});
+
+  static const _items = ['Editar', 'Ver', 'Ferramentas', 'Ajuda'];
 
   @override
   Widget build(BuildContext context) {
@@ -631,6 +707,26 @@ class _MenuBar extends StatelessWidget {
               thickness: 1,
               indent: 8,
               endIndent: 8,
+            ),
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'open_downloads') {
+                  onOpenDownloadsFolder();
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem<String>(
+                  value: 'open_downloads',
+                  child: Text('Abrir pasta de downloads'),
+                ),
+              ],
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                child: Text(
+                  'Arquivo',
+                  style: TextStyle(fontSize: 13, color: Colors.black87),
+                ),
+              ),
             ),
             ..._items.map(
               (item) => TextButton(
@@ -924,6 +1020,8 @@ class _DownloadListItem extends StatelessWidget {
   final VoidCallback onPause;
   final VoidCallback onCancel;
   final VoidCallback onRemove;
+  final VoidCallback onOpenFile;
+  final VoidCallback onOpenFolder;
   final ValueChanged<String> onFormatSelected;
 
   const _DownloadListItem({
@@ -932,6 +1030,8 @@ class _DownloadListItem extends StatelessWidget {
     required this.onPause,
     required this.onCancel,
     required this.onRemove,
+    required this.onOpenFile,
+    required this.onOpenFolder,
     required this.onFormatSelected,
   });
 
@@ -1019,6 +1119,16 @@ class _DownloadListItem extends StatelessWidget {
                 onPause: onPause,
                 onCancel: onCancel,
                 onRemove: onRemove,
+                onOpenFile:
+                    item.status == DownloadStatus.completed &&
+                        (item.outputPath?.isNotEmpty ?? false)
+                    ? onOpenFile
+                    : null,
+                onOpenFolder:
+                    item.status == DownloadStatus.completed &&
+                        (item.outputDirectoryPath?.isNotEmpty ?? false)
+                    ? onOpenFolder
+                    : null,
               ),
               const SizedBox(width: 8),
               _StatusBadge(item: item),
@@ -1102,6 +1212,8 @@ class _ItemActions extends StatelessWidget {
   final VoidCallback onPause;
   final VoidCallback onCancel;
   final VoidCallback onRemove;
+  final VoidCallback? onOpenFile;
+  final VoidCallback? onOpenFolder;
 
   const _ItemActions({
     required this.item,
@@ -1109,6 +1221,8 @@ class _ItemActions extends StatelessWidget {
     required this.onPause,
     required this.onCancel,
     required this.onRemove,
+    this.onOpenFile,
+    this.onOpenFolder,
   });
 
   bool get _canStart =>
@@ -1151,6 +1265,20 @@ class _ItemActions extends StatelessWidget {
             icon: const Icon(Icons.cancel_outlined, size: 18),
             onPressed: onCancel,
             tooltip: 'Cancelar',
+            visualDensity: VisualDensity.compact,
+          ),
+        if (onOpenFile != null)
+          IconButton(
+            icon: const Icon(Icons.open_in_new, size: 18),
+            onPressed: onOpenFile,
+            tooltip: 'Abrir arquivo',
+            visualDensity: VisualDensity.compact,
+          ),
+        if (onOpenFolder != null)
+          IconButton(
+            icon: const Icon(Icons.folder_open, size: 18),
+            onPressed: onOpenFolder,
+            tooltip: 'Abrir pasta',
             visualDensity: VisualDensity.compact,
           ),
         IconButton(
