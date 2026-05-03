@@ -1198,29 +1198,27 @@ class _DownloadListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDownloading =
-        item.status == DownloadStatus.downloading && item.progress > 0;
+    final isDownloading = item.status == DownloadStatus.downloading;
+    final isMerging = item.sourceLabel == 'Mesclando com FFmpeg';
+    final statusText = _statusText(item, isMerging);
+    final metadataParts = <String>[
+      item.durationLabel,
+      item.sizeLabel,
+      item.selectedFormatSummary ?? item.formatLabel,
+      statusText,
+    ];
+    final completedOutputLabel =
+        item.outputSummaryLabel ??
+        (item.outputDirectoryPath != null ? 'Salvo em pasta' : null);
 
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 78,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2D2D2D),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                child: const Icon(
-                  Icons.play_arrow_rounded,
-                  color: Colors.white54,
-                  size: 26,
-                ),
-              ),
+              _ThumbnailPreview(item: item),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -1237,16 +1235,57 @@ class _DownloadListItem extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 3),
+                    if (item.authorLabel != null &&
+                        item.authorLabel!.trim().isNotEmpty)
+                      Text(
+                        item.authorLabel!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    if (item.authorLabel != null &&
+                        item.authorLabel!.trim().isNotEmpty)
+                      const SizedBox(height: 3),
                     Text(
-                      item.metadataLabel,
+                      metadataParts.join(' · '),
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade500,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    if (isMerging)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Mesclando com FFmpeg',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.blueGrey.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                     if (item.status == DownloadStatus.ready &&
                         item.availableFormats.isNotEmpty)
                       _FormatSelector(item: item, onSelected: onFormatSelected),
+                    if (item.selectedFormatSummary != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          item.selectedFormatSummary!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
                     if (item.commandPreviewLabel != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
@@ -1263,41 +1302,131 @@ class _DownloadListItem extends StatelessWidget {
                     if (isDownloading)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: LinearProgressIndicator(
-                          value: item.progress,
-                          backgroundColor: Colors.grey.shade200,
-                          valueColor: const AlwaysStoppedAnimation(_kGreen),
-                          minHeight: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            LinearProgressIndicator(
+                              value: item.progress,
+                              backgroundColor: Colors.grey.shade200,
+                              valueColor: const AlwaysStoppedAnimation(_kGreen),
+                              minHeight: 3,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${(item.progress * 100).toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (item.status == DownloadStatus.completed &&
+                        completedOutputLabel != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          completedOutputLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade700,
+                          ),
                         ),
                       ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              _ItemActions(
-                item: item,
-                onStart: onStart,
-                onPause: onPause,
-                onCancel: onCancel,
-                onRemove: onRemove,
-                onOpenFile:
-                    item.status == DownloadStatus.completed &&
-                        (item.outputPath?.isNotEmpty ?? false)
-                    ? onOpenFile
-                    : null,
-                onOpenFolder:
-                    item.status == DownloadStatus.completed &&
-                        (item.outputDirectoryPath?.isNotEmpty ?? false)
-                    ? onOpenFolder
-                    : null,
+              const SizedBox(width: 6),
+              Flexible(
+                child: Wrap(
+                  spacing: 4,
+                  runSpacing: 2,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    _ItemActions(
+                      item: item,
+                      onStart: onStart,
+                      onPause: onPause,
+                      onCancel: onCancel,
+                      onRemove: onRemove,
+                      onOpenFile:
+                          item.status == DownloadStatus.completed &&
+                              (item.outputPath?.isNotEmpty ?? false)
+                          ? onOpenFile
+                          : null,
+                      onOpenFolder:
+                          item.status == DownloadStatus.completed &&
+                              (item.outputDirectoryPath?.isNotEmpty ?? false)
+                          ? onOpenFolder
+                          : null,
+                    ),
+                    _StatusBadge(item: item),
+                  ],
+                ),
               ),
-              const SizedBox(width: 8),
-              _StatusBadge(item: item),
             ],
           ),
         ),
         Divider(height: 1, thickness: 1, color: Colors.grey.shade100),
       ],
+    );
+  }
+
+  String _statusText(DownloadItem item, bool isMerging) {
+    if (isMerging) return 'Mesclando com FFmpeg';
+    return switch (item.status) {
+      DownloadStatus.queued => 'Aguardando',
+      DownloadStatus.ready => 'Pronto',
+      DownloadStatus.downloading => 'Baixando',
+      DownloadStatus.analyzing => 'Aguardando',
+      DownloadStatus.completed => 'Concluído',
+      DownloadStatus.failed => 'Falhou',
+      DownloadStatus.canceled => 'Cancelado',
+      DownloadStatus.paused => 'Aguardando',
+    };
+  }
+}
+
+class _ThumbnailPreview extends StatelessWidget {
+  final DownloadItem item;
+
+  const _ThumbnailPreview({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final url = item.thumbnailUrl;
+    if (url != null && url.trim().isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(3),
+        child: Image.network(
+          url,
+          width: 78,
+          height: 44,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _placeholder(),
+        ),
+      );
+    }
+    return _placeholder();
+  }
+
+  Widget _placeholder() {
+    return Container(
+      width: 78,
+      height: 44,
+      decoration: BoxDecoration(
+        color: const Color(0xFF2D2D2D),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: const Icon(
+        Icons.play_arrow_rounded,
+        color: Colors.white54,
+        size: 26,
+      ),
     );
   }
 }
@@ -1470,8 +1599,21 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMerging = item.sourceLabel == 'Mesclando com FFmpeg';
+    final statusLabel = isMerging
+        ? 'Mesclando com FFmpeg'
+        : switch (item.status) {
+            DownloadStatus.queued => 'Aguardando',
+            DownloadStatus.ready => 'Pronto',
+            DownloadStatus.downloading => 'Baixando',
+            DownloadStatus.analyzing => 'Aguardando',
+            DownloadStatus.completed => 'Concluído',
+            DownloadStatus.failed => 'Falhou',
+            DownloadStatus.canceled => 'Cancelado',
+            DownloadStatus.paused => 'Aguardando',
+          };
     return Text(
-      item.statusLabel,
+      statusLabel,
       style: TextStyle(
         fontSize: 11,
         color: _colorFor(item.status),

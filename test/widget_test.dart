@@ -12,6 +12,8 @@ void main() {
     expect(find.text('Sobre o motor'), findsOneWidget);
     expect(find.text('Motor yt-dlp ativo para YouTube'), findsOneWidget);
     expect(find.byTooltip('Remover'), findsWidgets);
+    expect(find.text('Canal ClipFlow'), findsOneWidget);
+    expect(find.textContaining('Pronto'), findsWidgets);
     expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
     expect(find.text('Guardar em Downloads'), findsOneWidget);
     expect(find.text('Transferir Vídeo'), findsOneWidget);

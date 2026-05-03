@@ -513,6 +513,7 @@ void main() {
 
         expect(updated, isNotNull);
         expect(updated!.selectedFormatId, 'audio-m4a');
+        expect(updated.selectedFormatSummary, 'M4A · Áudio');
       },
     );
 
@@ -648,6 +649,7 @@ void main() {
       expect(completed.sourceLabel, 'Salvo em Downloads/ClipFlow');
       expect(completed.outputPath, r'C:\Downloads\ClipFlow\video.mp4');
       expect(completed.outputDirectoryPath, r'C:\Downloads\ClipFlow');
+      expect(completed.outputSummaryLabel, 'video.mp4');
     });
 
     test(
@@ -827,6 +829,8 @@ void main() {
       const result = YtDlpAnalysisResult(
         title: 'Título yt-dlp',
         durationLabel: '02:00',
+        thumbnailUrl: 'https://img.youtube.com/vi/abc/hqdefault.jpg',
+        authorLabel: 'Canal YT',
         formats: [
           DownloadFormatOption(
             id: '22',
@@ -847,6 +851,12 @@ void main() {
       expect(updated!.status, DownloadStatus.ready);
       expect(updated.isYouTubeSource, isTrue);
       expect(updated.selectedFormatId, '22');
+      expect(
+        updated.thumbnailUrl,
+        'https://img.youtube.com/vi/abc/hqdefault.jpg',
+      );
+      expect(updated.authorLabel, 'Canal YT');
+      expect(updated.selectedFormatSummary, 'MP4 · 720p');
       expect(updated.directDownloadUrl, isNull);
       expect(updated.sourceLabel, 'Análise yt-dlp concluída');
     });
@@ -934,6 +944,7 @@ void main() {
 
       expect(updated, isNotNull);
       expect(updated!.selectedFormatId, '140');
+      expect(updated.selectedFormatSummary, 'M4A · 128k');
     });
 
     test('preset vídeo MP4 720p seleciona 720p quando disponível', () {

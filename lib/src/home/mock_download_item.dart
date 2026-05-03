@@ -11,6 +11,8 @@ final initialMockDownloadItems = <DownloadItem>[
     qualityLabel: '480p',
     fpsLabel: '25fps',
     sourceLabel: 'Conte\u00fado autorizado',
+    authorLabel: 'Canal ClipFlow',
+    thumbnailUrl: 'https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
     transferType: DownloadTransferType.video,
     status: DownloadStatus.completed,
     progress: 1.0,

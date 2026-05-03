@@ -52,10 +52,14 @@ void main() {
       expect(item.availableFormats, isEmpty);
       expect(item.selectedFormatId, isNull);
       expect(item.commandPreviewLabel, isNull);
+      expect(item.thumbnailUrl, isNull);
+      expect(item.authorLabel, isNull);
+      expect(item.selectedFormatSummary, isNull);
       expect(item.directDownloadUrl, isNull);
       expect(item.outputFileName, isNull);
       expect(item.outputPath, isNull);
       expect(item.outputDirectoryPath, isNull);
+      expect(item.outputSummaryLabel, isNull);
       expect(item.isYouTubeSource, isFalse);
     });
 
@@ -224,6 +228,34 @@ void main() {
       final copied = item.copyWith(isYouTubeSource: true);
 
       expect(copied.isYouTubeSource, isTrue);
+    });
+
+    test('copyWith updates thumbnail/author/format summary/output summary', () {
+      final item = DownloadItem(
+        id: 'meta',
+        title: 'YT',
+        durationLabel: '-',
+        sizeLabel: '-',
+        formatLabel: '-',
+        qualityLabel: '-',
+        fpsLabel: '-',
+        sourceLabel: '-',
+      );
+
+      final copied = item.copyWith(
+        thumbnailUrl: 'https://img.youtube.com/vi/abc/hqdefault.jpg',
+        authorLabel: 'Canal X',
+        selectedFormatSummary: 'MP4 · 1080p · video-only',
+        outputSummaryLabel: 'video-final.mp4',
+      );
+
+      expect(
+        copied.thumbnailUrl,
+        'https://img.youtube.com/vi/abc/hqdefault.jpg',
+      );
+      expect(copied.authorLabel, 'Canal X');
+      expect(copied.selectedFormatSummary, 'MP4 · 1080p · video-only');
+      expect(copied.outputSummaryLabel, 'video-final.mp4');
     });
 
     test('progress is clamped to 0.0 for values below 0', () {

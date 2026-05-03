@@ -118,6 +118,8 @@ void main() {
 {
   "title": "Video Teste",
   "duration": 201,
+  "uploader": "Canal Oficial",
+  "thumbnail": "https://img.youtube.com/vi/abc/hqdefault.jpg",
   "formats": [
     {"format_id":"sb2","ext":"mhtml","vcodec":"none","acodec":"none"},
     {"format_id":"18","ext":"mp4","height":360,"vcodec":"avc1","acodec":"mp4a","filesize":10485760},
@@ -142,6 +144,11 @@ void main() {
 
       expect(result.title, 'Video Teste');
       expect(result.durationLabel, '03:21');
+      expect(result.authorLabel, 'Canal Oficial');
+      expect(
+        result.thumbnailUrl,
+        'https://img.youtube.com/vi/abc/hqdefault.jpg',
+      );
       expect(result.formats.any((f) => f.id.startsWith('sb')), isFalse);
       expect(result.formats.any((f) => f.id.startsWith('299-')), isFalse);
       expect(result.recommendedFormatId, isNot('299'));

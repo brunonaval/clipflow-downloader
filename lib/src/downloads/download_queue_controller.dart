@@ -281,6 +281,12 @@ class DownloadQueueController {
       sourceLabel: 'Análise yt-dlp concluída',
       availableFormats: result.formats,
       selectedFormatId: selectedByPreset ?? result.recommendedFormatId,
+      thumbnailUrl: result.thumbnailUrl,
+      authorLabel: result.authorLabel,
+      selectedFormatSummary: _formatSummaryForSelected(
+        selectedFormatId: selectedByPreset ?? result.recommendedFormatId,
+        formats: result.formats,
+      ),
       isYouTubeSource: true,
       directDownloadUrl: null,
       outputFileName: null,
@@ -342,6 +348,7 @@ class DownloadQueueController {
       sourceLabel: message,
       outputPath: outputPath,
       outputDirectoryPath: outputDirectoryPath,
+      outputSummaryLabel: _outputSummaryLabel(outputPath),
     );
     return _replaceAt(index, updated);
   }
@@ -403,6 +410,10 @@ class DownloadQueueController {
     }
     final updated = item.copyWith(
       selectedFormatId: formatId,
+      selectedFormatSummary: _formatSummaryForSelected(
+        selectedFormatId: formatId,
+        formats: item.availableFormats,
+      ),
       commandPreviewLabel: preview,
     );
     return _replaceAt(index, updated);
@@ -428,7 +439,13 @@ class DownloadQueueController {
       return item;
     }
 
-    final updated = item.copyWith(selectedFormatId: selectedId);
+    final updated = item.copyWith(
+      selectedFormatId: selectedId,
+      selectedFormatSummary: _formatSummaryForSelected(
+        selectedFormatId: selectedId,
+        formats: item.availableFormats,
+      ),
+    );
     final preview = item.isYouTubeSource
         ? _buildYtDlpPreview(
             selectedFormatId: updated.selectedFormatId,
@@ -608,5 +625,34 @@ class DownloadQueueController {
       return 'yt-dlp -f ${format.id}+bestaudio/best · merge com FFmpeg';
     }
     return 'yt-dlp -f ${format.id}';
+  }
+
+  String? _formatSummaryForSelected({
+    required String? selectedFormatId,
+    required List<DownloadFormatOption> formats,
+  }) {
+    if (selectedFormatId == null || selectedFormatId.isEmpty) return null;
+    final selected = formats.where((f) => f.id == selectedFormatId).toList();
+    if (selected.isEmpty) return null;
+    final format = selected.first;
+    final parts = <String>[
+      format.formatLabel.toUpperCase(),
+      format.qualityLabel,
+    ];
+    final detailsLower = format.detailsLabel.toLowerCase();
+    if (detailsLower.contains('[video-only]')) {
+      parts.add('video-only');
+    } else if (detailsLower.contains('[muxed]')) {
+      parts.add('com áudio');
+    }
+    return parts.where((part) => part.trim().isNotEmpty).join(' · ');
+  }
+
+  String _outputSummaryLabel(String? outputPath) {
+    final trimmed = outputPath?.trim() ?? '';
+    if (trimmed.isEmpty) return 'Arquivo salvo';
+    final fileName = trimmed.split(RegExp(r'[\\/]')).last.trim();
+    if (fileName.isEmpty) return 'Arquivo salvo';
+    return fileName;
   }
 }

@@ -104,6 +104,8 @@ class YtDlpEngineService {
       durationLabel: _durationLabel(decoded['duration']),
       formats: formats,
       recommendedFormatId: recommendedId,
+      thumbnailUrl: _httpUrlOrNull(decoded['thumbnail']),
+      authorLabel: _authorLabel(decoded),
     );
   }
 
@@ -584,6 +586,24 @@ class YtDlpEngineService {
       return File(ffmpegPath).parent.path;
     }
     return ffmpegPath;
+  }
+
+  String? _authorLabel(Map<String, dynamic> decoded) {
+    final uploader = decoded['uploader']?.toString().trim();
+    if (uploader != null && uploader.isNotEmpty) return uploader;
+    final channel = decoded['channel']?.toString().trim();
+    if (channel != null && channel.isNotEmpty) return channel;
+    return null;
+  }
+
+  String? _httpUrlOrNull(Object? raw) {
+    final value = raw?.toString().trim();
+    if (value == null || value.isEmpty) return null;
+    final uri = Uri.tryParse(value);
+    if (uri == null) return null;
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme != 'http' && scheme != 'https') return null;
+    return value;
   }
 }
 

@@ -22,11 +22,26 @@ void main() {
       durationLabel: '03:21',
       formats: formats,
       recommendedFormatId: '22',
+      thumbnailUrl: 'https://img.youtube.com/vi/abc/hqdefault.jpg',
+      authorLabel: 'Canal Teste',
     );
 
     expect(result.title, 'Sample');
     expect(result.durationLabel, '03:21');
     expect(result.formats, hasLength(1));
     expect(result.recommendedFormatId, '22');
+    expect(result.thumbnailUrl, 'https://img.youtube.com/vi/abc/hqdefault.jpg');
+    expect(result.authorLabel, 'Canal Teste');
+  });
+
+  test('thumbnailUrl and authorLabel default to null', () {
+    const result = YtDlpAnalysisResult(
+      title: 'Sample',
+      durationLabel: '03:21',
+      formats: [],
+    );
+
+    expect(result.thumbnailUrl, isNull);
+    expect(result.authorLabel, isNull);
   });
 }

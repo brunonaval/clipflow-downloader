@@ -28,10 +28,14 @@ class DownloadItem {
   final List<DownloadFormatOption> availableFormats;
   final String? selectedFormatId;
   final String? commandPreviewLabel;
+  final String? thumbnailUrl;
+  final String? authorLabel;
+  final String? selectedFormatSummary;
   final String? directDownloadUrl;
   final String? outputFileName;
   final String? outputPath;
   final String? outputDirectoryPath;
+  final String? outputSummaryLabel;
   final bool isYouTubeSource;
 
   DownloadItem({
@@ -49,10 +53,14 @@ class DownloadItem {
     List<DownloadFormatOption> availableFormats = const [],
     this.selectedFormatId,
     this.commandPreviewLabel,
+    this.thumbnailUrl,
+    this.authorLabel,
+    this.selectedFormatSummary,
     this.directDownloadUrl,
     this.outputFileName,
     this.outputPath,
     this.outputDirectoryPath,
+    this.outputSummaryLabel,
     this.isYouTubeSource = false,
     double progress = 0.0,
   }) : progress = progress.clamp(0.0, 1.0),
@@ -88,10 +96,14 @@ class DownloadItem {
     List<DownloadFormatOption>? availableFormats,
     String? selectedFormatId,
     String? commandPreviewLabel,
+    String? thumbnailUrl,
+    String? authorLabel,
+    String? selectedFormatSummary,
     String? directDownloadUrl,
     String? outputFileName,
     String? outputPath,
     String? outputDirectoryPath,
+    String? outputSummaryLabel,
     bool? isYouTubeSource,
   }) {
     return DownloadItem(
@@ -110,10 +122,15 @@ class DownloadItem {
       availableFormats: availableFormats ?? this.availableFormats,
       selectedFormatId: selectedFormatId ?? this.selectedFormatId,
       commandPreviewLabel: commandPreviewLabel ?? this.commandPreviewLabel,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      authorLabel: authorLabel ?? this.authorLabel,
+      selectedFormatSummary:
+          selectedFormatSummary ?? this.selectedFormatSummary,
       directDownloadUrl: directDownloadUrl ?? this.directDownloadUrl,
       outputFileName: outputFileName ?? this.outputFileName,
       outputPath: outputPath ?? this.outputPath,
       outputDirectoryPath: outputDirectoryPath ?? this.outputDirectoryPath,
+      outputSummaryLabel: outputSummaryLabel ?? this.outputSummaryLabel,
       isYouTubeSource: isYouTubeSource ?? this.isYouTubeSource,
     );
   }
