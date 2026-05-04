@@ -249,7 +249,10 @@ class _HomeScreenState extends State<HomeScreen> {
         _showInfoMessage('Analisando vídeo');
 
         try {
-          final result = await _ytDlpEngine.analyzeUrl(effectiveUrl);
+          final result = await _ytDlpEngine.analyzeUrl(
+            effectiveUrl,
+            useFirefoxCookies: _preferences.useFirefoxCookiesForYouTube,
+          );
           if (!mounted) return;
 
           final updated = _queueController.applyYtDlpAnalysis(
@@ -353,7 +356,10 @@ class _HomeScreenState extends State<HomeScreen> {
   ) async {
     _showInfoMessage('Analisando playlist');
     try {
-      final playlist = await _ytDlpEngine.analyzePlaylistUrl(playlistUrl);
+      final playlist = await _ytDlpEngine.analyzePlaylistUrl(
+        playlistUrl,
+        useFirefoxCookies: _preferences.useFirefoxCookiesForYouTube,
+      );
       if (!mounted) return;
       final selectedEntries = await showDialog<List<YtDlpPlaylistEntry>>(
         context: context,
@@ -598,7 +604,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     try {
-      final analysis = await _ytDlpEngine.analyzeUrl(sourceUrl);
+      final analysis = await _ytDlpEngine.analyzeUrl(
+        sourceUrl,
+        useFirefoxCookies: _preferences.useFirefoxCookiesForYouTube,
+      );
       if (!mounted) return;
       final ready = _queueController.applyYtDlpAnalysis(
         id: item.id,
@@ -827,6 +836,7 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedFormatLabel: selectedFormat.formatLabel,
         selectedFormatIsVideoOnly: isVideoOnly,
         outputTemplate: outputTemplate,
+        useFirefoxCookies: _preferences.useFirefoxCookiesForYouTube,
         cancellation: cancellation,
         onLogLine: (line) {
           final lower = line.toLowerCase();

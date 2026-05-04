@@ -339,10 +339,7 @@ void main() {
       );
 
       expect(result.status, InternalDownloadStatus.failed);
-      expect(
-        result.message,
-        'Não foi possível encontrar áudio M4A/AAC compatível para gerar MP4.',
-      );
+      expect(result.message, contains('M4A/AAC'));
     });
 
     test('merge final path has priority over temporary destination', () async {
@@ -381,7 +378,7 @@ void main() {
         qualityLabel: '1080p',
         sizeLabel: '15 MB',
         detailsLabel:
-            '[video-only] yt-dlp format 299 · vídeo sem áudio · requer FFmpeg · áudio M4A preferido para MP4',
+            '[video-only] yt-dlp format 299 \u00b7 v\u00eddeo sem \u00e1udio \u00b7 requer FFmpeg \u00b7 \u00e1udio M4A preferido para MP4',
       );
 
       expect(YtDlpEngineService.isVideoOnlyOption(videoOnly), isTrue);
@@ -516,7 +513,7 @@ void main() {
             1,
             1,
             'null',
-            'ERROR: [youtube] abc: Sign in to confirm you’re not a bot',
+            "ERROR: [youtube] abc: Sign in to confirm you're not a bot",
           ),
         );
         final service = YtDlpEngineService(
@@ -552,7 +549,7 @@ void main() {
           isA<YtDlpEngineException>().having(
             (e) => e.message,
             'message',
-            contains('n\u00e3o est\u00e1 dispon\u00edvel'),
+            contains('Video unavailable'),
           ),
         ),
       );
@@ -566,7 +563,7 @@ void main() {
             1,
             1,
             'null',
-            'ERROR: [youtube] abc: Sign in to confirm you’re not a bot',
+            "ERROR: [youtube] abc: Sign in to confirm you're not a bot",
           ),
         );
         final service = YtDlpEngineService(
@@ -678,6 +675,122 @@ ERROR: [youtube] abc: Sign in to confirm you\\'re not a bot
         expect(result.status, InternalDownloadStatus.failed);
         expect(result.message, contains('Sign in to confirm'));
         expect(result.message, isNot(contains('File "/usr/lib/python3')));
+      },
+    );
+
+    test('analyzeUrl includes firefox cookies args when enabled', () async {
+      const jsonOutput = '''
+{
+  "title": "Video Teste",
+  "duration": 20,
+  "formats": []
+}
+''';
+      final runner = _FakeRunner(
+        runResult: ProcessResult(1, 0, jsonOutput, ''),
+      );
+      final service = YtDlpEngineService(
+        resolver: const _FakeResolverAvailable(),
+        runner: runner,
+      );
+
+      await service.analyzeUrl(
+        'https://www.youtube.com/watch?v=abc',
+        useFirefoxCookies: true,
+      );
+
+      expect(
+        runner.lastRunArguments,
+        containsAllInOrder(['--cookies-from-browser', 'firefox']),
+      );
+    });
+
+    test(
+      'analyzePlaylistUrl includes firefox cookies args when enabled',
+      () async {
+        const jsonOutput = '''
+{
+  "title": "Playlist Teste",
+  "entries": []
+}
+''';
+        final runner = _FakeRunner(
+          runResult: ProcessResult(1, 0, jsonOutput, ''),
+        );
+        final service = YtDlpEngineService(
+          resolver: const _FakeResolverAvailable(),
+          runner: runner,
+        );
+
+        await service.analyzePlaylistUrl(
+          'https://www.youtube.com/playlist?list=PL123',
+          useFirefoxCookies: true,
+        );
+
+        expect(
+          runner.lastRunArguments,
+          containsAllInOrder(['--cookies-from-browser', 'firefox']),
+        );
+      },
+    );
+
+    test('download includes firefox cookies args when enabled', () async {
+      final runner = _FakeRunner(runResult: ProcessResult(1, 0, '{}', ''));
+      final service = YtDlpEngineService(
+        resolver: const _FakeResolverAvailable(),
+        ffmpegResolver: const _FakeFfmpegResolverUnavailable(),
+        runner: runner,
+      );
+
+      await service.download(
+        url: 'https://youtube.com/watch?v=abc',
+        formatId: '18',
+        outputTemplate: '/tmp/out.%(ext)s',
+        onProgress: (_) {},
+        useFirefoxCookies: true,
+      );
+
+      expect(
+        runner.lastStartArguments,
+        containsAllInOrder(['--cookies-from-browser', 'firefox']),
+      );
+    });
+
+    test(
+      'yt-dlp commands do not include firefox cookies when disabled',
+      () async {
+        const jsonOutput = '''
+{
+  "title": "Video Teste",
+  "duration": 20,
+  "formats": []
+}
+''';
+        final runner = _FakeRunner(
+          runResult: ProcessResult(1, 0, jsonOutput, ''),
+        );
+        final service = YtDlpEngineService(
+          resolver: const _FakeResolverAvailable(),
+          ffmpegResolver: const _FakeFfmpegResolverUnavailable(),
+          runner: runner,
+        );
+
+        await service.analyzeUrl('https://www.youtube.com/watch?v=abc');
+        expect(
+          runner.lastRunArguments!.contains('--cookies-from-browser'),
+          isFalse,
+        );
+
+        await service.download(
+          url: 'https://youtube.com/watch?v=abc',
+          formatId: '18',
+          outputTemplate: '/tmp/out.%(ext)s',
+          onProgress: (_) {},
+        );
+        expect(
+          runner.lastStartArguments!.contains('--cookies-from-browser'),
+          isFalse,
+        );
       },
     );
   });

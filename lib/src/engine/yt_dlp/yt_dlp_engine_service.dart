@@ -36,23 +36,30 @@ class YtDlpEngineService {
     return _ffmpegResolver.resolve();
   }
 
-  Future<YtDlpAnalysisResult> analyzeUrl(String url) async {
+  Future<YtDlpAnalysisResult> analyzeUrl(
+    String url, {
+    bool useFirefoxCookies = false,
+  }) async {
     final executable = await _resolver.resolve();
     if (executable == null) {
       throw const YtDlpEngineException(
-        'yt-dlp n\u00e3o dispon\u00edvel no sistema ou em tools/yt-dlp.exe.',
+        'yt-dlp não disponível no sistema ou em tools/yt-dlp.exe.',
       );
     }
 
     final safeUrl = url.trim();
     if (safeUrl.isEmpty) {
-      throw const YtDlpEngineException('URL vazia para análise.');
+      throw const YtDlpEngineException('URL vazia para an\u00e1lise.');
     }
 
     ProcessResult result;
     try {
       result = await _runner
           .run(executable.path, [
+            if (useFirefoxCookies) ...const [
+              '--cookies-from-browser',
+              'firefox',
+            ],
             '--dump-single-json',
             '--no-playlist',
             '--skip-download',
@@ -60,10 +67,12 @@ class YtDlpEngineService {
           ])
           .timeout(const Duration(seconds: 45));
     } on TimeoutException {
-      throw const YtDlpEngineException('Tempo limite na análise com yt-dlp.');
+      throw const YtDlpEngineException(
+        'Tempo limite na an\u00e1lise com yt-dlp.',
+      );
     } catch (_) {
       throw const YtDlpEngineException(
-        'Falha ao executar yt-dlp para análise.',
+        'Falha ao executar yt-dlp para an\u00e1lise.',
       );
     }
 
@@ -82,7 +91,7 @@ class YtDlpEngineService {
       decoded = jsonDecode(rawJson);
     } catch (_) {
       throw const YtDlpEngineException(
-        'yt-dlp retornou metadados inválidos para análise.',
+        'yt-dlp retornou metadados inv\u00e1lidos para an\u00e1lise.',
       );
     }
 
@@ -107,23 +116,30 @@ class YtDlpEngineService {
     );
   }
 
-  Future<YtDlpPlaylistResult> analyzePlaylistUrl(String url) async {
+  Future<YtDlpPlaylistResult> analyzePlaylistUrl(
+    String url, {
+    bool useFirefoxCookies = false,
+  }) async {
     final executable = await _resolver.resolve();
     if (executable == null) {
       throw const YtDlpEngineException(
-        'yt-dlp n\u00e3o dispon\u00edvel no sistema ou em tools/yt-dlp.exe.',
+        'yt-dlp não disponível no sistema ou em tools/yt-dlp.exe.',
       );
     }
 
     final safeUrl = url.trim();
     if (safeUrl.isEmpty) {
-      throw const YtDlpEngineException('URL vazia para análise.');
+      throw const YtDlpEngineException('URL vazia para an\u00e1lise.');
     }
 
     ProcessResult result;
     try {
       result = await _runner
           .run(executable.path, [
+            if (useFirefoxCookies) ...const [
+              '--cookies-from-browser',
+              'firefox',
+            ],
             '--dump-single-json',
             '--flat-playlist',
             '--no-download',
@@ -131,10 +147,12 @@ class YtDlpEngineService {
           ])
           .timeout(const Duration(seconds: 45));
     } on TimeoutException {
-      throw const YtDlpEngineException('Tempo limite na análise com yt-dlp.');
+      throw const YtDlpEngineException(
+        'Tempo limite na an\u00e1lise com yt-dlp.',
+      );
     } catch (_) {
       throw const YtDlpEngineException(
-        'Falha ao executar yt-dlp para análise.',
+        'Falha ao executar yt-dlp para an\u00e1lise.',
       );
     }
 
@@ -153,7 +171,7 @@ class YtDlpEngineService {
       decoded = jsonDecode(rawJson);
     } catch (_) {
       throw const YtDlpEngineException(
-        'yt-dlp retornou metadados inválidos para análise.',
+        'yt-dlp retornou metadados inv\u00e1lidos para an\u00e1lise.',
       );
     }
 
@@ -183,7 +201,7 @@ class YtDlpEngineService {
             id: resolvedId,
             title: entry['title']?.toString().trim().isNotEmpty == true
                 ? entry['title'].toString().trim()
-                : 'Vídeo da playlist',
+                : 'V\u00eddeo da playlist',
             url: entryUrl,
             durationLabel: _durationLabel(entry['duration']),
             thumbnailUrl: _playlistThumbnailForEntry(
@@ -214,6 +232,7 @@ class YtDlpEngineService {
     required void Function(InternalDownloadProgress progress) onProgress,
     void Function(String line)? onLogLine,
     InternalDownloadCancellation? cancellation,
+    bool useFirefoxCookies = false,
   }) async {
     final executable = await _resolver.resolve();
     if (executable == null) {
@@ -243,7 +262,7 @@ class YtDlpEngineService {
       return const InternalDownloadResult(
         status: InternalDownloadStatus.failed,
         message:
-            'Este formato contém apenas vídeo e requer FFmpeg para juntar áudio.',
+            'Este formato cont\u00e9m apenas v\u00eddeo e requer FFmpeg para juntar \u00e1udio.',
         receivedBytes: 0,
       );
     }
@@ -251,6 +270,7 @@ class YtDlpEngineService {
     final arguments = <String>[
       '--newline',
       '--no-playlist',
+      if (useFirefoxCookies) ...const ['--cookies-from-browser', 'firefox'],
       '-f',
       selectedIsVideoOnly
           ? (isMp4VideoOnly
@@ -389,7 +409,7 @@ class YtDlpEngineService {
       );
       return InternalDownloadResult(
         status: InternalDownloadStatus.completed,
-        message: 'Download concluído.',
+        message: 'Download conclu\u00eddo.',
         receivedBytes: 1000000,
         outputPath: detectedOutputPath,
       );
@@ -410,6 +430,9 @@ class YtDlpEngineService {
     if (normalized.contains('requested format is not available') ||
         normalized.contains('format is not available')) {
       return 'Não foi possível encontrar áudio M4A/AAC compatível para gerar MP4.';
+    }
+    if (_isFirefoxCookiesError(normalized)) {
+      return 'Não foi possível usar a sessão do Firefox. Verifique se o Firefox está instalado, se você está logado no YouTube e tente fechar o Firefox antes de baixar.';
     }
     if (lastError.isNotEmpty) {
       return 'Falha no download com yt-dlp: $lastError';
@@ -747,7 +770,19 @@ class YtDlpEngineService {
           'O ambiente local não possui runtime JavaScript suportado para esta análise.';
       return text.isNotEmpty ? '$friendly\n\n$text' : friendly;
     }
+    if (_isFirefoxCookiesError(lower)) {
+      return text.isNotEmpty
+          ? 'Não foi possível usar a sessão do Firefox. Verifique se o Firefox está instalado, se você está logado no YouTube e tente fechar o Firefox antes de baixar.\n\n$text'
+          : 'Não foi possível usar a sessão do Firefox. Verifique se o Firefox está instalado, se você está logado no YouTube e tente fechar o Firefox antes de baixar.';
+    }
     return text.isNotEmpty ? text : 'Falha na análise com yt-dlp.';
+  }
+
+  bool _isFirefoxCookiesError(String normalizedText) {
+    return normalizedText.contains('could not find firefox') ||
+        normalizedText.contains('failed to decrypt') ||
+        normalizedText.contains('could not extract cookies') ||
+        normalizedText.contains('no firefox profiles found');
   }
 
   List<String> _cleanErrorLines(String raw) {

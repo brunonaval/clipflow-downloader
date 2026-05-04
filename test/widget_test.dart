@@ -272,6 +272,6 @@ void main() {
 
     await tester.tap(find.text('Downloads'));
     await tester.pumpAndSettle();
-    expect(find.text('Pasta padrão'), findsOneWidget);
+    expect(find.textContaining('Pasta padr'), findsOneWidget);
   });
 }

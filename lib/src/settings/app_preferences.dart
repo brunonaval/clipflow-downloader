@@ -14,6 +14,7 @@ class AppPreferences {
   final bool keepSystemAwakeWhileDownloading;
   final bool showAdvancedFormats;
   final bool smartModeEnabled;
+  final bool useFirefoxCookiesForYouTube;
   final OutputFolderChoice outputFolderChoice;
 
   const AppPreferences({
@@ -28,6 +29,7 @@ class AppPreferences {
     required this.keepSystemAwakeWhileDownloading,
     required this.showAdvancedFormats,
     required this.smartModeEnabled,
+    required this.useFirefoxCookiesForYouTube,
     required this.outputFolderChoice,
   });
 
@@ -43,6 +45,7 @@ class AppPreferences {
     keepSystemAwakeWhileDownloading: false,
     showAdvancedFormats: false,
     smartModeEnabled: false,
+    useFirefoxCookiesForYouTube: false,
     outputFolderChoice: OutputFolderChoice.downloads,
   );
 
@@ -58,6 +61,7 @@ class AppPreferences {
     bool? keepSystemAwakeWhileDownloading,
     bool? showAdvancedFormats,
     bool? smartModeEnabled,
+    bool? useFirefoxCookiesForYouTube,
     OutputFolderChoice? outputFolderChoice,
   }) {
     return AppPreferences(
@@ -79,6 +83,8 @@ class AppPreferences {
           this.keepSystemAwakeWhileDownloading,
       showAdvancedFormats: showAdvancedFormats ?? this.showAdvancedFormats,
       smartModeEnabled: smartModeEnabled ?? this.smartModeEnabled,
+      useFirefoxCookiesForYouTube:
+          useFirefoxCookiesForYouTube ?? this.useFirefoxCookiesForYouTube,
       outputFolderChoice: outputFolderChoice ?? this.outputFolderChoice,
     );
   }

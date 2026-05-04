@@ -74,15 +74,18 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
           const Padding(
             padding: EdgeInsets.all(16),
             child: Text(
-              'Preferências',
+              'Prefer\u00eancias',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
           ),
           _sectionTile(PreferencesSection.general, 'Geral'),
           _sectionTile(PreferencesSection.downloads, 'Downloads'),
           _sectionTile(PreferencesSection.engine, 'Motor'),
-          _sectionTile(PreferencesSection.notifications, 'Notificações'),
-          _sectionTile(PreferencesSection.advanced, 'Avançado'),
+          _sectionTile(
+            PreferencesSection.notifications,
+            'Notifica\u00e7\u00f5es',
+          ),
+          _sectionTile(PreferencesSection.advanced, 'Avan\u00e7ado'),
         ],
       ),
     );
@@ -128,7 +131,7 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
         SwitchListTile(
           title: const Text('Modo inteligente'),
           subtitle: const Text(
-            'Colar link inicia automaticamente usando as opções atuais.',
+            'Colar link inicia automaticamente usando as op??es atuais.',
           ),
           value: _preferences.smartModeEnabled,
           onChanged: (value) => setState(
@@ -173,19 +176,34 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
   }
 
   Widget _engineSection() {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Motor',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
-        SizedBox(height: 16),
-        Text('Suporte a links do YouTube ativo.'),
-        SizedBox(height: 8),
-        Text('Qualidades altas podem precisar de processamento adicional.'),
-        SizedBox(height: 8),
-        Text('Saída padrão: pasta de Downloads.'),
+        const SizedBox(height: 16),
+        SwitchListTile(
+          title: const Text('Usar sessão do Firefox para YouTube'),
+          subtitle: const Text(
+            'Ajuda quando o YouTube pede confirma\u00e7\u00e3o de acesso. \u00c9 necess\u00e1rio estar logado no YouTube pelo Firefox.',
+          ),
+          value: _preferences.useFirefoxCookiesForYouTube,
+          onChanged: (value) => setState(
+            () => _preferences = _preferences.copyWith(
+              useFirefoxCookiesForYouTube: value,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text('Suporte a links do YouTube ativo.'),
+        const SizedBox(height: 8),
+        const Text(
+          'Qualidades altas podem precisar de processamento adicional.',
+        ),
+        const SizedBox(height: 8),
+        const Text('Pasta padrão'),
       ],
     );
   }
@@ -195,7 +213,7 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Notificações',
+          'Notifica\u00e7\u00f5es',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 16),
@@ -231,12 +249,12 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Avançado',
+          'Avan\u00e7ado',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 16),
         const Text(
-          'Transferências simultâneas',
+          'Transfer\u00eancias simult\u00e2neas',
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
@@ -270,7 +288,7 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'A alta intensidade pode aumentar o desempenho global da transferência, mas também pode causar falhas temporárias ou bloqueios do YouTube.',
+          'A alta intensidade pode aumentar o desempenho global da transfer\u00eancia, mas tamb\u00e9m pode causar falhas tempor\u00e1rias ou bloqueios do YouTube.',
           style: TextStyle(color: Colors.black54),
         ),
       ],
