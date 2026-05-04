@@ -40,7 +40,7 @@ class YtDlpEngineService {
     final executable = await _resolver.resolve();
     if (executable == null) {
       throw const YtDlpEngineException(
-        'yt-dlp não disponível no sistema ou em tools/yt-dlp.exe.',
+        'yt-dlp n\u00e3o dispon\u00edvel no sistema ou em tools/yt-dlp.exe.',
       );
     }
 
@@ -67,26 +67,23 @@ class YtDlpEngineService {
       );
     }
 
-    final rawJson = result.stdout.toString().trim();
-    dynamic decoded;
-
-    if (rawJson.isNotEmpty) {
-      try {
-        decoded = jsonDecode(rawJson);
-      } catch (_) {
-        if (result.exitCode != 0) {
-          final errorText = _shortError(result.stderr, result.stdout);
-          throw YtDlpEngineException('Falha na análise do yt-dlp: $errorText');
-        }
-        throw const YtDlpEngineException(
-          'yt-dlp retornou metadados inválidos para análise.',
-        );
-      }
-    } else if (result.exitCode != 0) {
+    if (result.exitCode != 0) {
       final errorText = _shortError(result.stderr, result.stdout);
-      throw YtDlpEngineException('Falha na análise do yt-dlp: $errorText');
-    } else {
-      throw const YtDlpEngineException('yt-dlp não retornou metadados.');
+      throw YtDlpEngineException(_friendlyYtDlpAnalysisError(errorText));
+    }
+
+    final rawJson = result.stdout.toString().trim();
+    if (rawJson.isEmpty) {
+      throw const YtDlpEngineException('yt-dlp n\u00e3o retornou metadados.');
+    }
+
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(rawJson);
+    } catch (_) {
+      throw const YtDlpEngineException(
+        'yt-dlp retornou metadados inválidos para análise.',
+      );
     }
 
     if (decoded is! Map<String, dynamic>) {
@@ -114,7 +111,7 @@ class YtDlpEngineService {
     final executable = await _resolver.resolve();
     if (executable == null) {
       throw const YtDlpEngineException(
-        'yt-dlp não disponível no sistema ou em tools/yt-dlp.exe.',
+        'yt-dlp n\u00e3o dispon\u00edvel no sistema ou em tools/yt-dlp.exe.',
       );
     }
 
@@ -141,23 +138,20 @@ class YtDlpEngineService {
       );
     }
 
+    if (result.exitCode != 0) {
+      final errorText = _shortError(result.stderr, result.stdout);
+      throw YtDlpEngineException(_friendlyYtDlpAnalysisError(errorText));
+    }
+
     final rawJson = result.stdout.toString().trim();
     if (rawJson.isEmpty) {
-      if (result.exitCode != 0) {
-        final errorText = _shortError(result.stderr, result.stdout);
-        throw YtDlpEngineException('Falha na análise do yt-dlp: $errorText');
-      }
-      throw const YtDlpEngineException('yt-dlp não retornou metadados.');
+      throw const YtDlpEngineException('yt-dlp n\u00e3o retornou metadados.');
     }
 
     dynamic decoded;
     try {
       decoded = jsonDecode(rawJson);
     } catch (_) {
-      if (result.exitCode != 0) {
-        final errorText = _shortError(result.stderr, result.stdout);
-        throw YtDlpEngineException('Falha na análise do yt-dlp: $errorText');
-      }
       throw const YtDlpEngineException(
         'yt-dlp retornou metadados inválidos para análise.',
       );
@@ -529,7 +523,8 @@ class YtDlpEngineService {
 
       final label = switch (category) {
         _YtDlpFormatCategory.muxed => 'Vídeo $ext $quality',
-        _YtDlpFormatCategory.videoOnly => 'Vídeo sem áudio — requer FFmpeg',
+        _YtDlpFormatCategory.videoOnly =>
+          'V\u00eddeo sem \u00e1udio - requer FFmpeg',
         _YtDlpFormatCategory.audioOnly => 'Áudio $ext $quality',
       };
 
@@ -680,6 +675,21 @@ class YtDlpEngineService {
     final stdoutText = stdout?.toString().trim() ?? '';
     if (stdoutText.isNotEmpty) return stdoutText.split('\n').last.trim();
     return 'erro desconhecido';
+  }
+
+  String _friendlyYtDlpAnalysisError(String raw) {
+    final text = raw.trim();
+    final lower = text.toLowerCase();
+    if (lower.contains('sign in to confirm') || lower.contains('not a bot')) {
+      return 'O YouTube solicitou confirma\u00e7\u00e3o de acesso/anti-bot. Tente novamente mais tarde, reduza downloads simult\u00e2neos ou teste com outro v\u00eddeo.\n\n';
+    }
+    if (lower.contains('private video')) {
+      return 'Este v\u00eddeo \u00e9 privado ou n\u00e3o est\u00e1 dispon\u00edvel.\n\n';
+    }
+    if (lower.contains('video unavailable')) {
+      return 'Este v\u00eddeo n\u00e3o est\u00e1 dispon\u00edvel.\n\n';
+    }
+    return text.isNotEmpty ? text : 'Falha na análise com yt-dlp.';
   }
 
   static String _ffmpegLocationArgument(String ffmpegPath) {

@@ -584,10 +584,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final sourceUrl = (item.sourceUrl ?? '').trim();
     if (sourceUrl.isEmpty) {
-      const message = 'Não foi possível analisar este vídeo';
+      const message = 'Não foi possível analisar este vídeo.';
       _queueController.markItemFailed(item.id, message);
       _showFailureMessage(
-        message,
+        'Não foi possível analisar este vídeo.',
         duration: const Duration(milliseconds: 1400),
       );
       if (mounted) setState(() {});
@@ -620,12 +620,12 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {});
       _startItem(ready);
     } catch (error) {
-      const message = 'Não foi possível analisar este vídeo';
-      _queueController.markItemFailed(item.id, message);
+      final detail = _friendlyFailureDetail(error);
+      _queueController.markItemFailed(item.id, detail);
       if (mounted) {
         setState(() {});
         _showFailureMessage(
-          message,
+          'Não foi possível analisar este vídeo.',
           duration: const Duration(milliseconds: 1400),
         );
       }
@@ -633,6 +633,25 @@ class _HomeScreenState extends State<HomeScreen> {
         _pumpDownloadQueue();
       }
     }
+  }
+
+  String _friendlyFailureDetail(Object error) {
+    final raw = error.toString().trim();
+    final lower = raw.toLowerCase();
+    if (lower.contains('sign in to confirm') || lower.contains('not a bot')) {
+      return 'O YouTube solicitou confirmação de acesso/anti-bot. Tente novamente mais tarde ou reduza a quantidade de downloads simultâneos.\n\n';
+    }
+    if (lower.contains('private video')) {
+      return 'Este vídeo é privado ou não está disponível.\n\n';
+    }
+    if (lower.contains('video unavailable')) {
+      return 'Este vídeo não está disponível.\n\n';
+    }
+    if (lower.contains('requested format is not available')) {
+      return 'O formato escolhido não está disponível para este vídeo.\n\n';
+    }
+    if (raw.isNotEmpty) return raw;
+    return 'Não foi possível analisar este vídeo.';
   }
 
   void _pauseItem(DownloadItem item) {
@@ -1020,7 +1039,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _showFailureReasonDialog(DownloadItem item) {
     final reason = item.sourceLabel.trim().isEmpty
-        ? 'Não foi possível baixar este item.'
+        ? 'Não foi possível identificar o motivo da falha.'
         : item.sourceLabel;
     showDialog<void>(
       context: context,

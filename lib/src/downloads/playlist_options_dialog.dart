@@ -15,16 +15,24 @@ class PlaylistOptionsDialog extends StatefulWidget {
 
 class _PlaylistOptionsDialogState extends State<PlaylistOptionsDialog> {
   late Set<int> _selectedIndexes;
+  late final ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
     _selectedIndexes = <int>{};
     for (var i = 0; i < widget.playlist.entries.length; i++) {
       if (_isEntryAvailable(widget.playlist.entries[i])) {
         _selectedIndexes.add(i);
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -131,127 +139,132 @@ class _PlaylistOptionsDialogState extends State<PlaylistOptionsDialog> {
               )
             else
               Expanded(
-                child: ListView.separated(
-                  itemCount: widget.playlist.entries.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (_, index) {
-                    final entry = widget.playlist.entries[index];
-                    final available = _isEntryAvailable(entry);
-                    final unavailable = !available;
-                    final checked = _selectedIndexes.contains(index);
-                    final details = <String>[
-                      if ((entry.durationLabel?.trim().isNotEmpty ?? false))
-                        entry.durationLabel!,
-                      if ((entry.authorLabel?.trim().isNotEmpty ?? false))
-                        entry.authorLabel!,
-                    ];
-                    return InkWell(
-                      key: Key('playlist-entry-$index'),
-                      onTap: unavailable
-                          ? null
-                          : () {
-                              setState(() {
-                                if (checked) {
-                                  _selectedIndexes.remove(index);
-                                } else {
-                                  _selectedIndexes.add(index);
-                                }
-                              });
-                            },
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          border: Border.all(
+                child: Scrollbar(
+                  controller: _scrollController,
+                  thumbVisibility: true,
+                  child: ListView.separated(
+                    controller: _scrollController,
+                    primary: false,
+                    itemCount: widget.playlist.entries.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    itemBuilder: (_, index) {
+                      final entry = widget.playlist.entries[index];
+                      final available = _isEntryAvailable(entry);
+                      final unavailable = !available;
+                      final checked = _selectedIndexes.contains(index);
+                      final details = <String>[
+                        if ((entry.durationLabel?.trim().isNotEmpty ?? false))
+                          entry.durationLabel!,
+                        if ((entry.authorLabel?.trim().isNotEmpty ?? false))
+                          entry.authorLabel!,
+                      ];
+                      return InkWell(
+                        key: Key('playlist-entry-$index'),
+                        onTap: unavailable
+                            ? null
+                            : () {
+                                setState(() {
+                                  if (checked) {
+                                    _selectedIndexes.remove(index);
+                                  } else {
+                                    _selectedIndexes.add(index);
+                                  }
+                                });
+                              },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: checked
+                                  ? const Color(0xFF2E7D32)
+                                  : Colors.grey.shade300,
+                              width: checked ? 1.2 : 1,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
                             color: checked
-                                ? const Color(0xFF2E7D32)
-                                : Colors.grey.shade300,
-                            width: checked ? 1.2 : 1,
+                                ? const Color(0xFFEAF7EE)
+                                : Colors.white,
                           ),
-                          borderRadius: BorderRadius.circular(8),
-                          color: checked
-                              ? const Color(0xFFEAF7EE)
-                              : Colors.white,
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _EntryThumbnail(entry: entry, index: index),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          entry.title,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      if (unavailable)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFFDECEC),
-                                            borderRadius: BorderRadius.circular(
-                                              999,
-                                            ),
-                                            border: Border.all(
-                                              color: const Color(0xFFF4B7B7),
-                                            ),
-                                          ),
-                                          child: const Text(
-                                            'Indisponível',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              color: Color(0xFFB91C1C),
-                                              fontWeight: FontWeight.w600,
-                                            ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _EntryThumbnail(entry: entry, index: index),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            entry.title,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
-                                    ],
-                                  ),
-                                  if (details.isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 2),
-                                      child: Text(
-                                        details.join(' · '),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black54,
-                                        ),
-                                      ),
+                                        if (unavailable)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFFDECEC),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                              border: Border.all(
+                                                color: const Color(0xFFF4B7B7),
+                                              ),
+                                            ),
+                                            child: const Text(
+                                              'Indisponível',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: Color(0xFFB91C1C),
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                     ),
-                                ],
+                                    if (details.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Text(
+                                          details.join(' · '),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.black54,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            Checkbox(
-                              value: checked,
-                              onChanged: unavailable
-                                  ? null
-                                  : (value) {
-                                      setState(() {
-                                        if (value == true) {
-                                          _selectedIndexes.add(index);
-                                        } else {
-                                          _selectedIndexes.remove(index);
-                                        }
-                                      });
-                                    },
-                            ),
-                          ],
+                              Checkbox(
+                                value: checked,
+                                onChanged: unavailable
+                                    ? null
+                                    : (value) {
+                                        setState(() {
+                                          if (value == true) {
+                                            _selectedIndexes.add(index);
+                                          } else {
+                                            _selectedIndexes.remove(index);
+                                          }
+                                        });
+                                      },
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ),
           ],

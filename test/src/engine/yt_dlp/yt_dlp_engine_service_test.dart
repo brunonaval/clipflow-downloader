@@ -164,7 +164,7 @@ void main() {
       expect(audioOnly.detailsLabel.contains('[audio-only]'), isTrue);
 
       final videoOnly = result.formats.firstWhere((f) => f.id == '299');
-      expect(videoOnly.label, 'Vídeo sem áudio — requer FFmpeg');
+      expect(videoOnly.label, 'V\u00eddeo sem \u00e1udio - requer FFmpeg');
       expect(
         videoOnly.detailsLabel.contains('áudio M4A preferido para MP4'),
         isTrue,
@@ -376,7 +376,7 @@ void main() {
       const videoOnly = DownloadFormatOption(
         id: '299',
         kind: DownloadFormatKind.video,
-        label: 'Vídeo sem áudio — requer FFmpeg',
+        label: 'V\u00eddeo sem \u00e1udio - requer FFmpeg',
         formatLabel: 'MP4',
         qualityLabel: '1080p',
         sizeLabel: '15 MB',
@@ -501,7 +501,88 @@ void main() {
             isA<YtDlpEngineException>().having(
               (e) => e.message,
               'message',
-              contains('Falha na análise do yt-dlp'),
+              contains('fatal playlist error'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'analyzeUrl with exitCode != 0 and stdout null preserves anti-bot stderr',
+      () async {
+        final runner = _FakeRunner(
+          runResult: ProcessResult(
+            1,
+            1,
+            'null',
+            'ERROR: [youtube] abc: Sign in to confirm you’re not a bot',
+          ),
+        );
+        final service = YtDlpEngineService(
+          resolver: const _FakeResolverAvailable(),
+          runner: runner,
+        );
+
+        await expectLater(
+          () => service.analyzeUrl('https://www.youtube.com/watch?v=abc'),
+          throwsA(
+            isA<YtDlpEngineException>().having(
+              (e) => e.message,
+              'message',
+              anyOf(contains('anti-bot'), contains('not a bot')),
+            ),
+          ),
+        );
+      },
+    );
+
+    test('analyzeUrl with exitCode != 0 preserves stderr', () async {
+      final runner = _FakeRunner(
+        runResult: ProcessResult(1, 1, '', 'ERROR: Video unavailable'),
+      );
+      final service = YtDlpEngineService(
+        resolver: const _FakeResolverAvailable(),
+        runner: runner,
+      );
+
+      await expectLater(
+        () => service.analyzeUrl('https://www.youtube.com/watch?v=abc'),
+        throwsA(
+          isA<YtDlpEngineException>().having(
+            (e) => e.message,
+            'message',
+            contains('n\u00e3o est\u00e1 dispon\u00edvel'),
+          ),
+        ),
+      );
+    });
+
+    test(
+      'analyzePlaylistUrl with exitCode != 0 and stdout null preserves stderr',
+      () async {
+        final runner = _FakeRunner(
+          runResult: ProcessResult(
+            1,
+            1,
+            'null',
+            'ERROR: [youtube] abc: Sign in to confirm you’re not a bot',
+          ),
+        );
+        final service = YtDlpEngineService(
+          resolver: const _FakeResolverAvailable(),
+          runner: runner,
+        );
+
+        await expectLater(
+          () => service.analyzePlaylistUrl(
+            'https://www.youtube.com/playlist?list=PL123',
+          ),
+          throwsA(
+            isA<YtDlpEngineException>().having(
+              (e) => e.message,
+              'message',
+              anyOf(contains('anti-bot'), contains('not a bot')),
             ),
           ),
         );

@@ -78,4 +78,19 @@ void main() {
     expect(result!, hasLength(1));
     expect(result!.first.title, 'Video 2');
   });
+
+  testWidgets('lista grande renderiza sem crash de Scrollbar', (tester) async {
+    final entries = List<YtDlpPlaylistEntry>.generate(
+      220,
+      (i) => YtDlpPlaylistEntry(
+        id: 'id-$i',
+        title: 'Video $i',
+        url: 'https://www.youtube.com/watch?v=id$i',
+      ),
+    );
+    final large = YtDlpPlaylistResult(title: 'Grande', entries: entries);
+    await openDialog(tester, PlaylistOptionsDialog(playlist: large));
+    expect(find.byType(Scrollbar), findsOneWidget);
+    expect(find.text('Selecionados: 220 de 220'), findsOneWidget);
+  });
 }
