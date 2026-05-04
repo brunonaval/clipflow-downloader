@@ -69,10 +69,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Sobre o ClipFlow'), findsWidgets);
-    expect(
-      find.textContaining('ClipFlow Downloader ajuda a baixar vídeos'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('interface simples e direta'), findsOneWidget);
   });
 
   testWidgets('menu Ajuda abre Sobre o desenvolvedor', (
@@ -86,10 +83,25 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Sobre o desenvolvedor'), findsWidgets);
-    expect(
-      find.textContaining('Desenvolvido por Bruno Naval.'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('M4rMil'), findsOneWidget);
+    expect(find.textContaining('Bruno Siqueira Ferreira'), findsOneWidget);
+    expect(find.textContaining('Yanna Daniela'), findsOneWidget);
+    expect(find.textContaining('Noah'), findsOneWidget);
+    expect(find.textContaining('Isaac'), findsOneWidget);
+    expect(find.textContaining('Davi'), findsOneWidget);
+    expect(find.textContaining('bruno_bt_rj'), findsOneWidget);
+  });
+
+  testWidgets('menu Ajuda abre Apoiar o projeto', (WidgetTester tester) async {
+    await tester.pumpWidget(const ClipFlowApp());
+
+    await tester.tap(find.text('Ajuda'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Apoiar o projeto'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Apoiar o projeto'), findsWidgets);
+    expect(find.textContaining('bruno_naval@hotmail.com'), findsOneWidget);
   });
 
   testWidgets('menu Ferramentas abre Preferências', (
@@ -100,11 +112,7 @@ void main() {
     await tester.tap(find.text('Ferramentas').first);
     await tester.pumpAndSettle();
 
-    final prefsMenuItem = find.descendant(
-      of: find.byType(PopupMenuItem<String>),
-      matching: find.textContaining('Prefer'),
-    );
-    await tester.tap(prefsMenuItem);
+    await tester.tap(find.text('Preferências'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Prefer'), findsWidgets);

@@ -938,7 +938,7 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Sobre o ClipFlow'),
         content: const Text(
-          'ClipFlow Downloader ajuda a baixar vídeos, áudios e playlists autorizados com uma interface simples.\n\nUse apenas com conteúdos que você tem direito de baixar.',
+          'ClipFlow Downloader ajuda a baixar vídeos, áudios e playlists autorizados em uma interface simples e direta.\n\nUse apenas com conteúdos que você tem direito de baixar.\n\nProjeto em desenvolvimento, criado para evoluir uma solução de downloads e karaokê com Flutter.',
         ),
         actions: [
           TextButton(
@@ -956,8 +956,27 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Sobre o desenvolvedor'),
-        content: const Text(
-          'Desenvolvido por Bruno Naval.\nProjeto criado para reconstruir e evoluir uma solução de download e karaokê com Flutter.',
+        content: const SelectableText(
+          'ClipFlow Downloader é um projeto desenvolvido pelo M4rMil (Bruno Siqueira Ferreira), com o objetivo de facilitar downloads autorizados de vídeos, áudios e playlists em uma interface simples.\n\nAgradecimento especial à minha esposa, Yanna Daniela, e aos meus filhos, Noah, Isaac e Davi, por serem parte essencial da motivação por trás deste projeto.\n\nYouTube: https://www.youtube.com/@bruntiger\nInstagram: @bruno_bt_rj',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showSupportProjectDialog() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Apoiar o projeto'),
+        content: const SelectableText(
+          'Se o ClipFlow foi útil para você e quiser apoiar a evolução do projeto, contribuições são bem-vindas.\n\nPix: bruno_naval@hotmail.com\n\nO apoio é opcional e ajuda na manutenção e melhoria do aplicativo.',
         ),
         actions: [
           TextButton(
@@ -1079,6 +1098,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onOpenPreferences: _openPreferencesDialog,
                 onAboutClipFlow: _showAboutClipFlowDialog,
                 onAboutDeveloper: _showAboutDeveloperDialog,
+                onSupportProject: _showSupportProjectDialog,
               ),
               const Divider(height: 1, thickness: 1, color: _kDivider),
               _Toolbar(
@@ -1209,110 +1229,88 @@ class _MenuBar extends StatelessWidget {
   final VoidCallback onOpenPreferences;
   final VoidCallback onAboutClipFlow;
   final VoidCallback onAboutDeveloper;
+  final VoidCallback onSupportProject;
 
   const _MenuBar({
     required this.onOpenDownloadsFolder,
     required this.onOpenPreferences,
     required this.onAboutClipFlow,
     required this.onAboutDeveloper,
+    required this.onSupportProject,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 40,
+    return ColoredBox(
       color: const Color(0xFFFAFAFA),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Text(
-                'ClipFlow Downloader',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-            const VerticalDivider(
-              width: 1,
-              thickness: 1,
-              indent: 8,
-              endIndent: 8,
-            ),
-            PopupMenuButton<String>(
-              tooltip: 'Arquivo',
-              onSelected: (value) {
-                if (value == 'open_downloads') {
-                  onOpenDownloadsFolder();
-                }
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem<String>(
-                  value: 'open_downloads',
-                  child: Text('Abrir pasta de downloads'),
-                ),
-              ],
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(right: 10),
                 child: Text(
-                  'Arquivo',
-                  style: TextStyle(fontSize: 13, color: Colors.black87),
+                  'ClipFlow Downloader',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
                 ),
               ),
-            ),
-            PopupMenuButton<String>(
-              tooltip: 'Ferramentas',
-              onSelected: (value) {
-                if (value == 'preferences') {
-                  onOpenPreferences();
-                }
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem<String>(
-                  value: 'preferences',
-                  child: Text('Preferências'),
+              Container(width: 1, height: 20, color: const Color(0xFFD8D8D8)),
+              const SizedBox(width: 6),
+              MenuBar(
+                style: const MenuStyle(
+                  padding: WidgetStatePropertyAll(
+                    EdgeInsets.symmetric(horizontal: 2),
+                  ),
+                  backgroundColor: WidgetStatePropertyAll(Colors.transparent),
+                  elevation: WidgetStatePropertyAll(0),
                 ),
-              ],
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                child: Text(
-                  'Ferramentas',
-                  style: TextStyle(fontSize: 13, color: Colors.black87),
-                ),
+                children: [
+                  SubmenuButton(
+                    menuChildren: [
+                      MenuItemButton(
+                        onPressed: onOpenDownloadsFolder,
+                        child: const Text('Abrir pasta de downloads'),
+                      ),
+                    ],
+                    child: const Text('Arquivo'),
+                  ),
+                  SubmenuButton(
+                    menuChildren: [
+                      MenuItemButton(
+                        onPressed: onOpenPreferences,
+                        child: const Text('Preferências'),
+                      ),
+                    ],
+                    child: const Text('Ferramentas'),
+                  ),
+                  SubmenuButton(
+                    menuChildren: [
+                      MenuItemButton(
+                        onPressed: onAboutClipFlow,
+                        child: const Text('Sobre o ClipFlow'),
+                      ),
+                      MenuItemButton(
+                        onPressed: onAboutDeveloper,
+                        child: const Text('Sobre o desenvolvedor'),
+                      ),
+                      MenuItemButton(
+                        onPressed: onSupportProject,
+                        child: const Text('Apoiar o projeto'),
+                      ),
+                    ],
+                    child: const Text('Ajuda'),
+                  ),
+                ],
               ),
-            ),
-            PopupMenuButton<String>(
-              tooltip: 'Ajuda',
-              onSelected: (value) {
-                if (value == 'about_clipflow') {
-                  onAboutClipFlow();
-                } else if (value == 'about_developer') {
-                  onAboutDeveloper();
-                }
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem<String>(
-                  value: 'about_clipflow',
-                  child: Text('Sobre o ClipFlow'),
-                ),
-                PopupMenuItem<String>(
-                  value: 'about_developer',
-                  child: Text('Sobre o desenvolvedor'),
-                ),
-              ],
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                child: Text(
-                  'Ajuda',
-                  style: TextStyle(fontSize: 13, color: Colors.black87),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
