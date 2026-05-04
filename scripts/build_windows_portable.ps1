@@ -126,11 +126,21 @@ New-Item -ItemType Directory -Path $PackageDir -Force | Out-Null
 Write-Ok "Pasta de destino criada: $PackageDir"
 
 # ---------------------------------------------------------------------------
-# 5. Copiar conteudo da Release
+# 5. Copiar conteudo da Release e renomear executavel
 # ---------------------------------------------------------------------------
 Write-Step "Copiando arquivos da Release..."
 Copy-Item -Path (Join-Path $ReleaseDir "*") -Destination $PackageDir -Recurse -Force
 Write-Ok "Conteudo da Release copiado."
+
+# Renomear executavel para nome final de produto
+$OldExePath = Join-Path $PackageDir "clipflow_downloader.exe"
+$NewExePath = Join-Path $PackageDir "ClipFlowDownloader.exe"
+if (Test-Path $OldExePath) {
+    Rename-Item -Path $OldExePath -NewName "ClipFlowDownloader.exe" -Force
+    Write-Ok "Executavel renomeado: clipflow_downloader.exe -> ClipFlowDownloader.exe"
+} elseif (-not (Test-Path $NewExePath)) {
+    Write-Warn "Executavel clipflow_downloader.exe nao encontrado na Release."
+}
 
 # ---------------------------------------------------------------------------
 # 6. Copiar tools (somente binarios permitidos)

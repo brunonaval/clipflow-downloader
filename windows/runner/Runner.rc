@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "clipflow_downloader" "\0"
+            VALUE "CompanyName", "M4rMil" "\0"
+            VALUE "FileDescription", "ClipFlow Downloader" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "clipflow_downloader" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "clipflow_downloader.exe" "\0"
-            VALUE "ProductName", "clipflow_downloader" "\0"
+            VALUE "InternalName", "ClipFlow Downloader" "\0"
+            VALUE "LegalCopyright", "M4rMil / Bruno Siqueira Ferreira" "\0"
+            VALUE "OriginalFilename", "ClipFlowDownloader.exe" "\0"
+            VALUE "ProductName", "ClipFlow Downloader" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

@@ -32,10 +32,11 @@ if (-not (Test-Path $PackagePath -PathType Container)) {
 }
 Write-Check "Pasta existe: $PackagePath"
 
-# 2. Executavel principal na raiz
+# 2. Executavel principal na raiz (preferir ClipFlowDownloader.exe, aceitar clipflow_downloader.exe como fallback)
 $mainExe = $null
-$preferred = Join-Path $PackagePath "clipflow_downloader.exe"
-if (Test-Path $preferred) {
+if (Test-Path (Join-Path $PackagePath "ClipFlowDownloader.exe")) {
+    $mainExe = "ClipFlowDownloader.exe"
+} elseif (Test-Path (Join-Path $PackagePath "clipflow_downloader.exe")) {
     $mainExe = "clipflow_downloader.exe"
 } else {
     $anyExe = Get-ChildItem $PackagePath -Filter "*.exe" -File |
