@@ -12,14 +12,19 @@
 .PARAMETER SkipTests
     Se informado, pula dart analyze e flutter test.
 
+.PARAMETER RequireFfmpeg
+    Se informado, falha o build caso ffmpeg.exe ou ffprobe.exe nao sejam encontrados.
+
 .EXAMPLE
     .\scripts\build_windows_portable.ps1 -Version "1.0.0"
     .\scripts\build_windows_portable.ps1 -Version "preview" -SkipTests
+    .\scripts\build_windows_portable.ps1 -Version "0.1.0-preview" -RequireFfmpeg
 #>
 param(
     [string]$Version    = "dev",
     [string]$OutputRoot = "dist",
-    [switch]$SkipTests
+    [switch]$SkipTests,
+    [switch]$RequireFfmpeg
 )
 
 Set-StrictMode -Version Latest
@@ -29,9 +34,9 @@ function Write-Step([string]$msg) {
     Write-Host ""
     Write-Host ">>> $msg" -ForegroundColor Cyan
 }
-function Write-Ok([string]$msg)   { Write-Host "    [OK] $msg"     -ForegroundColor Green  }
-function Write-Warn([string]$msg) { Write-Host "    [AVISO] $msg"  -ForegroundColor Yellow }
-function Write-Fail([string]$msg) { Write-Host "    [ERRO] $msg"   -ForegroundColor Red    }
+function Write-Ok([string]$msg)   { Write-Host "    [OK] $msg"    -ForegroundColor Green  }
+function Write-Warn([string]$msg) { Write-Host "    [AVISO] $msg" -ForegroundColor Yellow }
+function Write-Fail([string]$msg) { Write-Host "    [ERRO] $msg"  -ForegroundColor Red    }
 
 # Padroes bloqueados por seguranca
 $BlockedPatterns = @('*cookie*','*cookies*','*profile*','*firefox*','*browser-profile*','*firefox-profile*')
@@ -42,6 +47,18 @@ function Test-IsBlocked([string]$name) {
         if ($lower -like $pat) { return $true }
     }
     return $false
+}
+
+function Get-Sha256([string]$filePath) {
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $stream = [System.IO.File]::OpenRead($filePath)
+    try {
+        $hashBytes = $sha.ComputeHash($stream)
+        return ([BitConverter]::ToString($hashBytes) -replace '-','').ToUpperInvariant()
+    } finally {
+        $stream.Dispose()
+        $sha.Dispose()
+    }
 }
 
 # Raiz do projeto = pai da pasta scripts
@@ -98,7 +115,8 @@ Write-Ok "Release encontrada em: $ReleaseDir"
 # 4. Criar pasta de destino
 # ---------------------------------------------------------------------------
 $PackageName = "ClipFlow-Downloader-portable-$Version"
-$PackageDir  = Join-Path (Join-Path $ProjectRoot $OutputRoot) $PackageName
+$DistRoot    = Join-Path $ProjectRoot $OutputRoot
+$PackageDir  = Join-Path $DistRoot $PackageName
 
 if (Test-Path $PackageDir) {
     Write-Warn "Pasta de destino ja existe -- sera sobrescrita: $PackageDir"
@@ -123,24 +141,21 @@ $ToolsSource = Join-Path $ProjectRoot "tools"
 $ToolsDest   = Join-Path $PackageDir  "tools"
 New-Item -ItemType Directory -Path $ToolsDest -Force | Out-Null
 
-$YtDlpCopied    = $false
-$FfmpegCopied   = $false
-$FfprobeCopied  = $false
-$YtDlpSrc       = $null
-$FfmpegSrc      = $null
-$FfprobeSrc     = $null
+$YtDlpCopied   = $false
+$FfmpegCopied  = $false
+$FfprobeCopied = $false
+$YtDlpSrc      = $null
+$FfmpegSrc     = $null
+$FfprobeSrc    = $null
 
-# Funcao: localiza o primeiro caminho valido de uma lista de candidatos.
-# Jamais busca dentro de ffmpeg-temp.
+# Localiza o primeiro caminho valido de uma lista de candidatos.
+# Nunca retorna caminhos dentro de ffmpeg-temp.
 function Find-ToolBin([string]$binName, [string[]]$candidates) {
     foreach ($c in $candidates) {
-        if (Test-Path $c) {
-            # Rejeitar qualquer coisa dentro de ffmpeg-temp
-            if ($c -match [regex]::Escape("ffmpeg-temp")) { continue }
+        if ((Test-Path $c) -and ($c -notmatch [regex]::Escape("ffmpeg-temp"))) {
             return $c
         }
     }
-    # Busca generica dentro de tools/ffmpeg/ (exceto ffmpeg-temp)
     $found = Get-ChildItem $ToolsSource -Filter $binName -Recurse -File -ErrorAction SilentlyContinue |
         Where-Object { $_.FullName -notmatch [regex]::Escape("ffmpeg-temp") } |
         Select-Object -First 1
@@ -149,10 +164,7 @@ function Find-ToolBin([string]$binName, [string[]]$candidates) {
 }
 
 # yt-dlp
-$ytDlpCandidates = @(
-    (Join-Path $ToolsSource "yt-dlp.exe")
-)
-$YtDlpSrc = Find-ToolBin "yt-dlp.exe" $ytDlpCandidates
+$YtDlpSrc = Find-ToolBin "yt-dlp.exe" @((Join-Path $ToolsSource "yt-dlp.exe"))
 if ($YtDlpSrc) {
     Copy-Item -Path $YtDlpSrc -Destination $ToolsDest -Force
     $YtDlpCopied = $true
@@ -162,12 +174,11 @@ if ($YtDlpSrc) {
 }
 
 # ffmpeg
-$ffmpegCandidates = @(
+$FfmpegSrc = Find-ToolBin "ffmpeg.exe" @(
     (Join-Path $ToolsSource "ffmpeg.exe"),
     (Join-Path $ToolsSource "ffmpeg\ffmpeg.exe"),
     (Join-Path $ToolsSource "ffmpeg\bin\ffmpeg.exe")
 )
-$FfmpegSrc = Find-ToolBin "ffmpeg.exe" $ffmpegCandidates
 if ($FfmpegSrc) {
     Copy-Item -Path $FfmpegSrc -Destination $ToolsDest -Force
     $FfmpegCopied = $true
@@ -177,12 +188,11 @@ if ($FfmpegSrc) {
 }
 
 # ffprobe
-$ffprobeCandidates = @(
+$FfprobeSrc = Find-ToolBin "ffprobe.exe" @(
     (Join-Path $ToolsSource "ffprobe.exe"),
     (Join-Path $ToolsSource "ffmpeg\ffprobe.exe"),
     (Join-Path $ToolsSource "ffmpeg\bin\ffprobe.exe")
 )
-$FfprobeSrc = Find-ToolBin "ffprobe.exe" $ffprobeCandidates
 if ($FfprobeSrc) {
     Copy-Item -Path $FfprobeSrc -Destination $ToolsDest -Force
     $FfprobeCopied = $true
@@ -192,12 +202,23 @@ if ($FfprobeSrc) {
 }
 
 # Remover qualquer arquivo bloqueado que tenha escapado
-$copiedFiles = Get-ChildItem $ToolsDest -File -ErrorAction SilentlyContinue
-foreach ($f in $copiedFiles) {
+foreach ($f in (Get-ChildItem $ToolsDest -File -ErrorAction SilentlyContinue)) {
     if (Test-IsBlocked $f.Name) {
         Remove-Item $f.FullName -Force
         Write-Warn "Arquivo bloqueado removido do destino: $($f.Name)"
     }
+}
+
+# RequireFfmpeg: falhar se ffmpeg ou ffprobe ausentes
+if ($RequireFfmpeg) {
+    $ffmpegMissing = (-not $FfmpegCopied) -or (-not $FfprobeCopied)
+    if ($ffmpegMissing) {
+        Pop-Location
+        if (-not $FfmpegCopied)  { Write-Fail "RequireFfmpeg: ffmpeg.exe nao encontrado. Build cancelado." }
+        if (-not $FfprobeCopied) { Write-Fail "RequireFfmpeg: ffprobe.exe nao encontrado. Build cancelado." }
+        exit 1
+    }
+    Write-Ok "RequireFfmpeg: ffmpeg.exe e ffprobe.exe presentes."
 }
 
 # ---------------------------------------------------------------------------
@@ -206,62 +227,62 @@ foreach ($f in $copiedFiles) {
 Write-Step "Gerando README_PORTABLE.txt..."
 
 $ReadmePath = Join-Path $PackageDir "README_PORTABLE.txt"
-$lines = [System.Collections.Generic.List[string]]::new()
-$lines.Add("ClipFlow Downloader - Pacote Portatil Windows")
-$lines.Add("=============================================")
-$lines.Add("")
-$lines.Add("COMO USAR")
-$lines.Add("---------")
-$lines.Add('1. Extraia esta pasta para qualquer local do seu computador.')
-$lines.Add('2. Abra o arquivo "clipflow_downloader.exe" (ou o executavel presente nesta pasta).')
-$lines.Add('3. O aplicativo nao precisa de instalacao.')
-$lines.Add("")
-$lines.Add("YOUTUBE COM PROTECAO ANTI-BOT")
-$lines.Add("------------------------------")
-$lines.Add("O YouTube pode bloquear downloads diretos. Para contornar isso de forma segura:")
-$lines.Add("")
-$lines.Add("1. Instale o Firefox (https://www.mozilla.org/) e faca login na sua conta do YouTube.")
-$lines.Add("2. Deixe o Firefox aberto enquanto usa o ClipFlow Downloader.")
-$lines.Add('3. Nas preferencias do app, ative a opcao "Usar sessao do Firefox para YouTube".')
-$lines.Add("")
-$lines.Add("O app usara a sua sessao local do Firefox para autenticar os downloads.")
-$lines.Add("Nenhum dado de login e transmitido a terceiros.")
-$lines.Add("")
-$lines.Add("FFMPEG (NECESSARIO PARA QUALIDADE ALTA)")
-$lines.Add("----------------------------------------")
-$lines.Add("Para baixar videos em qualidade alta (ex: 1080p), o ffmpeg.exe e obrigatorio.")
-$lines.Add("Ele e usado para juntar a trilha de video e audio separadas.")
-$lines.Add("")
-$lines.Add("O ffprobe.exe e recomendado para inspecao de arquivos de midia.")
-$lines.Add("")
-$lines.Add("Se o pacote nao incluir ffmpeg.exe, coloque manualmente em:")
-$lines.Add("    tools\ffmpeg\bin\ffmpeg.exe")
-$lines.Add("    tools\ffmpeg\bin\ffprobe.exe")
-$lines.Add("")
-$lines.Add("Baixe em: https://ffmpeg.org/download.html")
-$lines.Add("")
-$lines.Add("DENO (RECOMENDADO)")
-$lines.Add("------------------")
-$lines.Add("Para melhor compatibilidade com o YouTube, instale o Deno:")
-$lines.Add("    https://deno.land/")
-$lines.Add("")
-$lines.Add("Deno e utilizado internamente pelo yt-dlp para alguns extratores avancados.")
-$lines.Add("")
-$lines.Add("AVISOS IMPORTANTES")
-$lines.Add("------------------")
-$lines.Add("- Nao compartilhe sua pasta de perfil do Firefox nem arquivos de cookies.")
-$lines.Add("- Nao distribua esta pasta contendo dados de sessao pessoais.")
-$lines.Add("- Use o ClipFlow Downloader apenas com conteudo que voce tem direito de baixar:")
-$lines.Add("  conteudo proprio, conteudo com licenca aberta ou conteudo para uso pessoal")
-$lines.Add("  autorizado pelo detentor dos direitos.")
-$lines.Add("- O uso indevido para baixar conteudo protegido sem autorizacao e de")
-$lines.Add("  responsabilidade exclusiva do usuario.")
-$lines.Add("")
-$lines.Add("SUPORTE")
-$lines.Add("-------")
-$lines.Add("Repositorio: https://github.com/brunonaval/clipflow-downloader")
+$readmeLines = [System.Collections.Generic.List[string]]::new()
+$readmeLines.Add("ClipFlow Downloader - Pacote Portatil Windows")
+$readmeLines.Add("=============================================")
+$readmeLines.Add("")
+$readmeLines.Add("COMO USAR")
+$readmeLines.Add("---------")
+$readmeLines.Add('1. Extraia esta pasta para qualquer local do seu computador.')
+$readmeLines.Add('2. Abra o arquivo "clipflow_downloader.exe" (ou o executavel presente nesta pasta).')
+$readmeLines.Add('3. O aplicativo nao precisa de instalacao.')
+$readmeLines.Add("")
+$readmeLines.Add("YOUTUBE COM PROTECAO ANTI-BOT")
+$readmeLines.Add("------------------------------")
+$readmeLines.Add("O YouTube pode bloquear downloads diretos. Para contornar isso de forma segura:")
+$readmeLines.Add("")
+$readmeLines.Add("1. Instale o Firefox (https://www.mozilla.org/) e faca login na sua conta do YouTube.")
+$readmeLines.Add("2. Deixe o Firefox aberto enquanto usa o ClipFlow Downloader.")
+$readmeLines.Add('3. Nas preferencias do app, ative a opcao "Usar sessao do Firefox para YouTube".')
+$readmeLines.Add("")
+$readmeLines.Add("O app usara a sua sessao local do Firefox para autenticar os downloads.")
+$readmeLines.Add("Nenhum dado de login e transmitido a terceiros.")
+$readmeLines.Add("")
+$readmeLines.Add("FFMPEG (NECESSARIO PARA QUALIDADE ALTA)")
+$readmeLines.Add("----------------------------------------")
+$readmeLines.Add("Para baixar videos em qualidade alta (ex: 1080p), o ffmpeg.exe e obrigatorio.")
+$readmeLines.Add("Ele e usado para juntar a trilha de video e audio separadas.")
+$readmeLines.Add("")
+$readmeLines.Add("O ffprobe.exe e recomendado para inspecao de arquivos de midia.")
+$readmeLines.Add("")
+$readmeLines.Add("Se o pacote nao incluir ffmpeg.exe, coloque manualmente em:")
+$readmeLines.Add("    tools\ffmpeg\bin\ffmpeg.exe")
+$readmeLines.Add("    tools\ffmpeg\bin\ffprobe.exe")
+$readmeLines.Add("")
+$readmeLines.Add("Baixe em: https://ffmpeg.org/download.html")
+$readmeLines.Add("")
+$readmeLines.Add("DENO (RECOMENDADO)")
+$readmeLines.Add("------------------")
+$readmeLines.Add("Para melhor compatibilidade com o YouTube, instale o Deno:")
+$readmeLines.Add("    https://deno.land/")
+$readmeLines.Add("")
+$readmeLines.Add("Deno e utilizado internamente pelo yt-dlp para alguns extratores avancados.")
+$readmeLines.Add("")
+$readmeLines.Add("AVISOS IMPORTANTES")
+$readmeLines.Add("------------------")
+$readmeLines.Add("- Nao compartilhe sua pasta de perfil do Firefox nem arquivos de cookies.")
+$readmeLines.Add("- Nao distribua esta pasta contendo dados de sessao pessoais.")
+$readmeLines.Add("- Use o ClipFlow Downloader apenas com conteudo que voce tem direito de baixar:")
+$readmeLines.Add("  conteudo proprio, conteudo com licenca aberta ou conteudo para uso pessoal")
+$readmeLines.Add("  autorizado pelo detentor dos direitos.")
+$readmeLines.Add("- O uso indevido para baixar conteudo protegido sem autorizacao e de")
+$readmeLines.Add("  responsabilidade exclusiva do usuario.")
+$readmeLines.Add("")
+$readmeLines.Add("SUPORTE")
+$readmeLines.Add("-------")
+$readmeLines.Add("Repositorio: https://github.com/brunonaval/clipflow-downloader")
 
-[System.IO.File]::WriteAllText($ReadmePath, ($lines -join "`r`n"), [System.Text.Encoding]::UTF8)
+[System.IO.File]::WriteAllText($ReadmePath, ($readmeLines -join "`r`n"), [System.Text.Encoding]::UTF8)
 Write-Ok "README_PORTABLE.txt gerado."
 
 # ---------------------------------------------------------------------------
@@ -269,7 +290,7 @@ Write-Ok "README_PORTABLE.txt gerado."
 # ---------------------------------------------------------------------------
 Write-Step "Compactando pacote em ZIP..."
 
-$ZipPath = Join-Path (Join-Path $ProjectRoot $OutputRoot) "$PackageName.zip"
+$ZipPath = Join-Path $DistRoot "$PackageName.zip"
 if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -277,12 +298,113 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 Write-Ok "ZIP criado: $ZipPath"
 
 # ---------------------------------------------------------------------------
-# 9. Resumo final
+# 9. SHA256 externo
 # ---------------------------------------------------------------------------
+Write-Step "Calculando SHA256 do ZIP..."
+
+$ZipHash    = Get-Sha256 $ZipPath
+$Sha256Path = Join-Path $DistRoot "$PackageName.sha256.txt"
+$sha256Line = "SHA256  $PackageName.zip"
+$sha256Detail = "$ZipHash  $PackageName.zip"
+[System.IO.File]::WriteAllText($Sha256Path, "$sha256Line`r`n$sha256Detail`r`n", [System.Text.Encoding]::UTF8)
+Write-Ok "SHA256 gerado: $Sha256Path"
+Write-Ok "Hash: $ZipHash"
+
+# ---------------------------------------------------------------------------
+# 10. RELEASE_MANIFEST.txt
+# ---------------------------------------------------------------------------
+Write-Step "Gerando RELEASE_MANIFEST.txt..."
+
 $ExeName = Get-ChildItem $PackageDir -Filter "*.exe" -File |
     Where-Object { $_.Name -notmatch "vc_redist" } |
     Select-Object -First 1 -ExpandProperty Name
 
+$GeneratedAt = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+
+$manifestLines = [System.Collections.Generic.List[string]]::new()
+$manifestLines.Add("RELEASE MANIFEST - ClipFlow Downloader")
+$manifestLines.Add("======================================")
+$manifestLines.Add("App          : ClipFlow Downloader")
+$manifestLines.Add("Versao       : $Version")
+$manifestLines.Add("Gerado em    : $GeneratedAt")
+$manifestLines.Add("Executavel   : $(if ($ExeName) { $ExeName } else { '(nao encontrado)' })")
+$manifestLines.Add("")
+$manifestLines.Add("ARQUIVOS PRINCIPAIS")
+$manifestLines.Add("-------------------")
+
+# executavel
+if ($ExeName -and (Test-Path (Join-Path $PackageDir $ExeName))) {
+    $manifestLines.Add("  [OK] $ExeName")
+} else {
+    $manifestLines.Add("  [AUSENTE] executavel nao encontrado")
+}
+
+# pasta data
+if (Test-Path (Join-Path $PackageDir "data")) {
+    $manifestLines.Add("  [OK] data\")
+} else {
+    $manifestLines.Add("  [AUSENTE] data\")
+}
+
+# flutter_windows.dll
+if (Test-Path (Join-Path $PackageDir "flutter_windows.dll")) {
+    $manifestLines.Add("  [OK] flutter_windows.dll")
+} else {
+    $manifestLines.Add("  [N/A] flutter_windows.dll (nao encontrado)")
+}
+
+# tools
+foreach ($t in @("tools\yt-dlp.exe","tools\ffmpeg.exe","tools\ffprobe.exe")) {
+    if (Test-Path (Join-Path $PackageDir $t)) {
+        $manifestLines.Add("  [OK] $t")
+    } else {
+        $manifestLines.Add("  [AUSENTE] $t")
+    }
+}
+
+# README_PORTABLE.txt
+if (Test-Path (Join-Path $PackageDir "README_PORTABLE.txt")) {
+    $manifestLines.Add("  [OK] README_PORTABLE.txt")
+} else {
+    $manifestLines.Add("  [AUSENTE] README_PORTABLE.txt")
+}
+
+$manifestLines.Add("")
+$manifestLines.Add("ZIP")
+$manifestLines.Add("---")
+$manifestLines.Add("  Arquivo : $PackageName.zip")
+$manifestLines.Add("  SHA256  : $ZipHash")
+$manifestLines.Add("")
+$manifestLines.Add("SEGURANCA")
+$manifestLines.Add("---------")
+$manifestLines.Add("  Cookies e perfis de navegador NAO sao incluidos neste pacote.")
+$manifestLines.Add("  Nunca distribua arquivos de sessao ou credenciais pessoais.")
+
+$ManifestPath = Join-Path $PackageDir "RELEASE_MANIFEST.txt"
+[System.IO.File]::WriteAllText($ManifestPath, ($manifestLines -join "`r`n"), [System.Text.Encoding]::UTF8)
+Write-Ok "RELEASE_MANIFEST.txt gerado."
+
+# ---------------------------------------------------------------------------
+# 11. Verificar pacote portavel
+# ---------------------------------------------------------------------------
+Write-Step "Verificando pacote portavel..."
+
+$VerifyScript = Join-Path $PSScriptRoot "verify_windows_portable.ps1"
+if (Test-Path $VerifyScript) {
+    powershell -NoProfile -ExecutionPolicy Bypass -File $VerifyScript -PackagePath $PackageDir
+    if ($LASTEXITCODE -ne 0) {
+        Pop-Location
+        Write-Fail "Verificacao do pacote portavel falhou. Build abortado."
+        exit 1
+    }
+    Write-Ok "Verificacao do pacote portavel: OK"
+} else {
+    Write-Warn "verify_windows_portable.ps1 nao encontrado -- verificacao ignorada."
+}
+
+# ---------------------------------------------------------------------------
+# 12. Resumo final
+# ---------------------------------------------------------------------------
 Pop-Location
 
 Write-Host ""
@@ -291,6 +413,7 @@ Write-Host "  BUILD PORTATIL CONCLUIDO" -ForegroundColor White
 Write-Host "============================================================" -ForegroundColor White
 Write-Host "  Pasta portavel : $PackageDir"
 Write-Host "  ZIP            : $ZipPath"
+Write-Host "  SHA256         : $Sha256Path"
 Write-Host "  Executavel     : $(if ($ExeName) { $ExeName } else { '(nao encontrado)' })"
 
 if ($YtDlpCopied) {

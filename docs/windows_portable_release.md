@@ -3,18 +3,41 @@
 ## Como gerar
 
 ```powershell
-# Da raiz do projeto:
+# Build padrão com testes:
 .\scripts\build_windows_portable.ps1 -Version "1.0.0"
 
-# Pular testes (build rápido):
+# Build rápido sem testes:
 .\scripts\build_windows_portable.ps1 -Version "preview" -SkipTests
+
+# Build com FFmpeg obrigatório (falha se ffmpeg/ffprobe ausentes):
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_windows_portable.ps1 -Version "0.1.0-preview" -RequireFfmpeg
 ```
 
 O script gera:
 - `dist/ClipFlow-Downloader-portable-<version>/` — pasta portátil pronta
 - `dist/ClipFlow-Downloader-portable-<version>.zip` — zip para distribuição
+- `dist/ClipFlow-Downloader-portable-<version>.sha256.txt` — hash do zip
+- `RELEASE_MANIFEST.txt` dentro da pasta portátil
 
-## Como testar
+> **Importante:** `dist/`, `*.zip` e `*.sha256.txt` **não devem ser commitados**.
+> O `.gitignore` já os ignora.
+
+## Como validar o pacote
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify_windows_portable.ps1 -PackagePath "dist\ClipFlow-Downloader-portable-0.1.0-preview"
+```
+
+O script de verificação valida:
+- executável presente na raiz
+- pasta `data\` presente
+- `README_PORTABLE.txt` e `RELEASE_MANIFEST.txt` presentes
+- `tools\yt-dlp.exe`, `tools\ffmpeg.exe`, `tools\ffprobe.exe` presentes
+- ausência de cookies, perfis de navegador e pasta `.git`
+
+Retorna exit code `0` (OK) ou `1` (falhou).
+
+## Como testar manualmente
 
 1. Extraia o zip em outra máquina ou pasta limpa.
 2. Execute `clipflow_downloader.exe`.
@@ -30,7 +53,7 @@ O script gera:
 | `ffprobe.exe` | `tools/ffprobe.exe` → `tools/ffmpeg/ffprobe.exe` → `tools/ffmpeg/bin/ffprobe.exe` → busca recursiva em `tools/ffmpeg/` | Recomendado para inspeção de mídia |
 | Deno | PATH do sistema | Compatibilidade avançada com YouTube |
 
-> **Nota:** `tools/ffmpeg-temp/` é **sempre ignorado** pelo script de build.
+> `tools/ffmpeg-temp/` é **sempre ignorado** pelo script de build.
 > Coloque o FFmpeg em `tools/ffmpeg/bin/` para empacotamento automático.
 
 ## Aviso — Firefox e cookies
