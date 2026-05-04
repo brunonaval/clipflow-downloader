@@ -16,7 +16,7 @@ DownloadItem _item({String? selectedFormatId, String? authorLabel}) {
     formatLabel: 'MP4',
     qualityLabel: '720p',
     fpsLabel: '30fps',
-    sourceLabel: 'Análise yt-dlp concluída',
+    sourceLabel: 'Pronto',
     status: DownloadStatus.ready,
     isYouTubeSource: true,
     selectedFormatId: selectedFormatId,
@@ -39,6 +39,7 @@ DownloadItem _item({String? selectedFormatId, String? authorLabel}) {
         qualityLabel: '1080p',
         sizeLabel: '14 MB',
         detailsLabel: '[video-only] mp4',
+        isRecommended: true,
       ),
       DownloadFormatOption(
         id: '140',
@@ -53,20 +54,19 @@ DownloadItem _item({String? selectedFormatId, String? authorLabel}) {
   );
 }
 
-Future<T?> _openDialog<T>(
+Future<void> _openDialog(
   WidgetTester tester, {
   required DownloadItem item,
   DownloadOptions options = const DownloadOptions(),
 }) async {
-  T? result;
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
         body: Builder(
           builder: (context) {
             return ElevatedButton(
-              onPressed: () async {
-                result = await showDialog<T>(
+              onPressed: () {
+                showDialog<void>(
                   context: context,
                   builder: (_) => DownloadOptionsDialog(
                     item: item,
@@ -84,7 +84,6 @@ Future<T?> _openDialog<T>(
 
   await tester.tap(find.text('Abrir'));
   await tester.pumpAndSettle();
-  return result;
 }
 
 void main() {
@@ -94,6 +93,8 @@ void main() {
       item: _item(selectedFormatId: '18', authorLabel: 'Canal Teste'),
     );
     expect(find.text('Baixar vídeo'), findsOneWidget);
+    expect(find.text('Opções'), findsOneWidget);
+    expect(find.text('Formatos disponíveis'), findsOneWidget);
   });
 
   testWidgets('mostra título e autor quando existe', (tester) async {
@@ -105,18 +106,22 @@ void main() {
     expect(find.text('Canal Teste'), findsOneWidget);
   });
 
-  testWidgets('mostra formatos disponíveis', (tester) async {
+  testWidgets('mostra formatos em cards sem RadioListTile', (tester) async {
     await _openDialog(tester, item: _item(selectedFormatId: '18'));
-    expect(find.textContaining('Vídeo MP4 360p'), findsOneWidget);
-    expect(find.textContaining('Vídeo sem áudio MP4 1080p'), findsOneWidget);
+    expect(find.byType(RadioListTile<String>), findsNothing);
+    expect(find.byKey(const Key('manual-format-18')), findsOneWidget);
+    expect(find.byKey(const Key('manual-format-137')), findsOneWidget);
+    expect(find.text('Recomendado'), findsOneWidget);
   });
 
   testWidgets('seleção inicial usa item.selectedFormatId', (tester) async {
-    await _openDialog(tester, item: _item(selectedFormatId: '137'));
-    final selected = tester.widget<RadioListTile<String>>(
-      find.byKey(const Key('manual-format-137')),
+    await _openDialog(tester, item: _item(selectedFormatId: '18'));
+
+    final selectedIcon = find.descendant(
+      of: find.byKey(const Key('manual-format-18')),
+      matching: find.byIcon(Icons.radio_button_checked),
     );
-    expect(selected.groupValue, '137');
+    expect(selectedIcon, findsOneWidget);
   });
 
   testWidgets('mudar qualidade para 1080p atualiza seleção recomendada', (
@@ -129,17 +134,15 @@ void main() {
     await tester.tap(find.text('1080p').last);
     await tester.pumpAndSettle();
 
-    final selected = tester.widget<RadioListTile<String>>(
-      find.byKey(const Key('manual-format-137')),
+    final selectedIcon = find.descendant(
+      of: find.byKey(const Key('manual-format-137')),
+      matching: find.byIcon(Icons.radio_button_checked),
     );
-    expect(selected.groupValue, '137');
+    expect(selectedIcon, findsOneWidget);
   });
 
-  testWidgets('clicar Cancelar retorna null', (tester) async {
-    await _openDialog<DownloadOptionsDialogResult>(
-      tester,
-      item: _item(selectedFormatId: '18'),
-    );
+  testWidgets('clicar Cancelar fecha diálogo', (tester) async {
+    await _openDialog(tester, item: _item(selectedFormatId: '18'));
     await tester.tap(find.text('Cancelar'));
     await tester.pumpAndSettle();
     expect(find.text('Baixar vídeo'), findsNothing);
@@ -179,6 +182,6 @@ void main() {
 
     expect(result, isNotNull);
     expect(result!.startDownload, isTrue);
-    expect(result!.selectedFormatId, '137');
+    expect(result!.selectedFormatId, '18');
   });
 }

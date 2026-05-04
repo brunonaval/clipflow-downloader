@@ -24,12 +24,11 @@ void main() {
     ],
   );
 
-  Future<T?> openDialog<T>(WidgetTester tester, Widget dialog) async {
+  Future<void> openDialog(WidgetTester tester, Widget dialog) async {
     await tester.pumpWidget(const MaterialApp(home: Scaffold()));
     final context = tester.element(find.byType(Scaffold));
-    showDialog<T>(context: context, builder: (_) => dialog);
+    showDialog<void>(context: context, builder: (_) => dialog);
     await tester.pumpAndSettle();
-    return null;
   }
 
   testWidgets('renders playlist dialog title and header', (tester) async {
@@ -39,29 +38,16 @@ void main() {
     expect(find.text('Canal Teste'), findsOneWidget);
   });
 
-  testWidgets('all entries selected by default', (tester) async {
+  testWidgets('shows selection counter', (tester) async {
     await openDialog(tester, const PlaylistOptionsDialog(playlist: playlist));
-    final firstCheckbox = find.descendant(
-      of: find.byKey(const Key('playlist-entry-a1')),
-      matching: find.byType(Checkbox),
-    );
-    final secondCheckbox = find.descendant(
-      of: find.byKey(const Key('playlist-entry-b2')),
-      matching: find.byType(Checkbox),
-    );
-    expect(tester.widget<Checkbox>(firstCheckbox).value, isTrue);
-    expect(tester.widget<Checkbox>(secondCheckbox).value, isTrue);
+    expect(find.text('Selecionados: 2 de 2'), findsOneWidget);
   });
 
-  testWidgets('uncheck entry reduces selection', (tester) async {
+  testWidgets('uncheck entry updates selection counter', (tester) async {
     await openDialog(tester, const PlaylistOptionsDialog(playlist: playlist));
     await tester.tap(find.byKey(const Key('playlist-entry-a1')));
     await tester.pumpAndSettle();
-    final firstCheckbox = find.descendant(
-      of: find.byKey(const Key('playlist-entry-a1')),
-      matching: find.byType(Checkbox),
-    );
-    expect(tester.widget<Checkbox>(firstCheckbox).value, isFalse);
+    expect(find.text('Selecionados: 1 de 2'), findsOneWidget);
   });
 
   testWidgets('cancel returns null', (tester) async {
@@ -116,5 +102,25 @@ void main() {
   ) async {
     await openDialog(tester, const PlaylistOptionsDialog(playlist: playlist));
     expect(find.byKey(const Key('playlist-thumb-fallback-b2')), findsOneWidget);
+  });
+
+  testWidgets('empty playlist shows friendly empty state and disabled add', (
+    tester,
+  ) async {
+    const emptyPlaylist = YtDlpPlaylistResult(
+      title: 'Playlist vazia',
+      entries: [],
+    );
+    await openDialog(
+      tester,
+      const PlaylistOptionsDialog(playlist: emptyPlaylist),
+    );
+
+    expect(
+      find.text('Nenhum vídeo encontrado nesta playlist.'),
+      findsOneWidget,
+    );
+    final button = tester.widget<FilledButton>(find.byType(FilledButton));
+    expect(button.onPressed, isNull);
   });
 }

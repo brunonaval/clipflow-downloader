@@ -29,7 +29,7 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
     return Dialog(
       child: SizedBox(
         width: 760,
-        height: 500,
+        height: 560,
         child: Column(
           children: [
             Expanded(
@@ -101,14 +101,17 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
   Widget _buildSectionContent() {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: SingleChildScrollView(
-        child: switch (_section) {
-          PreferencesSection.general => _generalSection(),
-          PreferencesSection.downloads => _downloadsSection(),
-          PreferencesSection.engine => _engineSection(),
-          PreferencesSection.notifications => _notificationsSection(),
-          PreferencesSection.advanced => _advancedSection(),
-        },
+      child: Scrollbar(
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          child: switch (_section) {
+            PreferencesSection.general => _generalSection(),
+            PreferencesSection.downloads => _downloadsSection(),
+            PreferencesSection.engine => _engineSection(),
+            PreferencesSection.notifications => _notificationsSection(),
+            PreferencesSection.advanced => _advancedSection(),
+          },
+        ),
       ),
     );
   }

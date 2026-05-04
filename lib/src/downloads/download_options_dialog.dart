@@ -41,24 +41,29 @@ class _DownloadOptionsDialogState extends State<DownloadOptionsDialog> {
         (widget.item.selectedFormatId?.trim().isNotEmpty ?? false)
         ? widget.item.selectedFormatId
         : (_formats.isNotEmpty ? _formats.first.id : null);
-    _syncSelectionWithPreset();
   }
 
   @override
   Widget build(BuildContext context) {
     final canStart =
         _formats.isNotEmpty && (_selectedFormatId?.trim().isNotEmpty ?? false);
+
     return AlertDialog(
       title: const Text('Baixar vídeo'),
       content: SizedBox(
-        width: 640,
+        width: 680,
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               _Header(item: widget.item),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
+              const Text(
+                'Opções',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -118,31 +123,32 @@ class _DownloadOptionsDialogState extends State<DownloadOptionsDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
+              const Text(
+                'Formatos disponíveis',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
               if (_formats.isEmpty)
-                const Text('Nenhum formato disponível.')
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Text('Nenhum formato disponível.'),
+                )
               else
                 SizedBox(
-                  height: 260,
-                  child: ListView.builder(
+                  height: 290,
+                  child: ListView.separated(
                     itemCount: _formats.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (_, index) {
                       final format = _formats[index];
-                      return RadioListTile<String>(
+                      final selected = _selectedFormatId == format.id;
+                      return _FormatCard(
                         key: Key('manual-format-${format.id}'),
-                        value: format.id,
-                        groupValue: _selectedFormatId,
-                        onChanged: (value) =>
-                            setState(() => _selectedFormatId = value),
-                        title: Text(format.displayLabel),
-                        subtitle: Text(
-                          widget.item.selectedFormatSummary ??
-                              format.detailsLabel,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
+                        format: format,
+                        selected: selected,
+                        onTap: () =>
+                            setState(() => _selectedFormatId = format.id),
                       );
                     },
                   ),
@@ -182,7 +188,7 @@ class _DownloadOptionsDialogState extends State<DownloadOptionsDialog> {
     required ValueChanged<T?> onChanged,
   }) {
     return SizedBox(
-      width: 190,
+      width: 205,
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: label,
@@ -238,7 +244,7 @@ class _Header extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ClipRRect(borderRadius: BorderRadius.circular(4), child: _thumbnail()),
+        ClipRRect(borderRadius: BorderRadius.circular(6), child: _thumbnail()),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -279,8 +285,8 @@ class _Header extends StatelessWidget {
     if (url != null && url.trim().isNotEmpty) {
       return Image.network(
         url,
-        width: 96,
-        height: 54,
+        width: 108,
+        height: 62,
         fit: BoxFit.cover,
         errorBuilder: (_, _, _) => _placeholder(),
       );
@@ -290,11 +296,125 @@ class _Header extends StatelessWidget {
 
   Widget _placeholder() {
     return Container(
-      width: 96,
-      height: 54,
+      width: 108,
+      height: 62,
       color: const Color(0xFF2D2D2D),
       alignment: Alignment.center,
       child: const Icon(Icons.play_arrow_rounded, color: Colors.white54),
     );
+  }
+}
+
+class _FormatCard extends StatelessWidget {
+  final DownloadFormatOption format;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _FormatCard({
+    super.key,
+    required this.format,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final base = _friendlyMainLabel(format);
+    final details = <String>[
+      if (format.qualityLabel.trim().isNotEmpty) format.qualityLabel,
+      if (format.sizeLabel.trim().isNotEmpty) format.sizeLabel,
+    ];
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: selected ? const Color(0xFF2E7D32) : Colors.grey.shade300,
+              width: selected ? 1.4 : 1,
+            ),
+            color: selected ? const Color(0xFFEAF7EE) : Colors.white,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                selected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                size: 18,
+                color: selected ? const Color(0xFF2E7D32) : Colors.grey,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            base,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        if (format.isRecommended)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEAF7EE),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: const Color(0xFFB8DFC3),
+                              ),
+                            ),
+                            child: const Text(
+                              'Recomendado',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Color(0xFF2E7D32),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (details.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          details.join(' · '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.black54,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _friendlyMainLabel(DownloadFormatOption f) {
+    if (f.kind == DownloadFormatKind.audio) {
+      return '${f.formatLabel} · Áudio';
+    }
+    return '${f.formatLabel} · ${f.qualityLabel}';
   }
 }
