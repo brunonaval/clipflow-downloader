@@ -50,3 +50,14 @@ app.*.map.json
 # Local tools and binaries
 tools/
 *.exe
+
+# Build portavel / distribuicao
+dist/
+*.zip
+
+# Cookies e perfis de navegador (nunca versionar)
+cookies.txt
+*cookies*.txt
+*cookie*.txt
+firefox-profile/
+browser-profile/
