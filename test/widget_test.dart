@@ -30,6 +30,8 @@ void main() {
     expect(find.text('Ordenar por'), findsOneWidget);
     expect(find.text('Iniciar fila'), findsOneWidget);
     expect(find.textContaining('simult'), findsOneWidget);
+    expect(find.text('Motor yt-dlp ativo para YouTube'), findsNothing);
+    expect(find.textContaining('FFmpeg ainda não configurado'), findsNothing);
   });
 
   testWidgets('menu Arquivo exibe ação de abrir pasta de downloads', (

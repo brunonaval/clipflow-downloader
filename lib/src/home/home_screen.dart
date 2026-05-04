@@ -246,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       if (_youtubeUrlParser.isYouTubeUrl(effectiveUrl)) {
-        _showInfoMessage('An?lise do YouTube iniciada');
+        _showInfoMessage('Análise do YouTube iniciada');
 
         try {
           final result = await _ytDlpEngine.analyzeUrl(effectiveUrl);
@@ -270,13 +270,13 @@ class _HomeScreenState extends State<HomeScreen> {
               await _handleManualDownloadChoice(updated);
               if (!mounted) return;
             }
-            _showInfoMessage('An?lise yt-dlp conclu?da');
+            _showInfoMessage('Análise concluída');
             return;
           }
         } catch (_) {
           if (mounted) {
             _showInfoMessage(
-              'yt-dlp n?o dispon?vel; usando an?lise interna limitada.',
+              'Motor do YouTube indisponível; usando análise limitada.',
               duration: const Duration(milliseconds: 1500),
             );
           }
@@ -294,7 +294,7 @@ class _HomeScreenState extends State<HomeScreen> {
             outputFolderLabel: _downloadOptions.outputFolderLabel,
           );
           setState(() {});
-          _showInfoMessage('Usando an?lise interna limitada para YouTube');
+          _showInfoMessage('Usando análise limitada para YouTube');
           return;
         }
 
@@ -302,7 +302,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      _showInfoMessage('An?lise interna iniciada');
+      _showInfoMessage('Análise iniciada');
 
       final updated = _queueController.markItemReadyAfterInternalAnalysis(
         id: addedItem.id,
@@ -316,12 +316,12 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         setState(() {});
         _maybeAutoStartAfterAnalysis(updated);
-        _showInfoMessage('An?lise interna conclu?da');
+        _showInfoMessage('Análise concluída');
         return;
       }
 
       _showInfoMessage(
-        'An?lise interna falhou; usando resultado mockado',
+        'Análise falhou; usando resultado de teste',
         duration: const Duration(milliseconds: 1400),
       );
     }
@@ -330,7 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _scheduleMockAnalysis(String itemId) {
-    _showInfoMessage('An?lise mockada iniciada');
+    _showInfoMessage('Análise de teste iniciada');
 
     _mockAnalysisTimer?.cancel();
     _mockAnalysisTimer = Timer(const Duration(milliseconds: 900), () {
@@ -343,7 +343,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       setState(() {});
-      _showInfoMessage('An?lise mockada conclu?da');
+      _showInfoMessage('Análise de teste concluída');
     });
   }
 
@@ -767,7 +767,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final ffmpeg = await _ytDlpEngine.resolveFfmpeg();
       if (ffmpeg != null && mounted) {
         _showInfoMessage(
-          'Baixando vídeo e áudio para merge com FFmpeg.',
+          'Preparando áudio e vídeo',
           duration: const Duration(seconds: 2),
         );
       }
@@ -1662,12 +1662,14 @@ class _DownloadListItem extends StatelessWidget {
         item.availableFormats.isEmpty &&
         item.status == DownloadStatus.queued;
     final statusText = _statusText(item, isMerging);
+    final friendlyFormat = _friendlyFormatLabel(item, isMerging);
     final metadataParts = isPlaylistQueuedPendingAnalysis
         ? <String>[item.durationLabel, item.sourceLabel]
         : <String>[
             item.durationLabel,
-            item.sizeLabel,
-            item.selectedFormatSummary ?? item.formatLabel,
+            friendlyFormat,
+            item.qualityLabel,
+            if (item.sizeLabel.trim().isNotEmpty) item.sizeLabel,
             statusText,
           ];
     final completedOutputLabel =
@@ -1725,7 +1727,7 @@ class _DownloadListItem extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
-                          'Mesclando com FFmpeg',
+                          'Preparando arquivo',
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.blueGrey.shade700,
@@ -1736,19 +1738,6 @@ class _DownloadListItem extends StatelessWidget {
                     if (item.status == DownloadStatus.ready &&
                         item.availableFormats.isNotEmpty)
                       _FormatSelector(item: item, onSelected: onFormatSelected),
-                    if (item.selectedFormatSummary != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          item.selectedFormatSummary!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ),
                     if (isDownloading)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
@@ -1827,22 +1816,38 @@ class _DownloadListItem extends StatelessWidget {
   }
 
   String _statusText(DownloadItem item, bool isMerging) {
-    if (isMerging) return 'Mesclando com FFmpeg';
+    if (isMerging) return 'Preparando';
     final isPlaylistQueuedPendingAnalysis =
         item.isYouTubeSource &&
         item.availableFormats.isEmpty &&
         item.status == DownloadStatus.queued;
     if (isPlaylistQueuedPendingAnalysis) return 'Na fila';
     return switch (item.status) {
-      DownloadStatus.queued => 'Aguardando',
+      DownloadStatus.queued => 'Na fila',
       DownloadStatus.ready => 'Pronto',
       DownloadStatus.downloading => 'Baixando',
       DownloadStatus.analyzing => 'Analisando',
       DownloadStatus.completed => 'Concluído',
       DownloadStatus.failed => 'Falhou',
       DownloadStatus.canceled => 'Cancelado',
-      DownloadStatus.paused => 'Aguardando',
+      DownloadStatus.paused => 'Na fila',
     };
+  }
+
+  String _friendlyFormatLabel(DownloadItem item, bool isMerging) {
+    if (isMerging) return 'Alta qualidade';
+    final raw = item.selectedFormatSummary ?? item.formatLabel;
+    final cleaned = raw
+        .replaceAll('[video-only]', '')
+        .replaceAll('[audio-only]', '')
+        .replaceAll('video-only', '')
+        .replaceAll('Video-only', '')
+        .replaceAll('requer FFmpeg', '')
+        .replaceAll('·  ·', '·')
+        .replaceAll('  ', ' ')
+        .trim();
+    if (cleaned.isEmpty) return item.formatLabel;
+    return cleaned;
   }
 }
 
@@ -2065,18 +2070,18 @@ class _StatusBadge extends StatelessWidget {
         item.availableFormats.isEmpty &&
         item.status == DownloadStatus.queued;
     final statusLabel = isMerging
-        ? 'Mesclando com FFmpeg'
+        ? 'Preparando'
         : isPlaylistQueuedPendingAnalysis
         ? 'Na fila'
         : switch (item.status) {
-            DownloadStatus.queued => 'Aguardando',
+            DownloadStatus.queued => 'Na fila',
             DownloadStatus.ready => 'Pronto',
             DownloadStatus.downloading => 'Baixando',
             DownloadStatus.analyzing => 'Analisando',
             DownloadStatus.completed => 'Concluído',
             DownloadStatus.failed => 'Falhou',
             DownloadStatus.canceled => 'Cancelado',
-            DownloadStatus.paused => 'Aguardando',
+            DownloadStatus.paused => 'Na fila',
           };
     return Text(
       statusLabel,
