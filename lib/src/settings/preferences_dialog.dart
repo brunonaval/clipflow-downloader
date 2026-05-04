@@ -125,24 +125,6 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 16),
-        _dropdownRow(
-          label: 'Idioma',
-          value: _preferences.languageLabel,
-          options: const ['Sistema', 'Português', 'Inglês'],
-          onChanged: (value) => setState(
-            () => _preferences = _preferences.copyWith(languageLabel: value),
-          ),
-        ),
-        const SizedBox(height: 12),
-        _dropdownRow(
-          label: 'Tema',
-          value: _preferences.themeLabel,
-          options: const ['Sistema', 'Claro', 'Escuro'],
-          onChanged: (value) => setState(
-            () => _preferences = _preferences.copyWith(themeLabel: value),
-          ),
-        ),
-        const SizedBox(height: 12),
         SwitchListTile(
           title: const Text('Modo inteligente'),
           subtitle: const Text(
@@ -186,24 +168,6 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        SwitchListTile(
-          title: const Text('Abrir pasta quando concluir'),
-          value: _preferences.openFolderWhenDone,
-          onChanged: (value) => setState(
-            () =>
-                _preferences = _preferences.copyWith(openFolderWhenDone: value),
-          ),
-        ),
-        SwitchListTile(
-          title: const Text('Remover concluídos automaticamente'),
-          value: _preferences.removeCompletedAutomatically,
-          onChanged: (value) => setState(
-            () => _preferences = _preferences.copyWith(
-              removeCompletedAutomatically: value,
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -222,11 +186,6 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
         Text('Merge de alta qualidade: FFmpeg quando disponível'),
         SizedBox(height: 8),
         Text('Saída padrão: Downloads/ClipFlow'),
-        SizedBox(height: 16),
-        Text(
-          'Verificação detalhada virá em rodada futura',
-          style: TextStyle(color: Colors.black54),
-        ),
       ],
     );
   }
@@ -257,15 +216,6 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
           onChanged: (value) => setState(
             () => _preferences = _preferences.copyWith(
               notifyWhenDownloadFails: value,
-            ),
-          ),
-        ),
-        SwitchListTile(
-          title: const Text('Confirmar saída com downloads ativos'),
-          value: _preferences.confirmExitWithActiveDownloads,
-          onChanged: (value) => setState(
-            () => _preferences = _preferences.copyWith(
-              confirmExitWithActiveDownloads: value,
             ),
           ),
         ),
@@ -321,30 +271,6 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
         const SizedBox(height: 8),
         const Text(
           'A alta intensidade pode aumentar o desempenho global da transferência, mas também pode causar falhas temporárias ou bloqueios do YouTube.',
-          style: TextStyle(color: Colors.black54),
-        ),
-        const SizedBox(height: 12),
-        SwitchListTile(
-          title: const Text('Impedir suspensão enquanto baixa'),
-          value: _preferences.keepSystemAwakeWhileDownloading,
-          onChanged: (value) => setState(
-            () => _preferences = _preferences.copyWith(
-              keepSystemAwakeWhileDownloading: value,
-            ),
-          ),
-        ),
-        SwitchListTile(
-          title: const Text('Mostrar formatos avançados'),
-          value: _preferences.showAdvancedFormats,
-          onChanged: (value) => setState(
-            () => _preferences = _preferences.copyWith(
-              showAdvancedFormats: value,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Formatos avançados podem exigir merge ou gerar arquivos maiores.',
           style: TextStyle(color: Colors.black54),
         ),
       ],

@@ -6,7 +6,7 @@ import 'package:clipflow_downloader/src/settings/output_folder_choice.dart';
 import 'package:clipflow_downloader/src/settings/preferences_dialog.dart';
 
 void main() {
-  testWidgets('renderiza seções de preferências', (tester) async {
+  testWidgets('renderiza seções essenciais de preferências', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
@@ -23,7 +23,7 @@ void main() {
     expect(find.text('Avançado'), findsOneWidget);
   });
 
-  testWidgets('troca seção e mostra conteúdo correspondente', (tester) async {
+  testWidgets('seção geral mostra somente modo inteligente', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
@@ -32,16 +32,9 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Motor'));
-    await tester.pump();
-
-    expect(find.text('Motor YouTube: yt-dlp'), findsOneWidget);
-
-    await tester.tap(find.text('Avançado'));
-    await tester.pump();
-
-    expect(find.text('Mostrar formatos avançados'), findsOneWidget);
-    expect(find.text('Transferências simultâneas'), findsOneWidget);
+    expect(find.text('Modo inteligente'), findsOneWidget);
+    expect(find.text('Idioma'), findsNothing);
+    expect(find.text('Tema'), findsNothing);
   });
 
   testWidgets('seção downloads mostra pasta padrão e salva vídeos', (
@@ -71,12 +64,14 @@ void main() {
     );
 
     await tester.tap(find.text('Abrir'));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Downloads'));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.text('Pasta padrão'), findsOneWidget);
+    expect(find.text('Abrir pasta quando concluir'), findsNothing);
+    expect(find.text('Remover concluídos automaticamente'), findsNothing);
 
     await tester.tap(find.byType(DropdownButton<String>).first);
     await tester.pumpAndSettle();
@@ -116,7 +111,7 @@ void main() {
     );
 
     await tester.tap(find.text('Abrir'));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Cancelar'));
     await tester.pumpAndSettle();
@@ -124,7 +119,7 @@ void main() {
     expect(saved, isNull);
   });
 
-  testWidgets('modo inteligente pode ser ativado e salvo', (tester) async {
+  testWidgets('seção notificações mantém opções reais', (tester) async {
     AppPreferences? saved;
 
     await tester.pumpWidget(
@@ -151,15 +146,20 @@ void main() {
     await tester.tap(find.text('Abrir'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Modo inteligente'), findsOneWidget);
-    await tester.tap(find.byType(Switch).first);
+    await tester.tap(find.textContaining('Notifica'));
     await tester.pumpAndSettle();
 
+    expect(find.text('Notificar ao concluir download'), findsOneWidget);
+    expect(find.text('Notificar ao falhar download'), findsOneWidget);
+    expect(find.text('Confirmar saída com downloads ativos'), findsNothing);
+
+    await tester.tap(find.byType(Switch).first);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Salvar'));
     await tester.pumpAndSettle();
 
     expect(saved, isNotNull);
-    expect(saved!.smartModeEnabled, isTrue);
+    expect(saved!.notifyWhenDownloadCompletes, isFalse);
   });
 
   testWidgets('avançado altera transferências simultâneas e mostra risco', (
@@ -197,6 +197,8 @@ void main() {
     expect(find.text('Transferências simultâneas'), findsOneWidget);
     expect(find.textContaining('Ideal'), findsWidgets);
     expect(find.textContaining('Arriscado'), findsWidgets);
+    expect(find.text('Impedir suspensão enquanto baixa'), findsNothing);
+    expect(find.text('Mostrar formatos avançados'), findsNothing);
 
     final slider = tester.widget<Slider>(find.byType(Slider));
     slider.onChanged?.call(3);
@@ -207,50 +209,5 @@ void main() {
 
     expect(saved, isNotNull);
     expect(saved!.simultaneousDownloads, 6);
-  });
-
-  testWidgets('seção notificações mantém opções e subtítulo interno', (
-    tester,
-  ) async {
-    AppPreferences? saved;
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () async {
-                final result = await showDialog<AppPreferences>(
-                  context: context,
-                  builder: (_) => const PreferencesDialog(
-                    initialPreferences: AppPreferences.defaults,
-                  ),
-                );
-                saved = result;
-              },
-              child: const Text('Abrir'),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('Abrir'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.textContaining('Notifica'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Notificar ao concluir download'), findsOneWidget);
-    expect(find.text('Notificar ao falhar download'), findsOneWidget);
-    expect(find.text('Exibe mensagens dentro do app.'), findsNWidgets(2));
-
-    await tester.tap(find.byType(Switch).first);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Salvar'));
-    await tester.pumpAndSettle();
-
-    expect(saved, isNotNull);
-    expect(saved!.notifyWhenDownloadCompletes, isFalse);
   });
 }

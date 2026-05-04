@@ -31,7 +31,6 @@ import '../engine/youtube/youtube_url_parser.dart';
 import '../engine/youtube/youtube_playlist_url_parser.dart';
 import '../engine/yt_dlp/yt_dlp_engine_service.dart';
 import '../engine/yt_dlp/yt_dlp_playlist_result.dart';
-import 'mock_download_item.dart';
 
 const _kGreen = Color(0xFF2E7D32);
 const _kDivider = Color(0xFFE0E0E0);
@@ -83,9 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _downloadOptions = _downloadOptions.copyWith(
       outputFolderLabel: _preferences.outputFolderChoice.label,
     );
-    _queueController = DownloadQueueController(
-      initialItems: initialMockDownloadItems,
-    );
+    _queueController = DownloadQueueController(initialItems: const []);
   }
 
   @override
@@ -934,6 +931,44 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _showAboutClipFlowDialog() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sobre o ClipFlow'),
+        content: const Text(
+          'ClipFlow Downloader ajuda a baixar vídeos, áudios e playlists autorizados com uma interface simples.\n\nUse apenas com conteúdos que você tem direito de baixar.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showAboutDeveloperDialog() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sobre o desenvolvedor'),
+        content: const Text(
+          'Desenvolvido por Bruno Naval.\nProjeto criado para reconstruir e evoluir uma solução de download e karaokê com Flutter.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _clearFinishedItems() {
     final removed = _queueController.clearFinishedItems();
     setState(() {});
@@ -1042,6 +1077,8 @@ class _HomeScreenState extends State<HomeScreen> {
               _MenuBar(
                 onOpenDownloadsFolder: () => _openDownloadsRootFolder(),
                 onOpenPreferences: _openPreferencesDialog,
+                onAboutClipFlow: _showAboutClipFlowDialog,
+                onAboutDeveloper: _showAboutDeveloperDialog,
               ),
               const Divider(height: 1, thickness: 1, color: _kDivider),
               _Toolbar(
@@ -1121,7 +1158,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: ColoredBox(
                   color: Colors.white,
                   child: visibleItems.isEmpty
-                      ? const _EmptyFilterState()
+                      ? _EmptyFilterState(onPaste: _handlePaste)
                       : ListView.builder(
                           itemCount: visibleItems.length,
                           itemBuilder: (_, i) => _DownloadListItem(
@@ -1170,13 +1207,15 @@ class _HomeScreenState extends State<HomeScreen> {
 class _MenuBar extends StatelessWidget {
   final VoidCallback onOpenDownloadsFolder;
   final VoidCallback onOpenPreferences;
+  final VoidCallback onAboutClipFlow;
+  final VoidCallback onAboutDeveloper;
 
   const _MenuBar({
     required this.onOpenDownloadsFolder,
     required this.onOpenPreferences,
+    required this.onAboutClipFlow,
+    required this.onAboutDeveloper,
   });
-
-  static const _items = ['Editar', 'Ver', 'Ajuda'];
 
   @override
   Widget build(BuildContext context) {
@@ -1205,6 +1244,7 @@ class _MenuBar extends StatelessWidget {
               endIndent: 8,
             ),
             PopupMenuButton<String>(
+              tooltip: 'Arquivo',
               onSelected: (value) {
                 if (value == 'open_downloads') {
                   onOpenDownloadsFolder();
@@ -1225,6 +1265,7 @@ class _MenuBar extends StatelessWidget {
               ),
             ),
             PopupMenuButton<String>(
+              tooltip: 'Ferramentas',
               onSelected: (value) {
                 if (value == 'preferences') {
                   onOpenPreferences();
@@ -1244,17 +1285,31 @@ class _MenuBar extends StatelessWidget {
                 ),
               ),
             ),
-            ..._items.map(
-              (item) => TextButton(
-                onPressed: () {},
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.black87,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  minimumSize: const Size(0, 40),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  shape: const RoundedRectangleBorder(),
+            PopupMenuButton<String>(
+              tooltip: 'Ajuda',
+              onSelected: (value) {
+                if (value == 'about_clipflow') {
+                  onAboutClipFlow();
+                } else if (value == 'about_developer') {
+                  onAboutDeveloper();
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem<String>(
+                  value: 'about_clipflow',
+                  child: Text('Sobre o ClipFlow'),
                 ),
-                child: Text(item, style: const TextStyle(fontSize: 13)),
+                PopupMenuItem<String>(
+                  value: 'about_developer',
+                  child: Text('Sobre o desenvolvedor'),
+                ),
+              ],
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                child: Text(
+                  'Ajuda',
+                  style: TextStyle(fontSize: 13, color: Colors.black87),
+                ),
               ),
             ),
           ],
@@ -1484,7 +1539,12 @@ class _FilterTabs extends StatelessWidget {
     required this.onSortChanged,
   });
 
-  static const _tabs = DownloadQueueFilter.values;
+  static const _tabs = [
+    DownloadQueueFilter.all,
+    DownloadQueueFilter.video,
+    DownloadQueueFilter.audio,
+    DownloadQueueFilter.playlists,
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -2112,22 +2172,37 @@ class _StatusBadge extends StatelessWidget {
 }
 
 class _EmptyFilterState extends StatelessWidget {
-  const _EmptyFilterState();
+  final VoidCallback onPaste;
+
+  const _EmptyFilterState({required this.onPaste});
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            'Nenhum item neste filtro',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          Icon(
+            Icons.download_rounded,
+            size: 52,
+            color: Colors.black.withValues(alpha: 0.35),
           ),
-          SizedBox(height: 6),
-          Text(
-            'Cole um link ou altere o filtro para ver outros itens.',
-            style: TextStyle(fontSize: 12, color: Colors.black54),
+          const SizedBox(height: 10),
+          const Text(
+            'Cole um link para começar',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Baixe vídeos, áudios e playlists autorizados em poucos cliques.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: Colors.black54),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: onPaste,
+            icon: const Icon(Icons.link),
+            label: const Text('Colar link'),
           ),
         ],
       ),

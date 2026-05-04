@@ -11,27 +11,42 @@ import 'package:clipflow_downloader/src/downloads/playlist_options_dialog.dart';
 import 'package:clipflow_downloader/src/engine/yt_dlp/yt_dlp_playlist_result.dart';
 
 void main() {
-  testWidgets('Home screen renders core actions', (WidgetTester tester) async {
+  testWidgets('Home screen renders core actions and empty state', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const ClipFlowApp());
 
     expect(find.text('ClipFlow Downloader'), findsOneWidget);
-    expect(find.text('Colar link'), findsOneWidget);
+    expect(find.text('Colar link'), findsWidgets);
     expect(find.text('Sobre o motor'), findsOneWidget);
     expect(find.text('Pronto para downloads'), findsOneWidget);
-    expect(find.byTooltip('Remover'), findsWidgets);
-    expect(find.text('Canal ClipFlow'), findsOneWidget);
-    expect(find.textContaining('Pronto'), findsWidgets);
-    expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
+    expect(find.text('Cole um link para começar'), findsOneWidget);
+    expect(
+      find.text(
+        'Baixe vídeos, áudios e playlists autorizados em poucos cliques.',
+      ),
+      findsOneWidget,
+    );
     expect(find.textContaining('Guardar em'), findsWidgets);
     expect(find.textContaining('Transferir'), findsWidgets);
     expect(find.textContaining('Qualidade'), findsWidgets);
     expect(find.text('Para MP4'), findsOneWidget);
-    expect(find.text('Modo inteligente'), findsOneWidget);
+    expect(find.text('Modo inteligente'), findsWidgets);
     expect(find.text('Ordenar por'), findsOneWidget);
     expect(find.text('Iniciar fila'), findsOneWidget);
     expect(find.textContaining('simult'), findsOneWidget);
-    expect(find.text('Motor yt-dlp ativo para YouTube'), findsNothing);
-    expect(find.textContaining('FFmpeg ainda não configurado'), findsNothing);
+  });
+
+  testWidgets('menu principal mostra apenas Arquivo, Ferramentas e Ajuda', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ClipFlowApp());
+
+    expect(find.text('Arquivo'), findsOneWidget);
+    expect(find.text('Ferramentas'), findsOneWidget);
+    expect(find.text('Ajuda'), findsOneWidget);
+    expect(find.text('Editar'), findsNothing);
+    expect(find.text('Ver'), findsNothing);
   });
 
   testWidgets('menu Arquivo exibe ação de abrir pasta de downloads', (
@@ -45,46 +60,36 @@ void main() {
     expect(find.text('Abrir pasta de downloads'), findsOneWidget);
   });
 
-  testWidgets('item concluído com outputPath exibe abrir arquivo', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('menu Ajuda abre Sobre o ClipFlow', (WidgetTester tester) async {
     await tester.pumpWidget(const ClipFlowApp());
 
-    expect(find.byTooltip('Abrir arquivo'), findsOneWidget);
-    expect(find.byTooltip('Abrir pasta'), findsNWidgets(2));
-  });
+    await tester.tap(find.text('Ajuda'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sobre o ClipFlow'));
+    await tester.pumpAndSettle();
 
-  testWidgets('opens internal engine dialog from status bar', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(const ClipFlowApp());
-
-    await tester.tap(find.text('Sobre o motor'));
-    await tester.pump();
-
-    expect(find.text('Motor interno'), findsOneWidget);
+    expect(find.text('Sobre o ClipFlow'), findsWidgets);
     expect(
-      find.textContaining('Motor yt-dlp ativo para YouTube'),
-      findsWidgets,
+      find.textContaining('ClipFlow Downloader ajuda a baixar vídeos'),
+      findsOneWidget,
     );
-    expect(find.textContaining('FFmpeg'), findsWidgets);
-
-    await tester.tap(find.text('Entendi'));
-    await tester.pump();
-
-    expect(find.text('Motor interno'), findsNothing);
   });
 
-  testWidgets('botão Configurações abre Preferências', (
+  testWidgets('menu Ajuda abre Sobre o desenvolvedor', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const ClipFlowApp());
 
-    await tester.tap(find.byIcon(Icons.settings_outlined));
-    await tester.pump();
+    await tester.tap(find.text('Ajuda'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sobre o desenvolvedor'));
+    await tester.pumpAndSettle();
 
-    expect(find.textContaining('Prefer'), findsWidgets);
-    expect(find.text('Geral'), findsWidgets);
+    expect(find.text('Sobre o desenvolvedor'), findsWidgets);
+    expect(
+      find.textContaining('Desenvolvido por Bruno Naval.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('menu Ferramentas abre Preferências', (
@@ -103,6 +108,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Prefer'), findsWidgets);
+  });
+
+  testWidgets('filtros ocultam IA, Canais e Assinaturas', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ClipFlowApp());
+
+    expect(find.text('IA'), findsNothing);
+    expect(find.text('Canais'), findsNothing);
+    expect(find.text('Assinaturas'), findsNothing);
   });
 
   testWidgets('toolbar permite trocar Guardar em para Vídeos', (
@@ -157,7 +172,7 @@ void main() {
       formatLabel: 'MP4',
       qualityLabel: '720p',
       fpsLabel: '30fps',
-      sourceLabel: 'Análise yt-dlp concluída',
+      sourceLabel: 'Pronto',
       status: DownloadStatus.ready,
       selectedFormatId: '18',
       availableFormats: const [
@@ -229,7 +244,7 @@ void main() {
     );
   });
 
-  testWidgets('preferências mantém seção Notificações e switch funcional', (
+  testWidgets('preferências mostram opções ativas apenas', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const ClipFlowApp());
@@ -237,17 +252,18 @@ void main() {
     await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pumpAndSettle();
 
+    expect(find.text('Modo inteligente'), findsWidgets);
+    expect(find.text('Idioma'), findsNothing);
+    expect(find.text('Tema'), findsNothing);
+
     await tester.tap(find.textContaining('Notifica'));
     await tester.pumpAndSettle();
 
     expect(find.text('Notificar ao concluir download'), findsOneWidget);
     expect(find.text('Notificar ao falhar download'), findsOneWidget);
-    expect(find.text('Exibe mensagens dentro do app.'), findsNWidgets(2));
 
-    final switches = find.byType(Switch);
-    expect(switches, findsWidgets);
-    await tester.ensureVisible(switches.first);
-    await tester.tap(switches.first, warnIfMissed: false);
+    await tester.tap(find.text('Downloads'));
     await tester.pumpAndSettle();
+    expect(find.text('Pasta padrão'), findsOneWidget);
   });
 }
