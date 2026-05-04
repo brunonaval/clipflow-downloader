@@ -279,7 +279,8 @@ class YtDlpEngineService {
     }
 
     var receivedBytes = 0;
-    String lastError = '';
+    String? lastErrorLine;
+    String? lastWarningLine;
     String? detectedOutputPath;
 
     final stdoutDone = Completer<void>();
@@ -335,8 +336,17 @@ class YtDlpEngineService {
                   isDone: percent >= 1.0,
                 ),
               );
-            } else if (line.trim().isNotEmpty) {
-              lastError = line.trim();
+            } else {
+              final trimmed = line.trim();
+              if (trimmed.isEmpty || _isStackTraceLine(trimmed)) return;
+              final normalized = trimmed.toLowerCase();
+              if (normalized.contains('error:')) {
+                lastErrorLine = trimmed;
+              } else if (normalized.contains('warning:')) {
+                lastWarningLine ??= trimmed;
+              } else {
+                lastErrorLine ??= trimmed;
+              }
             }
           },
           onDone: () {
@@ -387,7 +397,9 @@ class YtDlpEngineService {
 
     return InternalDownloadResult(
       status: InternalDownloadStatus.failed,
-      message: _friendlyDownloadFailureMessage(lastError),
+      message: _friendlyDownloadFailureMessage(
+        lastErrorLine ?? lastWarningLine ?? '',
+      ),
       receivedBytes: receivedBytes,
       outputPath: detectedOutputPath,
     );
@@ -670,26 +682,85 @@ class YtDlpEngineService {
   }
 
   String _shortError(Object? stderr, Object? stdout) {
-    final stderrText = stderr?.toString().trim() ?? '';
-    if (stderrText.isNotEmpty) return stderrText.split('\n').last.trim();
-    final stdoutText = stdout?.toString().trim() ?? '';
-    if (stdoutText.isNotEmpty) return stdoutText.split('\n').last.trim();
+    final stderrLines = _cleanErrorLines(stderr?.toString() ?? '');
+    final stdoutLines = _cleanErrorLines(stdout?.toString() ?? '');
+    final lines = <String>[...stderrLines, ...stdoutLines];
+    if (lines.isEmpty) return 'erro desconhecido';
+
+    final errorLines = lines
+        .where((line) => line.toLowerCase().contains('error:'))
+        .toList();
+    if (errorLines.isNotEmpty) return errorLines.last;
+
+    const preferredMarkers = <String>[
+      'sign in to confirm',
+      'not a bot',
+      'login_required',
+      'private video',
+      'video unavailable',
+      'requested format is not available',
+    ];
+    for (final marker in preferredMarkers) {
+      final match = lines.firstWhere(
+        (line) => line.toLowerCase().contains(marker),
+        orElse: () => '',
+      );
+      if (match.isNotEmpty) return match;
+    }
+
+    final warningLines = lines
+        .where((line) => line.toLowerCase().contains('warning:'))
+        .toList();
+    if (warningLines.isNotEmpty) return warningLines.last;
+
+    for (final line in stderrLines.reversed) {
+      if (line.toLowerCase() != 'null') return line;
+    }
+    for (final line in stdoutLines.reversed) {
+      if (line.toLowerCase() != 'null') return line;
+    }
     return 'erro desconhecido';
   }
 
   String _friendlyYtDlpAnalysisError(String raw) {
     final text = raw.trim();
     final lower = text.toLowerCase();
-    if (lower.contains('sign in to confirm') || lower.contains('not a bot')) {
-      return 'O YouTube solicitou confirma\u00e7\u00e3o de acesso/anti-bot. Tente novamente mais tarde, reduza downloads simult\u00e2neos ou teste com outro v\u00eddeo.\n\n';
+    if (lower.contains('sign in to confirm') ||
+        lower.contains('not a bot') ||
+        lower.contains('login_required')) {
+      const friendly =
+          'O YouTube solicitou confirmação de acesso/anti-bot. Tente novamente mais tarde, reduza a quantidade de downloads simultâneos ou use cookies de uma sessão autenticada.';
+      return text.isNotEmpty ? '$friendly\n\n$text' : friendly;
     }
     if (lower.contains('private video')) {
-      return 'Este v\u00eddeo \u00e9 privado ou n\u00e3o est\u00e1 dispon\u00edvel.\n\n';
+      return text.isNotEmpty
+          ? 'Este vídeo é privado ou não está disponível.\n\n$text'
+          : 'Este vídeo é privado ou não está disponível.';
     }
     if (lower.contains('video unavailable')) {
-      return 'Este v\u00eddeo n\u00e3o est\u00e1 dispon\u00edvel.\n\n';
+      return text.isNotEmpty
+          ? 'Este vídeo não está disponível.\n\n$text'
+          : 'Este vídeo não está disponível.';
+    }
+    if (lower.contains('no supported javascript runtime')) {
+      const friendly =
+          'O ambiente local não possui runtime JavaScript suportado para esta análise.';
+      return text.isNotEmpty ? '$friendly\n\n$text' : friendly;
     }
     return text.isNotEmpty ? text : 'Falha na análise com yt-dlp.';
+  }
+
+  List<String> _cleanErrorLines(String raw) {
+    return raw
+        .split(RegExp(r'\r?\n'))
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty && !_isStackTraceLine(line))
+        .toList();
+  }
+
+  bool _isStackTraceLine(String line) {
+    final lower = line.toLowerCase();
+    return lower.startsWith('file "') || lower.startsWith('file ');
   }
 
   static String _ffmpegLocationArgument(String ffmpegPath) {

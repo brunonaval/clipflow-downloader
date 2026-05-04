@@ -588,5 +588,97 @@ void main() {
         );
       },
     );
+
+    test(
+      'analyzeUrl prioritizes ERROR over WARNING and keeps anti-bot reason',
+      () async {
+        final runner = _FakeRunner(
+          runResult: ProcessResult(1, 1, 'null', '''
+WARNING: [youtube] abc: No supported JavaScript runtime could be found
+WARNING: [youtube] abc: No title found
+ERROR: [youtube] abc: Sign in to confirm you\\'re not a bot
+'''),
+        );
+        final service = YtDlpEngineService(
+          resolver: const _FakeResolverAvailable(),
+          runner: runner,
+        );
+
+        await expectLater(
+          () => service.analyzeUrl('https://www.youtube.com/watch?v=abc'),
+          throwsA(
+            isA<YtDlpEngineException>()
+                .having((e) => e.message, 'anti-bot', contains('anti-bot'))
+                .having(
+                  (e) => e.message,
+                  'does not contain title warning',
+                  isNot(contains('No title found')),
+                ),
+          ),
+        );
+      },
+    );
+
+    test('download failure prefers ERROR over WARNING message', () async {
+      final runner = _FakeRunner(
+        runResult: ProcessResult(1, 0, '{}', ''),
+        startExitCode: 1,
+        startStderrLines: const [
+          'WARNING: [youtube] abc: No supported JavaScript runtime could be found',
+          'ERROR: [youtube] abc: Sign in to confirm you are not a bot',
+        ],
+      );
+      final service = YtDlpEngineService(
+        resolver: const _FakeResolverAvailable(),
+        ffmpegResolver: const _FakeFfmpegResolverAvailable(),
+        runner: runner,
+      );
+
+      final result = await service.download(
+        url: 'https://youtube.com/watch?v=abc',
+        formatId: '137',
+        selectedFormatLabel: 'MP4',
+        outputTemplate: '/tmp/out.%(ext)s',
+        onProgress: (_) {},
+      );
+
+      expect(result.status, InternalDownloadStatus.failed);
+      expect(result.message, contains('Sign in to confirm'));
+      expect(
+        result.message,
+        isNot(contains('No supported JavaScript runtime')),
+      );
+    });
+
+    test(
+      'download failure keeps ERROR when stack trace lines appear later',
+      () async {
+        final runner = _FakeRunner(
+          runResult: ProcessResult(1, 0, '{}', ''),
+          startExitCode: 1,
+          startStderrLines: const [
+            'ERROR: [youtube] abc: Sign in to confirm you are not a bot',
+            '  File "/usr/lib/python3/site-packages/yt_dlp/extractor/youtube.py", line 1, in _extract',
+          ],
+        );
+        final service = YtDlpEngineService(
+          resolver: const _FakeResolverAvailable(),
+          ffmpegResolver: const _FakeFfmpegResolverAvailable(),
+          runner: runner,
+        );
+
+        final result = await service.download(
+          url: 'https://youtube.com/watch?v=abc',
+          formatId: '137',
+          selectedFormatLabel: 'MP4',
+          outputTemplate: '/tmp/out.%(ext)s',
+          onProgress: (_) {},
+        );
+
+        expect(result.status, InternalDownloadStatus.failed);
+        expect(result.message, contains('Sign in to confirm'));
+        expect(result.message, isNot(contains('File "/usr/lib/python3')));
+      },
+    );
   });
 }
