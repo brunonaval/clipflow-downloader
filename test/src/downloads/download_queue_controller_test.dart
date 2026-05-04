@@ -298,6 +298,36 @@ void main() {
       expect(controller.items.first.id, '3');
     });
 
+    test('clearFailedItems removes only failed', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(id: '1', title: 'Fail', status: DownloadStatus.failed),
+          _item(id: '2', title: 'Done', status: DownloadStatus.completed),
+          _item(id: '3', title: 'Run', status: DownloadStatus.downloading),
+        ],
+      );
+      final removed = controller.clearFailedItems();
+      expect(removed, 1);
+      expect(controller.items.map((e) => e.id), ['2', '3']);
+    });
+
+    test('clearInactiveItems removes non-active and preserves active', () {
+      final controller = DownloadQueueController(
+        initialItems: [
+          _item(id: '1', title: 'Queued', status: DownloadStatus.queued),
+          _item(id: '2', title: 'Ready', status: DownloadStatus.ready),
+          _item(id: '3', title: 'Done', status: DownloadStatus.completed),
+          _item(id: '4', title: 'Fail', status: DownloadStatus.failed),
+          _item(id: '5', title: 'Canceled', status: DownloadStatus.canceled),
+          _item(id: '6', title: 'Run', status: DownloadStatus.downloading),
+          _item(id: '7', title: 'Analyzing', status: DownloadStatus.analyzing),
+        ],
+      );
+      final removed = controller.clearInactiveItems();
+      expect(removed, 5);
+      expect(controller.items.map((e) => e.id), ['6', '7']);
+    });
+
     test('advanceFakeProgress increments downloading progress', () {
       final controller = DownloadQueueController(
         initialItems: [
@@ -1221,6 +1251,40 @@ void main() {
       expect(added.first.availableFormats, isEmpty);
       expect(added.first.selectedFormatId, isNull);
       expect(added.first.sourceLabel, contains('clique em play para analisar'));
+    });
+
+    test('addPlaylistEntries preserves playlist order in queue', () {
+      final controller = DownloadQueueController();
+      controller.addPlaylistEntries(
+        entries: const [
+          YtDlpPlaylistEntry(
+            id: 'p1',
+            title: 'Primeiro',
+            url: 'https://www.youtube.com/watch?v=p1',
+          ),
+          YtDlpPlaylistEntry(
+            id: 'p2',
+            title: 'Segundo',
+            url: 'https://www.youtube.com/watch?v=p2',
+          ),
+          YtDlpPlaylistEntry(
+            id: 'p3',
+            title: 'Terceiro',
+            url: 'https://www.youtube.com/watch?v=p3',
+          ),
+        ],
+        transferType: DownloadTransferType.video,
+        formatLabel: 'MP4',
+        qualityLabel: 'Ótima',
+        outputFolderLabel: 'Downloads',
+      );
+
+      expect(controller.items.map((e) => e.title).toList(), [
+        'Primeiro',
+        'Segundo',
+        'Terceiro',
+      ]);
+      expect(controller.nextStartableItem()!.title, 'Primeiro');
     });
 
     test('markItemAnalyzing updates source label and status', () {

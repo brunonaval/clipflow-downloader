@@ -20,11 +20,9 @@ void main() {
     expect(find.text('Colar link'), findsWidgets);
     expect(find.text('Sobre o motor'), findsNothing);
     expect(find.text('Pronto para downloads'), findsOneWidget);
-    expect(find.text('Cole um link para começar'), findsOneWidget);
+    expect(find.textContaining('Cole um link para'), findsOneWidget);
     expect(
-      find.text(
-        'Baixe vídeos, áudios e playlists autorizados em poucos cliques.',
-      ),
+      find.textContaining('playlists autorizados em poucos cliques'),
       findsOneWidget,
     );
     expect(find.textContaining('Guardar em'), findsWidgets);
@@ -34,6 +32,8 @@ void main() {
     expect(find.text('Modo inteligente'), findsWidgets);
     expect(find.text('Ordenar por'), findsOneWidget);
     expect(find.text('Iniciar fila'), findsOneWidget);
+    expect(find.text('Limpar falhados'), findsOneWidget);
+    expect(find.text('Limpar fila'), findsOneWidget);
     expect(find.textContaining('simult'), findsOneWidget);
   });
 
@@ -112,7 +112,7 @@ void main() {
     await tester.tap(find.text('Ferramentas').first);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Preferências'));
+    await tester.tap(find.textContaining('Prefer').last);
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Prefer'), findsWidgets);

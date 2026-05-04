@@ -223,7 +223,7 @@ class DownloadQueueController {
         authorLabel: entry.authorLabel,
         isYouTubeSource: true,
       );
-      _items.insert(0, item);
+      _items.add(item);
       created.add(item);
     }
     return created;
@@ -637,6 +637,24 @@ class DownloadQueueController {
           item.status == DownloadStatus.completed ||
           item.status == DownloadStatus.canceled,
     );
+    return before - _items.length;
+  }
+
+  int clearFailedItems() {
+    final before = _items.length;
+    _items.removeWhere((item) => item.status == DownloadStatus.failed);
+    return before - _items.length;
+  }
+
+  int clearInactiveItems() {
+    final before = _items.length;
+    _items.removeWhere((item) {
+      return item.status == DownloadStatus.queued ||
+          item.status == DownloadStatus.ready ||
+          item.status == DownloadStatus.completed ||
+          item.status == DownloadStatus.failed ||
+          item.status == DownloadStatus.canceled;
+    });
     return before - _items.length;
   }
 

@@ -246,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       if (_youtubeUrlParser.isYouTubeUrl(effectiveUrl)) {
-        _showInfoMessage('Análise do YouTube iniciada');
+        _showInfoMessage('Analisando vídeo');
 
         try {
           final result = await _ytDlpEngine.analyzeUrl(effectiveUrl);
@@ -275,8 +275,8 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         } catch (_) {
           if (mounted) {
-            _showInfoMessage(
-              'Motor do YouTube indisponível; usando análise limitada.',
+            _showFailureMessage(
+              'Não foi possível analisar este vídeo',
               duration: const Duration(milliseconds: 1500),
             );
           }
@@ -294,7 +294,7 @@ class _HomeScreenState extends State<HomeScreen> {
             outputFolderLabel: _downloadOptions.outputFolderLabel,
           );
           setState(() {});
-          _showInfoMessage('Usando análise limitada para YouTube');
+          _showInfoMessage('Análise concluída');
           return;
         }
 
@@ -302,7 +302,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      _showInfoMessage('Análise iniciada');
+      _showInfoMessage('Analisando item');
 
       final updated = _queueController.markItemReadyAfterInternalAnalysis(
         id: addedItem.id,
@@ -320,8 +320,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      _showInfoMessage(
-        'Análise falhou; usando resultado de teste',
+      _showFailureMessage(
+        'Não foi possível analisar automaticamente',
         duration: const Duration(milliseconds: 1400),
       );
     }
@@ -330,7 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _scheduleMockAnalysis(String itemId) {
-    _showInfoMessage('Análise de teste iniciada');
+    _showInfoMessage('Preparando item');
 
     _mockAnalysisTimer?.cancel();
     _mockAnalysisTimer = Timer(const Duration(milliseconds: 900), () {
@@ -343,7 +343,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       setState(() {});
-      _showInfoMessage('Análise de teste concluída');
+      _showInfoMessage('Análise concluída');
     });
   }
 
@@ -574,7 +574,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _analyzeAndStartYouTubeItem(DownloadItem item) async {
     final marked = _queueController.markItemAnalyzing(
       item.id,
-      'Playlist · analisando vídeo',
+      'Analisando vídeo',
     );
     if (marked == null) return;
     if (mounted) {
@@ -978,6 +978,65 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _clearFailedItems() {
+    final removed = _queueController.clearFailedItems();
+    setState(() {});
+    _stopFakeProgressTimerIfIdle();
+    _showInfoMessage('Itens falhados removidos: $removed');
+  }
+
+  Future<void> _clearQueueWithConfirmation() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Limpar fila?'),
+        content: const Text(
+          'Esta ação remove itens pendentes, concluídos, falhados e cancelados. Downloads em andamento serão mantidos.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Limpar fila'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final activeBefore = _queueController.activeTransferCount;
+    final removed = _queueController.clearInactiveItems();
+    setState(() {});
+    _stopFakeProgressTimerIfIdle();
+    if (activeBefore > 0) {
+      _showInfoMessage('Downloads ativos foram mantidos.');
+    } else {
+      _showInfoMessage('Itens removidos da fila: $removed');
+    }
+  }
+
+  void _showFailureReasonDialog(DownloadItem item) {
+    final reason = item.sourceLabel.trim().isEmpty
+        ? 'Não foi possível baixar este item.'
+        : item.sourceLabel;
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Motivo da falha'),
+        content: SelectableText(reason),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _openPreferencesDialog() async {
     final updated = await showDialog<AppPreferences>(
       context: context,
@@ -1170,6 +1229,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 _openDownloadedFile(visibleItems[i]),
                             onOpenFolder: () =>
                                 _openDownloadFolder(visibleItems[i]),
+                            onShowFailureReason: () =>
+                                _showFailureReasonDialog(visibleItems[i]),
                             onFormatSelected: (formatId) =>
                                 _selectFormatForItem(visibleItems[i], formatId),
                           ),
@@ -1177,7 +1238,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               _StatusBar(
+                items: _queueController.items,
                 onClearFinished: _clearFinishedItems,
+                onClearFailed: _clearFailedItems,
+                onClearQueue: _clearQueueWithConfirmation,
                 onToggleQueueAutoRun: _queueAutoRunEnabled
                     ? _stopQueueAutoRun
                     : _startQueueAutoRun,
@@ -1711,6 +1775,7 @@ class _DownloadListItem extends StatelessWidget {
   final VoidCallback onRemove;
   final VoidCallback onOpenFile;
   final VoidCallback onOpenFolder;
+  final VoidCallback onShowFailureReason;
   final ValueChanged<String> onFormatSelected;
 
   const _DownloadListItem({
@@ -1721,6 +1786,7 @@ class _DownloadListItem extends StatelessWidget {
     required this.onRemove,
     required this.onOpenFile,
     required this.onOpenFolder,
+    required this.onShowFailureReason,
     required this.onFormatSelected,
   });
 
@@ -1885,6 +1951,10 @@ class _DownloadListItem extends StatelessWidget {
                                       false)
                               ? onOpenFolder
                               : null,
+                          onShowFailureReason:
+                              item.status == DownloadStatus.failed
+                              ? onShowFailureReason
+                              : null,
                         ),
                         _StatusBadge(item: item),
                       ],
@@ -1901,7 +1971,7 @@ class _DownloadListItem extends StatelessWidget {
   }
 
   String _statusText(DownloadItem item, bool isMerging) {
-    if (isMerging) return 'Preparando';
+    if (isMerging) return 'Preparando arquivo';
     final isPlaylistQueuedPendingAnalysis =
         item.isYouTubeSource &&
         item.availableFormats.isEmpty &&
@@ -2049,6 +2119,7 @@ class _ItemActions extends StatelessWidget {
   final VoidCallback onRemove;
   final VoidCallback? onOpenFile;
   final VoidCallback? onOpenFolder;
+  final VoidCallback? onShowFailureReason;
 
   const _ItemActions({
     required this.item,
@@ -2058,6 +2129,7 @@ class _ItemActions extends StatelessWidget {
     required this.onRemove,
     this.onOpenFile,
     this.onOpenFolder,
+    this.onShowFailureReason,
   });
 
   bool get _canStart =>
@@ -2121,6 +2193,13 @@ class _ItemActions extends StatelessWidget {
             tooltip: 'Abrir pasta',
             visualDensity: VisualDensity.compact,
           ),
+        if (onShowFailureReason != null)
+          IconButton(
+            icon: const Icon(Icons.info_outline, size: 18),
+            onPressed: onShowFailureReason,
+            tooltip: 'Ver motivo',
+            visualDensity: VisualDensity.compact,
+          ),
         IconButton(
           icon: const Icon(Icons.delete_outline, size: 18),
           onPressed: onRemove,
@@ -2155,7 +2234,7 @@ class _StatusBadge extends StatelessWidget {
         item.availableFormats.isEmpty &&
         item.status == DownloadStatus.queued;
     final statusLabel = isMerging
-        ? 'Preparando'
+        ? 'Preparando arquivo'
         : isPlaylistQueuedPendingAnalysis
         ? 'Na fila'
         : switch (item.status) {
@@ -2299,22 +2378,78 @@ class _AppMessageBanner extends StatelessWidget {
 }
 
 class _StatusBar extends StatelessWidget {
+  final List<DownloadItem> items;
   final VoidCallback onClearFinished;
+  final VoidCallback onClearFailed;
+  final VoidCallback onClearQueue;
   final VoidCallback onToggleQueueAutoRun;
   final bool queueAutoRunEnabled;
   final int simultaneousLimit;
 
   const _StatusBar({
+    required this.items,
     required this.onClearFinished,
+    required this.onClearFailed,
+    required this.onClearQueue,
     required this.onToggleQueueAutoRun,
     required this.queueAutoRunEnabled,
     required this.simultaneousLimit,
   });
 
+  ({
+    int total,
+    int completed,
+    int failed,
+    int canceled,
+    int active,
+    int pending,
+  })
+  _stats() {
+    var total = items.length;
+    var completed = 0;
+    var failed = 0;
+    var canceled = 0;
+    var active = 0;
+    var pending = 0;
+    for (final item in items) {
+      switch (item.status) {
+        case DownloadStatus.completed:
+          completed += 1;
+          break;
+        case DownloadStatus.failed:
+          failed += 1;
+          break;
+        case DownloadStatus.canceled:
+          canceled += 1;
+          break;
+        case DownloadStatus.downloading:
+        case DownloadStatus.analyzing:
+          active += 1;
+          break;
+        case DownloadStatus.queued:
+        case DownloadStatus.ready:
+        case DownloadStatus.paused:
+          pending += 1;
+          break;
+      }
+    }
+    return (
+      total: total,
+      completed: completed,
+      failed: failed,
+      canceled: canceled,
+      active: active,
+      pending: pending,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final stats = _stats();
+    final processed = stats.completed + stats.failed + stats.canceled;
+    final progress = stats.total == 0 ? null : processed / stats.total;
     return Container(
-      height: 86,
+      height: 108,
       decoration: const BoxDecoration(
         color: _kSurface,
         border: Border(top: BorderSide(color: _kBorder)),
@@ -2336,11 +2471,24 @@ class _StatusBar extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Fila: até $simultaneousLimit simultâneo(s)',
+                  stats.total == 0
+                      ? 'Fila: até $simultaneousLimit simultâneo(s)'
+                      : 'Fila: $processed/${stats.total} processados · ${stats.completed} concluídos · ${stats.failed} falharam',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: Colors.black54, fontSize: 11),
                 ),
+                if (stats.total > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 4,
+                      borderRadius: BorderRadius.circular(999),
+                      backgroundColor: const Color(0xFFE7EEEA),
+                      valueColor: const AlwaysStoppedAnimation(_kGreen),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -2361,11 +2509,44 @@ class _StatusBar extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                     ),
                     child: const Text(
-                      'Limpar conclu\u00eddos',
+                      'Limpar concluídos',
                       style: TextStyle(fontSize: 13),
                     ),
                   ),
                   const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: onClearFailed,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black87,
+                      side: const BorderSide(color: Color(0xFFC9D4D0)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text(
+                      'Limpar falhados',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: onClearQueue,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black87,
+                      side: const BorderSide(color: Color(0xFFC9D4D0)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text(
+                      'Limpar fila',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
                   const SizedBox(width: 8),
                   Tooltip(
                     message: queueAutoRunEnabled

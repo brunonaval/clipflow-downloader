@@ -181,11 +181,11 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         SizedBox(height: 16),
-        Text('Motor YouTube: yt-dlp'),
+        Text('Suporte a links do YouTube ativo.'),
         SizedBox(height: 8),
-        Text('Merge de alta qualidade: FFmpeg quando disponível'),
+        Text('Qualidades altas podem precisar de processamento adicional.'),
         SizedBox(height: 8),
-        Text('Saída padrão: Downloads/ClipFlow'),
+        Text('Saída padrão: pasta de Downloads.'),
       ],
     );
   }
