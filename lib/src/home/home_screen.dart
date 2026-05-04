@@ -35,6 +35,9 @@ import 'mock_download_item.dart';
 
 const _kGreen = Color(0xFF2E7D32);
 const _kDivider = Color(0xFFE0E0E0);
+const _kSurface = Color(0xFFFFFFFF);
+const _kPage = Color(0xFFF4F7F6);
+const _kBorder = Color(0xFFE1E8E4);
 
 enum _WatchPlaylistChoice { cancel, video, playlist }
 
@@ -1031,7 +1034,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: _kPage,
       body: Stack(
         children: [
           Column(
@@ -1679,138 +1682,152 @@ class _DownloadListItem extends StatelessWidget {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _ThumbnailPreview(item: item),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.title,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black87,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 3),
-                    if (item.authorLabel != null &&
-                        item.authorLabel!.trim().isNotEmpty)
-                      Text(
-                        item.authorLabel!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                    if (item.authorLabel != null &&
-                        item.authorLabel!.trim().isNotEmpty)
-                      const SizedBox(height: 3),
-                    Text(
-                      metadataParts.join(' · '),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade500,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (isMerging)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          'Preparando arquivo',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.blueGrey.shade700,
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: Card(
+            margin: EdgeInsets.zero,
+            clipBehavior: Clip.antiAlias,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _ThumbnailPreview(item: item),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.title,
+                          style: const TextStyle(
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
+                            color: Colors.black87,
                           ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    if (item.status == DownloadStatus.ready &&
-                        item.availableFormats.isNotEmpty)
-                      _FormatSelector(item: item, onSelected: onFormatSelected),
-                    if (isDownloading)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            LinearProgressIndicator(
-                              value: item.progress,
-                              backgroundColor: Colors.grey.shade200,
-                              valueColor: const AlwaysStoppedAnimation(_kGreen),
-                              minHeight: 3,
+                        const SizedBox(height: 4),
+                        if (item.authorLabel != null &&
+                            item.authorLabel!.trim().isNotEmpty)
+                          Text(
+                            item.authorLabel!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${(item.progress * 100).toStringAsFixed(0)}%',
+                          ),
+                        if (item.authorLabel != null &&
+                            item.authorLabel!.trim().isNotEmpty)
+                          const SizedBox(height: 4),
+                        Text(
+                          metadataParts.join(' · '),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (isMerging)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              'Preparando arquivo',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.grey.shade600,
+                                color: Colors.blueGrey.shade700,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    if (item.status == DownloadStatus.completed &&
-                        completedOutputLabel != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          completedOutputLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade700,
                           ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Wrap(
-                  spacing: 4,
-                  runSpacing: 2,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  alignment: WrapAlignment.end,
-                  children: [
-                    _ItemActions(
-                      item: item,
-                      onStart: onStart,
-                      onPause: onPause,
-                      onCancel: onCancel,
-                      onRemove: onRemove,
-                      onOpenFile:
-                          item.status == DownloadStatus.completed &&
-                              (item.outputPath?.isNotEmpty ?? false)
-                          ? onOpenFile
-                          : null,
-                      onOpenFolder:
-                          item.status == DownloadStatus.completed &&
-                              (item.outputDirectoryPath?.isNotEmpty ?? false)
-                          ? onOpenFolder
-                          : null,
+                        if (item.status == DownloadStatus.ready &&
+                            item.availableFormats.isNotEmpty)
+                          _FormatSelector(
+                            item: item,
+                            onSelected: onFormatSelected,
+                          ),
+                        if (isDownloading)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                LinearProgressIndicator(
+                                  value: item.progress,
+                                  backgroundColor: const Color(0xFFE7EEEA),
+                                  valueColor: const AlwaysStoppedAnimation(
+                                    _kGreen,
+                                  ),
+                                  minHeight: 4,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  '${(item.progress * 100).toStringAsFixed(0)}%',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (item.status == DownloadStatus.completed &&
+                            completedOutputLabel != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              completedOutputLabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                    _StatusBadge(item: item),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Wrap(
+                      spacing: 4,
+                      runSpacing: 2,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      alignment: WrapAlignment.end,
+                      children: [
+                        _ItemActions(
+                          item: item,
+                          onStart: onStart,
+                          onPause: onPause,
+                          onCancel: onCancel,
+                          onRemove: onRemove,
+                          onOpenFile:
+                              item.status == DownloadStatus.completed &&
+                                  (item.outputPath?.isNotEmpty ?? false)
+                              ? onOpenFile
+                              : null,
+                          onOpenFolder:
+                              item.status == DownloadStatus.completed &&
+                                  (item.outputDirectoryPath?.isNotEmpty ??
+                                      false)
+                              ? onOpenFolder
+                              : null,
+                        ),
+                        _StatusBadge(item: item),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
-        Divider(height: 1, thickness: 1, color: Colors.grey.shade100),
+        const SizedBox(height: 4),
       ],
     );
   }
@@ -1861,7 +1878,7 @@ class _ThumbnailPreview extends StatelessWidget {
     final url = item.thumbnailUrl;
     if (url != null && url.trim().isNotEmpty) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(8),
         child: Image.network(
           url,
           width: 78,
@@ -1880,7 +1897,7 @@ class _ThumbnailPreview extends StatelessWidget {
       height: 44,
       decoration: BoxDecoration(
         color: const Color(0xFF2D2D2D),
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: const Icon(
         Icons.play_arrow_rounded,
@@ -2216,9 +2233,12 @@ class _StatusBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 84,
-      color: _kGreen,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 86,
+      decoration: const BoxDecoration(
+        color: _kSurface,
+        border: Border(top: BorderSide(color: _kBorder)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Row(
         children: [
           Expanded(
@@ -2229,7 +2249,7 @@ class _StatusBar extends StatelessWidget {
                 const Text(
                   'Pronto para downloads',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Colors.black87,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -2238,7 +2258,7 @@ class _StatusBar extends StatelessWidget {
                   'Fila: até $simultaneousLimit simultâneo(s)',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white70, fontSize: 10),
+                  style: const TextStyle(color: Colors.black54, fontSize: 11),
                 ),
               ],
             ),
@@ -2251,11 +2271,11 @@ class _StatusBar extends StatelessWidget {
                   OutlinedButton(
                     onPressed: onClearFinished,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Colors.white54),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      foregroundColor: Colors.black87,
+                      side: const BorderSide(color: Color(0xFFC9D4D0)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       visualDensity: VisualDensity.compact,
                     ),
@@ -2268,11 +2288,11 @@ class _StatusBar extends StatelessWidget {
                   OutlinedButton(
                     onPressed: onShowEngineInfo,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Colors.white54),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      foregroundColor: Colors.black87,
+                      side: const BorderSide(color: Color(0xFFC9D4D0)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       visualDensity: VisualDensity.compact,
                     ),
@@ -2289,11 +2309,20 @@ class _StatusBar extends StatelessWidget {
                     child: OutlinedButton(
                       onPressed: onToggleQueueAutoRun,
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.white54),
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        foregroundColor: queueAutoRunEnabled
+                            ? const Color(0xFF9A3412)
+                            : const Color(0xFF0F766E),
+                        side: BorderSide(
+                          color: queueAutoRunEnabled
+                              ? const Color(0xFFFCC5B4)
+                              : const Color(0xFFBFE3DB),
+                        ),
+                        backgroundColor: queueAutoRunEnabled
+                            ? const Color(0xFFFFF2EE)
+                            : const Color(0xFFEFFAF7),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         visualDensity: VisualDensity.compact,
                       ),
