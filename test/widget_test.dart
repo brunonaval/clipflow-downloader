@@ -18,7 +18,7 @@ void main() {
 
     expect(find.text('ClipFlow Downloader'), findsOneWidget);
     expect(find.text('Colar link'), findsWidgets);
-    expect(find.text('Sobre o motor'), findsOneWidget);
+    expect(find.text('Sobre o motor'), findsNothing);
     expect(find.text('Pronto para downloads'), findsOneWidget);
     expect(find.text('Cole um link para começar'), findsOneWidget);
     expect(

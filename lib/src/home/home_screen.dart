@@ -910,27 +910,6 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {});
   }
 
-  Future<void> _showInternalEngineDialog() async {
-    if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Motor interno'),
-          content: const Text(
-            'ClipFlow usa um motor interno pr\u00f3prio para reconhecer links do YouTube e preparar downloads autorizados. Motor yt-dlp ativo para YouTube. FFmpeg ainda n\u00e3o configurado; qualidades altas podem exigir merge.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Entendi'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Future<void> _showAboutClipFlowDialog() async {
     if (!mounted) return;
     await showDialog<void>(
@@ -1199,7 +1178,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               _StatusBar(
                 onClearFinished: _clearFinishedItems,
-                onShowEngineInfo: _showInternalEngineDialog,
                 onToggleQueueAutoRun: _queueAutoRunEnabled
                     ? _stopQueueAutoRun
                     : _startQueueAutoRun,
@@ -1241,77 +1219,109 @@ class _MenuBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
+    return Container(
+      height: 44,
       color: const Color(0xFFFAFAFA),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(right: 10),
-                child: Text(
-                  'ClipFlow Downloader',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
-              Container(width: 1, height: 20, color: const Color(0xFFD8D8D8)),
-              const SizedBox(width: 6),
-              MenuBar(
-                style: const MenuStyle(
-                  padding: WidgetStatePropertyAll(
-                    EdgeInsets.symmetric(horizontal: 2),
-                  ),
-                  backgroundColor: WidgetStatePropertyAll(Colors.transparent),
-                  elevation: WidgetStatePropertyAll(0),
-                ),
-                children: [
-                  SubmenuButton(
-                    menuChildren: [
-                      MenuItemButton(
-                        onPressed: onOpenDownloadsFolder,
-                        child: const Text('Abrir pasta de downloads'),
-                      ),
-                    ],
-                    child: const Text('Arquivo'),
-                  ),
-                  SubmenuButton(
-                    menuChildren: [
-                      MenuItemButton(
-                        onPressed: onOpenPreferences,
-                        child: const Text('Preferências'),
-                      ),
-                    ],
-                    child: const Text('Ferramentas'),
-                  ),
-                  SubmenuButton(
-                    menuChildren: [
-                      MenuItemButton(
-                        onPressed: onAboutClipFlow,
-                        child: const Text('Sobre o ClipFlow'),
-                      ),
-                      MenuItemButton(
-                        onPressed: onAboutDeveloper,
-                        child: const Text('Sobre o desenvolvedor'),
-                      ),
-                      MenuItemButton(
-                        onPressed: onSupportProject,
-                        child: const Text('Apoiar o projeto'),
-                      ),
-                    ],
-                    child: const Text('Ajuda'),
-                  ),
-                ],
-              ),
-            ],
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F766E),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Icon(
+              Icons.download_rounded,
+              size: 14,
+              color: Colors.white,
+            ),
           ),
-        ),
+          const SizedBox(width: 8),
+          const Text(
+            'ClipFlow Downloader',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(width: 1, height: 20, color: const Color(0xFFD8D8D8)),
+          const SizedBox(width: 4),
+          MenuButtonTheme(
+            data: MenuButtonThemeData(
+              style: ButtonStyle(
+                visualDensity: VisualDensity.compact,
+                padding: const WidgetStatePropertyAll(
+                  EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                ),
+                shape: WidgetStatePropertyAll(
+                  RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                foregroundColor: const WidgetStatePropertyAll(Colors.black87),
+                backgroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.hovered) ||
+                      states.contains(WidgetState.focused)) {
+                    return const Color(0xFFEFF3F2);
+                  }
+                  return Colors.transparent;
+                }),
+              ),
+            ),
+            child: MenuBar(
+              style: const MenuStyle(
+                padding: WidgetStatePropertyAll(
+                  EdgeInsets.symmetric(horizontal: 2),
+                ),
+                backgroundColor: WidgetStatePropertyAll(Colors.transparent),
+                elevation: WidgetStatePropertyAll(0),
+              ),
+              children: [
+                SubmenuButton(
+                  menuChildren: [
+                    MenuItemButton(
+                      onPressed: onOpenDownloadsFolder,
+                      child: const Text('Abrir pasta de downloads'),
+                    ),
+                  ],
+                  child: const Text('Arquivo'),
+                ),
+                SubmenuButton(
+                  menuChildren: [
+                    MenuItemButton(
+                      onPressed: onOpenPreferences,
+                      child: const Text('Preferências'),
+                    ),
+                  ],
+                  child: const Text('Ferramentas'),
+                ),
+                SubmenuButton(
+                  menuChildren: [
+                    MenuItemButton(
+                      onPressed: onAboutClipFlow,
+                      child: const Text('Sobre o ClipFlow'),
+                    ),
+                    MenuItemButton(
+                      onPressed: onAboutDeveloper,
+                      child: const Text('Sobre o desenvolvedor'),
+                    ),
+                    MenuItemButton(
+                      onPressed: onSupportProject,
+                      child: const Text('Apoiar o projeto'),
+                    ),
+                  ],
+                  child: const Text('Ajuda'),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2290,14 +2300,12 @@ class _AppMessageBanner extends StatelessWidget {
 
 class _StatusBar extends StatelessWidget {
   final VoidCallback onClearFinished;
-  final VoidCallback onShowEngineInfo;
   final VoidCallback onToggleQueueAutoRun;
   final bool queueAutoRunEnabled;
   final int simultaneousLimit;
 
   const _StatusBar({
     required this.onClearFinished,
-    required this.onShowEngineInfo,
     required this.onToggleQueueAutoRun,
     required this.queueAutoRunEnabled,
     required this.simultaneousLimit,
@@ -2358,22 +2366,6 @@ class _StatusBar extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  OutlinedButton(
-                    onPressed: onShowEngineInfo,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.black87,
-                      side: const BorderSide(color: Color(0xFFC9D4D0)),
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    child: const Text(
-                      'Sobre o motor',
-                      style: TextStyle(fontSize: 13),
-                    ),
-                  ),
                   const SizedBox(width: 8),
                   Tooltip(
                     message: queueAutoRunEnabled
