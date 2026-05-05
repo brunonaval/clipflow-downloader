@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -43,7 +44,9 @@ enum _WatchPlaylistChoice { cancel, video, playlist }
 enum _AppMessageType { info, success, failure }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final Future<String?> Function()? pickOutputDirectory;
+
+  const HomeScreen({super.key, this.pickOutputDirectory});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -1146,6 +1149,34 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _handleBrowseOutputFolder() async {
+    final picker =
+        widget.pickOutputDirectory ??
+        () => getDirectoryPath(confirmButtonText: 'Selecionar pasta');
+    final path = await picker();
+    if (!mounted) return;
+    if (path == null) return;
+    final folderName = _friendlyFolderName(path);
+    final choice = OutputFolderChoice(
+      type: OutputFolderType.custom,
+      label: folderName,
+      customPath: path,
+    );
+    setState(() {
+      _preferences = _preferences.copyWith(outputFolderChoice: choice);
+      _downloadOptions = _downloadOptions.copyWith(
+        outputFolderLabel: choice.label,
+      );
+    });
+    _showSuccessMessage('Pasta selecionada');
+  }
+
+  String _friendlyFolderName(String path) {
+    final segments = path.replaceAll('\\', '/').split('/');
+    final name = segments.where((s) => s.isNotEmpty).lastOrNull ?? '';
+    return name.isNotEmpty ? name : 'Pasta escolhida';
+  }
+
   @override
   Widget build(BuildContext context) {
     final visibleItems = _queueController.filteredItems(
@@ -1192,33 +1223,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                   _applyCurrentPresetToReadyItems();
                 }),
-                onOutputFolderChanged: (value) => setState(() {
+                onOutputFolderChanged: (value) {
                   if (value == 'Navegar...') {
-                    _showInfoMessage(
-                      'Escolha de pasta personalizada virá em rodada futura.',
-                      duration: const Duration(milliseconds: 1400),
-                    );
+                    _handleBrowseOutputFolder();
                     return;
                   }
-
-                  final choice = switch (value) {
-                    'Vídeos' => const OutputFolderChoice(
-                      type: OutputFolderType.videos,
-                      label: 'Vídeos',
-                    ),
-                    'Documentos' => const OutputFolderChoice(
-                      type: OutputFolderType.documents,
-                      label: 'Documentos',
-                    ),
-                    _ => OutputFolderChoice.downloads,
-                  };
-                  _preferences = _preferences.copyWith(
-                    outputFolderChoice: choice,
-                  );
-                  _downloadOptions = _downloadOptions.copyWith(
-                    outputFolderLabel: choice.label,
-                  );
-                }),
+                  setState(() {
+                    final choice = switch (value) {
+                      'Vídeos' => const OutputFolderChoice(
+                        type: OutputFolderType.videos,
+                        label: 'Vídeos',
+                      ),
+                      'Documentos' => const OutputFolderChoice(
+                        type: OutputFolderType.documents,
+                        label: 'Documentos',
+                      ),
+                      _ => OutputFolderChoice.downloads,
+                    };
+                    _preferences = _preferences.copyWith(
+                      outputFolderChoice: choice,
+                    );
+                    _downloadOptions = _downloadOptions.copyWith(
+                      outputFolderLabel: choice.label,
+                    );
+                  });
+                },
                 smartModeEnabled: _preferences.smartModeEnabled,
                 onSmartModeChanged: (value) => setState(() {
                   _preferences = _preferences.copyWith(smartModeEnabled: value);

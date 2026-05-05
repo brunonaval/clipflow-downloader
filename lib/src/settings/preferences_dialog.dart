@@ -131,7 +131,7 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
         SwitchListTile(
           title: const Text('Modo inteligente'),
           subtitle: const Text(
-            'Colar link inicia automaticamente usando as op??es atuais.',
+            'Colar link inicia automaticamente usando as opções atuais.',
           ),
           value: _preferences.smartModeEnabled,
           onChanged: (value) => setState(

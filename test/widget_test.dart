@@ -9,6 +9,7 @@ import 'package:clipflow_downloader/src/downloads/download_options_dialog.dart';
 import 'package:clipflow_downloader/src/downloads/download_sort_option.dart';
 import 'package:clipflow_downloader/src/downloads/playlist_options_dialog.dart';
 import 'package:clipflow_downloader/src/engine/yt_dlp/yt_dlp_playlist_result.dart';
+import 'package:clipflow_downloader/src/home/home_screen.dart';
 
 void main() {
   testWidgets('Home screen renders core actions and empty state', (
@@ -273,5 +274,59 @@ void main() {
     await tester.tap(find.text('Downloads'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Pasta padr'), findsOneWidget);
+  });
+
+  testWidgets('menu Guardar em exibe opção Navegar...', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const ClipFlowApp());
+
+    await tester.tap(find.text('Guardar em Downloads'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Navegar...'), findsOneWidget);
+  });
+
+  testWidgets('cancelamento de Navegar mantém label anterior', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(home: HomeScreen(pickOutputDirectory: () async => null)),
+    );
+
+    await tester.tap(find.text('Guardar em Downloads'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Navegar...'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Guardar em Downloads'), findsOneWidget);
+  });
+
+  testWidgets('escolha de pasta personalizada atualiza toolbar', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeScreen(
+          pickOutputDirectory: () async => r'C:\Users\test\Meus Downloads',
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Guardar em Downloads'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Navegar...'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Guardar em Meus Downloads'), findsOneWidget);
   });
 }

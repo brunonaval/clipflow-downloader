@@ -33,4 +33,16 @@ void main() {
 
     expect(choice.label, 'Vídeos');
   });
+
+  test('custom mantém customPath e label', () {
+    const choice = OutputFolderChoice(
+      type: OutputFolderType.custom,
+      label: 'Meus Downloads',
+      customPath: 'C:/Users/test/Meus Downloads',
+    );
+
+    expect(choice.type, OutputFolderType.custom);
+    expect(choice.label, 'Meus Downloads');
+    expect(choice.customPath, 'C:/Users/test/Meus Downloads');
+  });
 }
