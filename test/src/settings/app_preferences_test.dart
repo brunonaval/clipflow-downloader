@@ -58,4 +58,16 @@ void main() {
     expect(AppPreferences.simultaneousDownloadsRiskLabel(6), 'Ideal');
     expect(AppPreferences.simultaneousDownloadsRiskLabel(8), 'Arriscado');
   });
+
+  test('default minimizeToTrayOnClose is true', () {
+    expect(AppPreferences.defaults.minimizeToTrayOnClose, isTrue);
+  });
+
+  test('copyWith altera minimizeToTrayOnClose', () {
+    const prefs = AppPreferences.defaults;
+    final updated = prefs.copyWith(minimizeToTrayOnClose: false);
+
+    expect(updated.minimizeToTrayOnClose, isFalse);
+    expect(prefs.minimizeToTrayOnClose, isTrue);
+  });
 }

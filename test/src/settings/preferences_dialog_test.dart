@@ -23,7 +23,9 @@ void main() {
     expect(find.text('Avançado'), findsOneWidget);
   });
 
-  testWidgets('seção geral mostra somente modo inteligente', (tester) async {
+  testWidgets('seção geral mostra modo inteligente e opção de bandeja', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
@@ -33,6 +35,7 @@ void main() {
     );
 
     expect(find.text('Modo inteligente'), findsOneWidget);
+    expect(find.text('Manter ClipFlow na bandeja ao fechar'), findsOneWidget);
     expect(find.text('Idioma'), findsNothing);
     expect(find.text('Tema'), findsNothing);
   });
@@ -209,6 +212,49 @@ void main() {
 
     expect(saved, isNotNull);
     expect(saved!.simultaneousDownloads, 6);
+  });
+
+  testWidgets('geral: alternar bandeja ao fechar altera prefer\u00eancia', (
+    tester,
+  ) async {
+    AppPreferences? saved;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () async {
+                final result = await showDialog<AppPreferences>(
+                  context: context,
+                  builder: (_) => const PreferencesDialog(
+                    initialPreferences: AppPreferences.defaults,
+                  ),
+                );
+                saved = result;
+              },
+              child: const Text('Abrir'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Abrir'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Manter ClipFlow na bandeja ao fechar'), findsOneWidget);
+
+    // Default is true; toggle it off
+    final switches = find.byType(Switch);
+    await tester.tap(switches.at(1));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Salvar'));
+    await tester.pumpAndSettle();
+
+    expect(saved, isNotNull);
+    expect(saved!.minimizeToTrayOnClose, isFalse);
   });
 
   testWidgets('motor permite alternar uso da sess\u00e3o do Firefox', (

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:clipflow_downloader/src/app.dart';
 import 'package:clipflow_downloader/src/downloads/download_format_option.dart';
@@ -12,6 +13,10 @@ import 'package:clipflow_downloader/src/engine/yt_dlp/yt_dlp_playlist_result.dar
 import 'package:clipflow_downloader/src/home/home_screen.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('Home screen renders core actions and empty state', (
     WidgetTester tester,
   ) async {

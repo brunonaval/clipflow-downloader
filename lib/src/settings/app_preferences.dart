@@ -16,6 +16,7 @@ class AppPreferences {
   final bool smartModeEnabled;
   final bool useFirefoxCookiesForYouTube;
   final OutputFolderChoice outputFolderChoice;
+  final bool minimizeToTrayOnClose;
 
   const AppPreferences({
     required this.languageLabel,
@@ -31,6 +32,7 @@ class AppPreferences {
     required this.smartModeEnabled,
     required this.useFirefoxCookiesForYouTube,
     required this.outputFolderChoice,
+    required this.minimizeToTrayOnClose,
   });
 
   static const AppPreferences defaults = AppPreferences(
@@ -47,6 +49,7 @@ class AppPreferences {
     smartModeEnabled: false,
     useFirefoxCookiesForYouTube: false,
     outputFolderChoice: OutputFolderChoice.downloads,
+    minimizeToTrayOnClose: true,
   );
 
   AppPreferences copyWith({
@@ -63,6 +66,7 @@ class AppPreferences {
     bool? smartModeEnabled,
     bool? useFirefoxCookiesForYouTube,
     OutputFolderChoice? outputFolderChoice,
+    bool? minimizeToTrayOnClose,
   }) {
     return AppPreferences(
       languageLabel: languageLabel ?? this.languageLabel,
@@ -86,6 +90,8 @@ class AppPreferences {
       useFirefoxCookiesForYouTube:
           useFirefoxCookiesForYouTube ?? this.useFirefoxCookiesForYouTube,
       outputFolderChoice: outputFolderChoice ?? this.outputFolderChoice,
+      minimizeToTrayOnClose:
+          minimizeToTrayOnClose ?? this.minimizeToTrayOnClose,
     );
   }
 

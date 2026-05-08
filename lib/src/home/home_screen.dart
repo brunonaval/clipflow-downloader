@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:tray_manager/tray_manager.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../downloads/download_item.dart';
 import '../downloads/download_format_option.dart';
@@ -25,6 +27,7 @@ import '../engine/download/completed_output_resolver.dart';
 import '../engine/download/output_directory_resolver.dart';
 import '../engine/download/yt_dlp_output_name_planner.dart';
 import '../settings/app_preferences.dart';
+import '../settings/app_preferences_store.dart';
 import '../settings/output_folder_choice.dart';
 import '../settings/preferences_dialog.dart';
 import '../system/system_file_opener.dart';
@@ -45,14 +48,20 @@ enum _AppMessageType { info, success, failure }
 
 class HomeScreen extends StatefulWidget {
   final Future<String?> Function()? pickOutputDirectory;
+  final AppPreferencesStore? preferencesStore;
 
-  const HomeScreen({super.key, this.pickOutputDirectory});
+  const HomeScreen({
+    super.key,
+    this.pickOutputDirectory,
+    this.preferencesStore,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with TrayListener, WindowListener {
   static const _youtubeUrlParser = YouTubeUrlParser();
   static const _playlistUrlParser = YouTubePlaylistUrlParser();
   DownloadQueueFilter _activeFilter = DownloadQueueFilter.all;
@@ -78,18 +87,26 @@ class _HomeScreenState extends State<HomeScreen> {
   static const _fileOpener = SystemFileOpener();
 
   late final DownloadQueueController _queueController;
+  late final AppPreferencesStore _preferencesStore;
 
   @override
   void initState() {
     super.initState();
+    _preferencesStore = widget.preferencesStore ?? AppPreferencesStore();
     _downloadOptions = _downloadOptions.copyWith(
       outputFolderLabel: _preferences.outputFolderChoice.label,
     );
     _queueController = DownloadQueueController(initialItems: const []);
+    _loadPreferences();
+    if (Platform.isWindows) {
+      _initTrayAndWindow();
+    }
   }
 
   @override
   void dispose() {
+    trayManager.removeListener(this);
+    windowManager.removeListener(this);
     for (final cancellation in _downloadCancellations.values) {
       cancellation.cancel();
     }
@@ -1081,6 +1098,7 @@ class _HomeScreenState extends State<HomeScreen> {
         outputFolderLabel: updated.outputFolderChoice.label,
       );
     });
+    _savePreferences();
     _showInfoMessage('Preferências atualizadas');
     if (_queueAutoRunEnabled) {
       _pumpDownloadQueue();
@@ -1149,6 +1167,96 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _loadPreferences() async {
+    final loaded = await _preferencesStore.load();
+    if (!mounted) return;
+    setState(() {
+      _preferences = loaded;
+      _downloadOptions = _downloadOptions.copyWith(
+        outputFolderLabel: loaded.outputFolderChoice.label,
+      );
+    });
+  }
+
+  void _savePreferences() {
+    _preferencesStore.save(_preferences);
+  }
+
+  Future<void> _initTrayAndWindow() async {
+    try {
+      final iconPath = Platform.isWindows
+          ? 'assets/tray_icon.ico'
+          : 'assets/tray_icon.png';
+      await trayManager.setIcon(iconPath);
+      await trayManager.setToolTip('ClipFlow Downloader');
+      await trayManager.setContextMenu(
+        Menu(
+          items: [
+            MenuItem(key: 'open_app', label: 'Abrir ClipFlow Downloader'),
+            MenuItem(key: 'open_downloads', label: 'Abrir pasta de downloads'),
+            MenuItem.separator(),
+            MenuItem(key: 'quit', label: 'Sair'),
+          ],
+        ),
+      );
+    } catch (_) {}
+    trayManager.addListener(this);
+
+    try {
+      await windowManager.setPreventClose(true);
+    } catch (_) {}
+    windowManager.addListener(this);
+  }
+
+  @override
+  void onTrayIconMouseDown() {
+    try {
+      windowManager.show();
+      windowManager.focus();
+    } catch (_) {}
+  }
+
+  @override
+  void onTrayIconRightMouseDown() {
+    try {
+      trayManager.popUpContextMenu();
+    } catch (_) {}
+  }
+
+  @override
+  void onTrayMenuItemClick(MenuItem menuItem) async {
+    switch (menuItem.key) {
+      case 'open_app':
+        try {
+          windowManager.show();
+          windowManager.focus();
+        } catch (_) {}
+      case 'open_downloads':
+        _openDownloadsRootFolder();
+      case 'quit':
+        try {
+          await trayManager.destroy();
+        } catch (_) {}
+        try {
+          windowManager.destroy();
+        } catch (_) {}
+    }
+  }
+
+  @override
+  void onWindowClose() async {
+    final hasActiveDownloads = _queueController.activeTransferCount > 0;
+    if (_preferences.minimizeToTrayOnClose || hasActiveDownloads) {
+      try {
+        await windowManager.hide();
+      } catch (_) {}
+    } else {
+      try {
+        await windowManager.destroy();
+      } catch (_) {}
+    }
+  }
+
   Future<void> _handleBrowseOutputFolder() async {
     final picker =
         widget.pickOutputDirectory ??
@@ -1168,6 +1276,7 @@ class _HomeScreenState extends State<HomeScreen> {
         outputFolderLabel: choice.label,
       );
     });
+    _savePreferences();
     _showSuccessMessage('Pasta selecionada');
   }
 
@@ -1247,11 +1356,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       outputFolderLabel: choice.label,
                     );
                   });
+                  _savePreferences();
                 },
                 smartModeEnabled: _preferences.smartModeEnabled,
-                onSmartModeChanged: (value) => setState(() {
-                  _preferences = _preferences.copyWith(smartModeEnabled: value);
-                }),
+                onSmartModeChanged: (value) {
+                  setState(() {
+                    _preferences = _preferences.copyWith(
+                      smartModeEnabled: value,
+                    );
+                  });
+                  _savePreferences();
+                },
                 onPaste: _handlePaste,
                 onOpenPreferences: _openPreferencesDialog,
               ),

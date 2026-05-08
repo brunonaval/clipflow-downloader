@@ -138,11 +138,30 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
             () => _preferences = _preferences.copyWith(smartModeEnabled: value),
           ),
         ),
+        SwitchListTile(
+          title: const Text('Manter ClipFlow na bandeja ao fechar'),
+          subtitle: const Text(
+            'Ao fechar a janela, o app continua na bandeja do sistema em vez de encerrar.',
+          ),
+          value: _preferences.minimizeToTrayOnClose,
+          onChanged: (value) => setState(
+            () => _preferences = _preferences.copyWith(
+              minimizeToTrayOnClose: value,
+            ),
+          ),
+        ),
       ],
     );
   }
 
   Widget _downloadsSection() {
+    const standardOptions = ['Downloads', 'Vídeos', 'Documentos'];
+    final choice = _preferences.outputFolderChoice;
+    final isCustom = choice.type == OutputFolderType.custom;
+    final dropdownValue = (isCustom || !standardOptions.contains(choice.label))
+        ? 'Downloads'
+        : choice.label;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -153,8 +172,8 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
         const SizedBox(height: 16),
         _dropdownRow(
           label: 'Pasta padrão',
-          value: _preferences.outputFolderChoice.label,
-          options: const ['Downloads', 'Vídeos', 'Documentos'],
+          value: dropdownValue,
+          options: standardOptions,
           onChanged: (value) => setState(
             () => _preferences = _preferences.copyWith(
               outputFolderChoice: switch (value) {
@@ -171,6 +190,14 @@ class _PreferencesDialogState extends State<PreferencesDialog> {
             ),
           ),
         ),
+        if (isCustom)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'Pasta atual: ${choice.label}\nUse "Guardar em > Navegar..." na toolbar para alterar.',
+              style: const TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ),
       ],
     );
   }
